@@ -68,9 +68,10 @@ def get_features_for_pixel(image, pixel, offsets):
     features = np.array([])
     for u, v in offsets:
         feature = calculate_feature(image, pixel, u, v)
-        np.insert(features, len(features), feature)
-        if feature != 0:
-            print(feature)
+        features = np.insert(features, len(features), feature)
+        #if feature != 0 and feature < 2147000000 and feature > -2147000000:
+        #    print(feature)
+        
     return features
 def get_label(mask, pixel):
     value = mask[pixel[0], pixel[1]]
@@ -79,32 +80,39 @@ def get_label(mask, pixel):
     return 1
     
 def get_samples_for_image(image, mask, pixels, offsets):
-    features = np.array([])
-    labels = np.array([])
+    features = []
+    labels = []
     for pixel in pixels:
         pixelFeatures = get_features_for_pixel(image, pixel, offsets)
         label = get_label(mask, pixel)
-        np.insert(features, len(features), pixelFeatures)
-        np.insert(labels, len(labels), label)
-        #print(pixelFeatures.shape, label)
+        features.append(pixelFeatures)
+        labels.append(label)
     return features, labels
         
 """
 Returns a tuple consisting of features and corresponding labels.
 """
 def get_samples(num_images = 1, 
-                sampled_pixels = 2001, 
-                features = 20):
+                sampled_pixels = 2000, 
+                features = 100):
     image_shape = (480, 640)
     images, masks = load_images(num_images)
     offsets = get_offsets(features, image_shape)
-    pixels = get_random_pixels(sampled_pixels, image_shape)
-    #print(pixels)
-    features, labels = get_samples_for_image(images[0], masks[0], pixels, offsets)
-    #print(features.shape, labels.shape)
-    return features, labels
+    
+    features = []
+    labels = []
+    for image, mask in zip(images, masks):
+        pixels = get_random_pixels(sampled_pixels, image_shape)
+        f, l = get_samples_for_image(image, mask, pixels, offsets)
+        features += f
+        labels += l
+        
+    #print(sum([l for l in labels if l == 1]))
+    return np.array(features), np.array(labels)
 
-get_samples()
+#f, l = get_samples(1)
+#print(f.shape, l.shape)
+
 """
 image = np.ones((10,10))
 image[1,1] = 2
