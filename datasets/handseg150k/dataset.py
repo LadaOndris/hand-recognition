@@ -8,11 +8,14 @@ import glob
 
 HUGE_INT = 2147483647
 
+
 class HandsegDataset:
     
     
     def __init__(self):
         self.image_shape = (480, 640)
+        self.offsets = None
+        self.pixels = None
         return
     
     def load_images(self, num):
@@ -107,46 +110,30 @@ class HandsegDataset:
             It is not used if pixels parameter is given.
         total_features: Number of feature to be extracted for each pixel.
             It is not used if offsets parameter is given.
-        pixels: List of coordinates, target pixels, to extract the features 
-            from.
-        offsets: Offsets which are used to calculate features from a pixel. 
-            For each feature, there is a tuple of two offsets.
+        #pixels: List of coordinates, target pixels, to extract the features 
+        #    from.
+        #offsets: Offsets which are used to calculate features from a pixel. 
+        #    For each feature, there is a tuple of two offsets.
     """
     def get_samples(self,
                     num_images = 1, 
                     sampled_pixels_count = 2000, 
-                    total_features = 100,
-                    pixels = None,
-                    offsets = None):
+                    total_features = 2000):
         images, masks = self.load_images(num_images)
         
-        if offsets == None:
-            offsets = self.get_offsets(total_features, self.image_shape)
-        if pixels == None:
-            pixels = self.get_random_pixels(sampled_pixels_count, self.image_shape)
+        if self.offsets is None:
+            self.offsets = self.get_offsets(total_features, self.image_shape)
+        if self.pixels is None:
+            self.pixels = self.get_random_pixels(sampled_pixels_count, self.image_shape)
         
         features = []
         labels = []
         for image, mask in zip(images, masks):
-            f, l = self.get_samples_for_image(image, mask, pixels, offsets)
+            f, l = self.get_samples_for_image(image, mask, self.pixels, self.offsets)
             features += f
             labels += l
             
         #print(sum([l for l in labels if l == 1]))
-        self.pixels = pixels
-        self.offsets = offsets
         return np.array(features), np.array(labels)
-
-
-"""
-dataset = HandsegDataset()
-dataset.get_samples(num_images = 5, pixels, offsets)
-
-dataset = HandsegDataset()
-dataset.get_samples(num_images = 5)
-
-"""   
-    
-    
     
     
