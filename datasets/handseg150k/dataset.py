@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import os
 import glob
+import time
 
 HUGE_INT = 2147483647
 
@@ -34,6 +35,20 @@ class HandsegDataset:
         masks = [np.array(Image.open(filename)) for filename in masks_paths]
         return images, masks
         
+    def load_image(self, index):
+        dirname = os.path.dirname(__file__)
+        all_images_paths = glob.glob(os.path.join(dirname, 'images/*'))
+        image_path = all_images_paths[index]
+        
+        _, filename = os.path.split(image_path)
+        mask_path = os.path.join(dirname, 'masks', filename)
+            
+        image = np.array(Image.open(image_path))
+        image[image == 0] = HUGE_INT
+        mask = np.array(Image.open(mask_path))
+        return image, mask
+        
+        
     """    
     images, masks = load_images(4)
     
@@ -43,9 +58,17 @@ class HandsegDataset:
     """    
     
     def get_random_pixels(self, count, image_shape):
-        x = np.random.randint(0, image_shape[0], count, dtype=np.int32) 
-        y = np.random.randint(0, image_shape[1], count, dtype=np.int32) 
-        return np.column_stack((x, y))
+        #x = np.arange(0, 480, step=12)
+        #y = np.arange(0, 640, step=12)
+        return [[i, j] for i in range(0, 480, 12) for j in range(0, 640, 12)]
+                
+        #mx, my = np.meshgrid(x, y)
+        #print(mx.shape, my.shape)
+        
+        #x = np.random.randint(0, image_shape[0], count, dtype=np.int32) 
+        #y = np.random.randint(0, image_shape[1], count, dtype=np.int32) 
+        
+        #return np.column_stack((x, y))
     
     def get_offset(self, count, image_shape):
         half_width = image_shape[0] / 2.0
@@ -66,6 +89,38 @@ class HandsegDataset:
             return image[coord[0], coord[1]]
         return HUGE_INT
     
+    def get_depth_m(self, image, coords):
+        depths = np.full(shape=(len(coords)), fill_value=HUGE_INT, dtype=int)
+        """
+        for i, c in enumerate(coords):
+            if (c[0] >= 0 and c[1] >= 0 and
+                c[0] < image.shape[0] and
+                c[1] < image.shape[1]):
+                depths[i] = image[c[0], c[1]]
+        """ 
+        """
+        x_coords = coords[:,0]
+        y_coords = coords[:,1]
+        x_coords[x_coords < 0] = 0
+        y_coords[y_coords < 0] = 0
+        x_coords[x_coords >= image.shape[0]] = 0
+        y_coords[y_coords >= image.shape[1]] = 0
+        depths = image[x_coords, y_coords]
+        """
+        
+        mask = (coords[:,0] < image.shape[0]) & (coords[:,1] < image.shape[1]) & \
+            (coords[:,0] >= 0) & (coords[:,1] >= 0)
+        valid = coords[mask]
+        depths[mask] = image[valid[:, 0], valid[:, 1]]
+        
+        #coords = coords
+                          #x_coords < image.shape[0] and
+                          #y_coords >= 0 and
+                          #y_coords < image.shape[1]]
+        #print(depths, "###")
+        
+        return depths
+    
     def calculate_feature(self, image, pixel, u, v):
         pixelDepth = image[pixel[0], pixel[1]]#get_depth(image, pixel)
         u = np.divide(u * 10000, pixelDepth).astype(int)
@@ -84,20 +139,29 @@ class HandsegDataset:
             
         return features
     
+    def get_features_for_pixel_m(self, image, pixel):
+        u = self.offsets[:,0]
+        v = self.offsets[:,1]
+        pixelDepth = image[pixel[0], pixel[1]]
+        u = np.divide(u * 10000, pixelDepth).astype(int)
+        v = np.divide(v * 10000, pixelDepth).astype(int)
+        p1 = np.add(pixel, u)
+        p2 = np.add(pixel, v)
+        return np.subtract(self.get_depth_m(image, p1), self.get_depth_m(image, p2))
+        
+    
     def get_label(self, mask, pixel):
         value = mask[pixel[0], pixel[1]]
         if value == 0:
             return 0
         return 1
         
-    def get_samples_for_image(self, image, mask, pixels, offsets):
-        features = []
-        labels = []
-        for pixel in pixels:
-            pixelFeatures = self.get_features_for_pixel(image, pixel, offsets)
-            label = self.get_label(mask, pixel)
-            features.append(pixelFeatures)
-            labels.append(label)
+    def get_samples_for_image(self, image, mask):
+        features = np.empty(shape=(len(self.pixels), len(self.offsets)), dtype=int)
+        labels = np.empty(shape=(len(self.pixels)), dtype=int)
+        for i, pixel in enumerate(self.pixels):
+            features[i] = self.get_features_for_pixel_m(image, pixel)
+            labels[i] = self.get_label(mask, pixel)
         return features, labels
             
     """
@@ -126,14 +190,24 @@ class HandsegDataset:
         if self.pixels is None:
             self.pixels = self.get_random_pixels(sampled_pixels_count, self.image_shape)
         
-        features = []
-        labels = []
-        for image, mask in zip(images, masks):
-            f, l = self.get_samples_for_image(image, mask, self.pixels, self.offsets)
-            features += f
-            labels += l
+        features = np.ndarray(shape=(num_images * len(self.pixels), len(self.offsets)))
+        labels = np.ndarray(shape=(num_images * len(self.pixels)))
+        
+        for i, (image, mask) in enumerate(zip(images, masks)):
+            for p, pixel in enumerate(self.pixels):
+                #if image[pixel[0], pixel[1]] == HUGE_INT:
+                #    continue
+                features[i * len(self.pixels) + p] = self.get_features_for_pixel_m(image, pixel)
+                labels[i * len(self.pixels) + p] = self.get_label(mask, pixel)
             
         #print(sum([l for l in labels if l == 1]))
-        return np.array(features), np.array(labels)
-    
-    
+        return features, labels
+
+"""
+d = HandsegDataset()
+start_time = time.monotonic()
+s = d.get_samples(10)
+print('seconds:', (time.monotonic() - start_time))
+print(s[0].shape, s[1].shape)
+#print([a  for i in range(len(s[0])) for a in s[0][i] if a != 0 and a < 2147000000 and a > -2147000000])
+"""
