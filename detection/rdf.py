@@ -23,16 +23,16 @@ def get_current_timestamp():
     dt_string = now.strftime("%Y%m%d_%H%M%S")
     return dt_string
 
-def load_dataset(images, test_size = 0.2):
+def load_dataset(start_index, end_index, test_size = 0.2):
     # X contains features, y contains labels
-    features, labels = dataset.get_samples(images, sampled_pixels_count=400, total_features=400)
+    features, labels = dataset.get_samples(start_index, end_index)
     # split data in train and test set
     X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size = test_size)
     return X_train, X_test, y_train, y_test
 
 def train_model(X_train, y_train):
     # train random forest
-    rdf = RandomForestClassifier(max_depth=20, bootstrap=True, n_estimators=64)
+    rdf = RandomForestClassifier(max_depth=20, bootstrap=True, n_estimators=64, n_jobs=-1)
     rdf.fit(X_train, y_train)
     return rdf
 
@@ -61,19 +61,35 @@ def evaluate(model, X_test, y_test):
     
 def create_train_save():
     print("Loading dataset", flush=True)
-    X_train, X_test, y_train, y_test = load_dataset(images = 200, test_size=0.1)
+    X_train, X_test, y_train, y_test = load_dataset(0, 199, test_size=0.1)
     print("Training model", flush=True)
     model = train_model(X_train, y_train)
     print("Saving model", flush=True)
     save_model(model)
     print("Evaluating model", flush=True)
     evaluate(model, X_test, y_test)
+    
+def create_train_incrementally_save():
+    rdf = RandomForestClassifier(max_depth=20, bootstrap=True, n_estimators=1, 
+                                 n_jobs=-1, warm_start = True)
+    step = 200
+    for i in range(0, 5000, step):
+        print(F"Loading dataset {i}", flush=True)
+        X, y = dataset.get_samples(i, i + step - 1, total_features = 200)
+        print("Training model", flush=True)
+        rdf.n_estimators += 1
+        rdf.fit(X, y)
+    print("Saving model", flush=True)
+    save_model(rdf)
 
+"""
+Good models: 20200712_175549, 20200712_231245
+"""
 def load_evaluate():
     print("Loading model", flush=True)
-    model = load_model('/home/lada/projects/IBT/detection', '20200712_175549')
+    model = load_model('/home/lada/projects/IBT/detection', '20200713_105103')
     print("Loading dataset", flush=True)
-    X_test, y_test = dataset.get_samples(20)
+    X_test, y_test = dataset.get_samples(5000, 5199)
     print("Evaluating model", flush=True)
     evaluate(model, X_test, y_test)
 
@@ -112,7 +128,10 @@ def evaluate_image():
     X, y = dataset.get_samples_for_image(image, mask)
     evaluate(model, X, y)
     
-create_train_save()
+def predict_boundary():
+    return
+    
+#load_evaluate()
 
 """
 import pyrealsense2 as rs

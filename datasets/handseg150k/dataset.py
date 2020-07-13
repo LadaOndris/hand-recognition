@@ -19,11 +19,27 @@ class HandsegDataset:
         self.pixels = None
         return
     
-    def load_images(self, num):
+    """
+    Load a subset of images of the dataset.
+    The subset is defined by start_index and end_index.
+    
+    If start_index is set to None, the subset starts at the beginning of the dataset.
+    If end_index is set to None, the subset ends at the end of the dataset.
+    If both set to None, selects the whole dataset. Not recommended.
+    """
+    def load_images(self, start_index = 0, end_index = 99):
         dirname = os.path.dirname(__file__)
         all_images_paths = glob.glob(os.path.join(dirname, 'images/*'))
         masks_paths = []
-        images_paths = all_images_paths[:num]
+        
+        if (start_index != None and end_index != None):
+            images_paths = all_images_paths[start_index:end_index]
+        elif (start_index == None and end_index != None):
+            images_paths = all_images_paths[:end_index]
+        elif (start_index != None and end_index == None):
+            images_paths = all_images_paths[start_index:]
+        else:
+            images_paths = all_images_paths
         
         for image_path in images_paths:
             _, filename = os.path.split(image_path)
@@ -35,6 +51,9 @@ class HandsegDataset:
         masks = [np.array(Image.open(filename)) for filename in masks_paths]
         return images, masks
         
+    """
+    Reads a depth image and its mask at the specified index.
+    """
     def load_image(self, index):
         dirname = os.path.dirname(__file__)
         all_images_paths = glob.glob(os.path.join(dirname, 'images/*'))
@@ -156,6 +175,9 @@ class HandsegDataset:
             return 0
         return 1
         
+    """
+    Computes features and labels for the given image.
+    """
     def get_samples_for_image(self, image, mask):
         features = np.empty(shape=(len(self.pixels), len(self.offsets)), dtype=int)
         labels = np.empty(shape=(len(self.pixels)), dtype=int)
@@ -180,16 +202,18 @@ class HandsegDataset:
         #    For each feature, there is a tuple of two offsets.
     """
     def get_samples(self,
-                    num_images = 1, 
+                    image_start_index = 0,
+                    image_end_index = 99,
                     sampled_pixels_count = 2000, 
                     total_features = 2000):
-        images, masks = self.load_images(num_images)
+        images, masks = self.load_images(image_start_index, image_end_index)
         
         if self.offsets is None:
             self.offsets = self.get_offsets(total_features, self.image_shape)
         if self.pixels is None:
             self.pixels = self.get_random_pixels(sampled_pixels_count, self.image_shape)
         
+        num_images = image_end_index - image_start_index + 1
         features = np.ndarray(shape=(num_images * len(self.pixels), len(self.offsets)))
         labels = np.ndarray(shape=(num_images * len(self.pixels)))
         
