@@ -15,8 +15,6 @@ class HandsegDataset:
     
     def __init__(self):
         self.image_shape = (480, 640)
-        self.offsets = None
-        self.pixels = None
         return
     
     """
@@ -67,7 +65,7 @@ class HandsegDataset:
         mask = np.array(Image.open(mask_path))
         return image, mask
         
-        
+    
     """    
     images, masks = load_images(4)
     
@@ -75,7 +73,7 @@ class HandsegDataset:
         plt.imshow(i); plt.title('Depth Image'); plt.show() # Displaying Depth Image
         plt.imshow(m); plt.title('Mask Image'); plt.show() # Displaying Mask Image
     """    
-    
+    """
     def get_random_pixels(self, count, image_shape):
         #x = np.arange(0, 480, step=12)
         #y = np.arange(0, 640, step=12)
@@ -111,13 +109,15 @@ class HandsegDataset:
     def get_depth_m(self, image, coords):
         depths = np.full(shape=(len(coords)), fill_value=HUGE_INT, dtype=int)
         """
+    
+    """
         for i, c in enumerate(coords):
             if (c[0] >= 0 and c[1] >= 0 and
                 c[0] < image.shape[0] and
                 c[1] < image.shape[1]):
                 depths[i] = image[c[0], c[1]]
-        """ 
-        """
+    """ 
+    """
         x_coords = coords[:,0]
         y_coords = coords[:,1]
         x_coords[x_coords < 0] = 0
@@ -125,8 +125,8 @@ class HandsegDataset:
         x_coords[x_coords >= image.shape[0]] = 0
         y_coords[y_coords >= image.shape[1]] = 0
         depths = image[x_coords, y_coords]
-        """
-        
+    """
+    """
         mask = (coords[:,0] < image.shape[0]) & (coords[:,1] < image.shape[1]) & \
             (coords[:,0] >= 0) & (coords[:,1] >= 0)
         valid = coords[mask]
@@ -174,9 +174,10 @@ class HandsegDataset:
         if value == 0:
             return 0
         return 1
-        
+    """
     """
     Computes features and labels for the given image.
+    """
     """
     def get_samples_for_image(self, image, mask):
         features = np.empty(shape=(len(self.pixels), len(self.offsets)), dtype=int)
@@ -185,7 +186,7 @@ class HandsegDataset:
             features[i] = self.get_features_for_pixel_m(image, pixel)
             labels[i] = self.get_label(mask, pixel)
         return features, labels
-            
+    """        
     """
     Returns a tuple consisting of features and corresponding labels.
     
@@ -200,6 +201,7 @@ class HandsegDataset:
         #    from.
         #offsets: Offsets which are used to calculate features from a pixel. 
         #    For each feature, there is a tuple of two offsets.
+    """
     """
     def get_samples(self,
                     image_start_index = 0,
@@ -227,7 +229,7 @@ class HandsegDataset:
         #print(sum([l for l in labels if l == 1]))
         return features, labels
 
-"""
+
 d = HandsegDataset()
 start_time = time.monotonic()
 s = d.get_samples(10)

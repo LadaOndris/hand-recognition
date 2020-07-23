@@ -28,16 +28,16 @@ def get_feature_offsets(count, image_shape):
 
 @jit(nopython=True)
 def get_depth_m(image, coords):
-    for coords_for_pixel in coords:
-        depths = np.full(shape=(len(coords_for_pixel)), fill_value=HUGE_INT, dtype=np.int32)
-        
+    depths = np.full(shape=(coords.shape[0], coords.shape[1]), fill_value=HUGE_INT, dtype=np.int32)
+    for j, coords_for_pixel in enumerate(coords):
         for i, c in enumerate(coords_for_pixel):
             if (c[0] >= 0 and c[1] >= 0 and
                 c[0] < image.shape[0] and
                 c[1] < image.shape[1]):
-                depths[i] = image[c[0], c[1]]
+                depths[j, i] = image[c[0], c[1]]
     return depths
 
+"""
 def get_features_for_pixel_m(image, pixel, u, v):
     pixelDepth = image[pixel[0], pixel[1]]
     u = np.divide(u * 10000, pixelDepth).astype(np.int32)
@@ -45,7 +45,7 @@ def get_features_for_pixel_m(image, pixel, u, v):
     p1 = np.add(pixel, u)
     p2 = np.add(pixel, v)
     return np.subtract(get_depth_m(image, p1), get_depth_m(image, p2))
-
+"""
 def get_features_for_pixels_m(image, pixels, u, v):
     pixelDepths = image[pixels[:,0], pixels[:,1]]
     u = np.divide(u * 10000, pixelDepths[:, np.newaxis, np.newaxis]).astype(np.int32)
@@ -53,7 +53,7 @@ def get_features_for_pixels_m(image, pixels, u, v):
     p1 = np.add(pixels[:, np.newaxis, :], u)
     p2 = np.add(pixels[:, np.newaxis, :], v)
     return np.subtract(get_depth_m(image, p1), get_depth_m(image, p2))
-
+    
 def get_label(mask, pixel):
     value = mask[pixel[0], pixel[1]]
     if value == 0:
@@ -82,7 +82,8 @@ def extract_features(images,
     v = offsets[:,1]
     
     for i, image in enumerate(images):
-        features[i * len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
+        index = i * len(pixels)
+        features[index : index + len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
     return features
 """
 Extracts features for all given images.
@@ -107,8 +108,9 @@ def extract_features_and_labels(images, masks,
     u = offsets[:,0]
     v = offsets[:,1]
     for i, (image, mask) in enumerate(zip(images, masks)):
-        features[i * len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
+        index = i * len(pixels)
+        features[index : index + len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
         for p, pixel in enumerate(pixels):
-            labels[i * len(pixels) + p] = get_label(mask, pixel)
+            labels[index + p] = get_label(mask, pixel)
             
     return features, labels

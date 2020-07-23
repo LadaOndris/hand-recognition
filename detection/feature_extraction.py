@@ -26,21 +26,19 @@ def get_feature_offsets(count, image_shape):
     return np.dstack((u, v))
 
 def get_depth_m(image, coords):
-    depths = np.full(shape=(len(coords)), fill_value=HUGE_INT, dtype=np.int32)
-    
+    depths = np.full(shape=len(coords), fill_value=HUGE_INT, dtype=np.int32)
     mask = (coords[:,0] < image.shape[0]) & (coords[:,1] < image.shape[1]) & \
         (coords[:,0] >= 0) & (coords[:,1] >= 0)
     valid = coords[mask]
     depths[mask] = image[valid[:, 0], valid[:, 1]]
-    
     return depths
         
-def get_features_for_pixels_m(image, pixels, u, v):
-    pixelDepths = image[pixels[:,0], pixels[:,1]]
-    u = np.divide(u * 10000, pixelDepths[:, np.newaxis, np.newaxis]).astype(np.int32)
-    v = np.divide(v * 10000, pixelDepths[:, np.newaxis, np.newaxis]).astype(np.int32)
-    p1 = np.add(pixels[:, np.newaxis, :], u)
-    p2 = np.add(pixels[:, np.newaxis, :], v)
+def get_features_for_pixel_m(image, pixel, u, v):
+    pixelDepth = image[pixel[0], pixel[1]]
+    u = np.divide(u * 10000, pixelDepth).astype(int)
+    v = np.divide(v * 10000, pixelDepth).astype(int)
+    p1 = np.add(pixel, u)
+    p2 = np.add(pixel, v)
     return np.subtract(get_depth_m(image, p1), get_depth_m(image, p2))
 
 def get_label(mask, pixel):
@@ -71,7 +69,8 @@ def extract_features(images,
     v = offsets[:,1]
     
     for i, image in enumerate(images):
-        features[i * len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
+        for p, pixel in enumerate(pixels):
+            features[i * len(pixels) + p]  = get_features_for_pixel_m(image, pixel, u, v)
     return features
 """
 Extracts features for all given images.
@@ -97,8 +96,8 @@ def extract_features_and_labels(images, masks,
     v = offsets[:,1]
     
     for i, (image, mask) in enumerate(zip(images, masks)):
-        features[i * len(pixels)] = get_features_for_pixels_m(image, pixels, u, v)
         for p, pixel in enumerate(pixels):
+            features[i * len(pixels) + p]  = get_features_for_pixel_m(image, pixel, u, v)
             labels[i * len(pixels) + p] = get_label(mask, pixel)
             
     return features, labels

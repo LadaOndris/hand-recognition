@@ -16,6 +16,11 @@ def load_params():
     pixels = load("pixels_benchmark.joblib")
     return pixels, offsets
 
+"""
+Creates features offsets and pixel coordinates used to
+extract features from the images. 
+Then they are saved to files.
+"""
 def create_benchmark_parameters():
     dataset = HandsegDataset()
     depth_images, masks = dataset.load_images(0, 10)
@@ -24,26 +29,36 @@ def create_benchmark_parameters():
     pixel_coords = get_pixel_coords(12, depth_images[0].shape)
     
     save_params(pixel_coords, feature_offsets)
+
+"""
+Benchmarks the feature extraction for given number of images. 
+Calls extract_features reps times.
+
+Returns the mean execution time.
+"""
+def benchmark(images, reps):
+    dataset = HandsegDataset()
+    depth_images, masks = dataset.load_images(0, images)
     
-#pixel_coords, feature_offsets = load_params()
+    execution_times = np.empty(shape=(reps))
+    for i in range(reps):
+        start = timeit.default_timer()
+        _ = extract_features(depth_images, offsets = feature_offsets, 
+                                    pixels = pixel_coords)
+        stop = timeit.default_timer()
+        execution_times[i] = stop - start 
+    return np.mean(execution_times)
+        
+    
+pixel_coords, feature_offsets = load_params()
 #feature_offsets = feature_offsets.astype(np.int32)
+"""
+feature_offsets = get_feature_offsets(2000, depth_images[0].shape)
+pixel_coords = get_pixel_coords(12, depth_images[0].shape)
+"""
 
-dataset = HandsegDataset()
-depth_images, masks = dataset.load_images(0, 1)
+print("Feature offsets", feature_offsets.shape)
+print("Pixel coordinates", pixel_coords.shape)
 
-feature_offsets = get_feature_offsets(1000, depth_images[0].shape)
-pixel_coords = get_pixel_coords(24, depth_images[0].shape)
-
-print(feature_offsets.shape)
-print(pixel_coords.shape)
-
-
-
-start = timeit.default_timer()
-features = extract_features(depth_images, offsets = feature_offsets, 
-                            pixels = pixel_coords)
-stop = timeit.default_timer()
-execution_time = stop - start
-print("Feature extraction execution time: %.2f" % execution_time)
-
-print(features.shape, features.dtype)
+mean_exec_time = benchmark(images = 100, reps = 1)
+print("Feature extraction mean execution time: %.2f" % mean_exec_time)
