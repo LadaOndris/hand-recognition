@@ -45,7 +45,7 @@ class HandsegDataset:
             _, filename = os.path.split(image_path)
             masks_paths.append(os.path.join(dirname, 'masks', filename))
             
-        images = [np.array(Image.open(filename)) for filename in images_paths]
+        images = np.array([np.array(Image.open(filename)) for filename in images_paths])
         for image in images:
             image[image == 0] = HUGE_INT
         masks = [np.array(Image.open(filename)) for filename in masks_paths]

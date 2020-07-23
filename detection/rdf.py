@@ -36,11 +36,11 @@ def train_model(X_train, y_train):
     rdf.fit(X_train, y_train)
     return rdf
 
-def save_model(model):
+def save_model(model, path):
     timestamp = get_current_timestamp()
-    dump(model, F"rdf_{timestamp}.joblib") 
-    dump(dataset.offsets, F"offsets_{timestamp}.joblib")
-    dump(dataset.pixels, F"pixels_{timestamp}.joblib")
+    dump(model, os.path.join(path, F"rdf_{timestamp}.joblib")) 
+    dump(dataset.offsets, os.path.join(path, F"offsets_{timestamp}.joblib"))
+    dump(dataset.pixels, os.path.join(path, F"pixels_{timestamp}.joblib"))
     
 def load_model(path, timestamp):
     dataset.offsets = load(os.path.join(path, F"offsets_{timestamp}.joblib"))
@@ -65,7 +65,7 @@ def create_train_save():
     print("Training model", flush=True)
     model = train_model(X_train, y_train)
     print("Saving model", flush=True)
-    save_model(model)
+    save_model(model, './saved_models')
     print("Evaluating model", flush=True)
     evaluate(model, X_test, y_test)
     
@@ -80,7 +80,7 @@ def create_train_incrementally_save():
         rdf.n_estimators += 1
         rdf.fit(X, y)
     print("Saving model", flush=True)
-    save_model(rdf)
+    save_model(rdf, './saved_models')
 
 """
 Good models: 20200712_175549, 20200712_231245
@@ -128,7 +128,19 @@ def evaluate_image():
     X, y = dataset.get_samples_for_image(image, mask)
     evaluate(model, X, y)
     
-def predict_boundary():
+"""
+Detects a hand in the depth image. 
+Creates a (2D or 3D?) bounding box containing the detected hand.
+Returns a subimage defined by the bounding box.
+
+Returns a subimage of the detected hand from the original depth image.
+The returned image properties:
+    Default Size = 128 x 128
+    Values = [-1, 1]
+    Background values = 1
+"""
+def predict_boundary(depth_image, target_size = (128, 128)):
+    
     return
     
 #load_evaluate()
