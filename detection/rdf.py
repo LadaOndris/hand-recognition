@@ -19,8 +19,6 @@ import os
 import cv2
 
 dataset = HandsegDataset()
-features_offsets = None
-pixels_coords = None
 
 def get_current_timestamp():
     now = datetime.now()
@@ -36,25 +34,25 @@ def load_dataset(start_index, end_index, test_size = 0.2):
     return X_train, X_test, y_train, y_test
 
 def train_model(X_train, y_train):
-    # train random forest
     rdf = RandomForestClassifier(max_depth=20, bootstrap=True, n_estimators=64, n_jobs=-1)
     rdf.fit(X_train, y_train)
-    
     return rdf
 
-def save_model(model, path):
-    timestamp = get_current_timestamp()
-    dump(model, os.path.join(path, F"rdf_{timestamp}.joblib")) 
-    dump(features_offsets, os.path.join(path, F"offsets_{timestamp}.joblib"))
-    dump(pixels_coords, os.path.join(path, F"pixels_{timestamp}.joblib"))
+def save_model(model, pixels, offsets, path, timestamp = True, name_suffix = ""):
+    if timestamp == True:
+        timestamp = get_current_timestamp()
+    else:
+        timestamp = ""
+    dump(model, os.path.join(path, F"rdf_{timestamp}{name_suffix}.joblib")) 
+    dump(offsets, os.path.join(path, F"offsets_{timestamp}{name_suffix}.joblib"))
+    dump(pixels, os.path.join(path, F"pixels_{timestamp}{name_suffix}.joblib"))
     
-def load_model(path, timestamp):
-    global features_offsets
-    global pixels_coords
-    features_offsets = load(os.path.join(path, F"offsets_{timestamp}.joblib"))
-    pixels_coords = load(os.path.join(path, F"pixels_{timestamp}.joblib"))
+def load_model(path, suffix):
+    features_offsets = load(os.path.join(path, F"offsets_{suffix}.joblib"))
+    pixels_coords = load(os.path.join(path, F"pixels_{suffix}.joblib"))
     pixels_coords = np.array(pixels_coords)
-    return load(os.path.join(path, F"rdf_{timestamp}.joblib"))
+    model = load(os.path.join(path, F"rdf_{suffix}.joblib"))
+    return model, pixels_coords, features_offsets
 
 def evaluate(model, X_test, y_test):
     # determine the accuracy predicted by the model
@@ -70,51 +68,60 @@ def evaluate(model, X_test, y_test):
     
 def create_train_save():
     print("Loading dataset", flush=True)
-    X_train, X_test, y_train, y_test = load_dataset(0, 10, test_size=0.1)
+    data, pixels, offsets = load_dataset(0, 10, test_size=0.1)
+    X_train, X_test, y_train, y_test = data
     print("Training model", flush=True)
     model = train_model(X_train, y_train)
     print("Saving model", flush=True)
-    save_model(model, './saved_models')
+    save_model(model, pixels, offsets, './saved_models')
     print("Evaluating model", flush=True)
     evaluate(model, X_test, y_test)
     
-def create_train_incrementally_save():
+def create_train_incrementally_save(features_per_pixel):
     rdf = RandomForestClassifier(max_depth=20, bootstrap=True, n_estimators=1, 
                                  n_jobs=-1, warm_start = True)
-    step = 200
+    
+    features_offsets = get_feature_offsets(features_per_pixel, dataset.image_shape)
+    pixels_coords = get_pixel_coords(18, dataset.image_shape)
+    
+    step = 50
     for i in range(0, 5000, step):
         print(F"Loading dataset {i}", flush=True)
-        X, y = dataset.get_samples(i, i + step - 1, total_features = 200)
-        print("Training model", flush=True)
+        depth_images, masks = dataset.load_images(i, i + step)
+        X, y = extract_features_and_labels(depth_images, masks, 
+                                           pixels = pixels_coords,
+                                           offsets = features_offsets)
         rdf.n_estimators += 1
         rdf.fit(X, y)
+        
     print("Saving model", flush=True)
-    save_model(rdf, './saved_models')
+    save_model(rdf, pixels_coords, features_offsets,
+               './saved_models/features_count_test',
+               timestamp=False, name_suffix=F"_{features_per_pixel}")
 
 """
 Good models: 20200712_175549, 20200712_231245
 """
 def load_evaluate():
     print("Loading model", flush=True)
-    model = load_model('/home/lada/projects/IBT/detection', '20200713_105103')
+    model, pixels, offsets = load_model('/home/lada/projects/IBT/detection', '20200713_105103')
     
     print("Loading dataset", flush=True)
     depth_images, masks = dataset.load_images(5000, 5020)
-    X_test, y_test = extract_features_and_labels(depth_images, masks, offsets=features_offsets, pixels=pixels_coords)
+    X_test, y_test = extract_features_and_labels(depth_images, masks, offsets=offsets, pixels=pixels)
     print("Evaluating model", flush=True)
     evaluate(model, X_test, y_test)
 
 
 def predict_all_pixels():
-    model = load_model('/home/lada/projects/IBT/detection', '20200712_231245')
+    model, pixels, offsets  = load_model('/home/lada/projects/IBT/detection', '20200712_231245')
     depth_image, mask = dataset.load_image(400)
     depth_image = depth_image.astype(np.float32)
-    X, y = extract_features_and_labels(depth_image[np.newaxis,:], mask[np.newaxis,:], offsets=features_offsets, pixels=pixels_coords)
-    print(features_offsets)
+    X, y = extract_features_and_labels(depth_image[np.newaxis,:], mask[np.newaxis,:], offsets=offsets, pixels=pixels)
     predicted_proba = model.predict_proba(X)
     predicted = (predicted_proba[:,1] >= 0.5).astype('int')
     print("Precision:", precision_score(y, predicted))
-    hand = [pix for pred, pix in zip(predicted, pixels_coords) if pred == 1]
+    hand = [pix for pred, pix in zip(predicted, pixels) if pred == 1]
     hand = np.array(hand)
     
     # normalize image, convert to rgb
@@ -132,13 +139,53 @@ def predict_all_pixels():
     
 
 def evaluate_image():
-    model = load_model('/home/lada/projects/IBT/detection', '20200712_175549')
+    model, pixels, offsets  = load_model('/home/lada/projects/IBT/detection', '20200712_175549')
     depth_image, mask = dataset.load_image(1)
-    X, y = extract_features_and_labels(depth_image, mask, offsets=features_offsets, pixels=pixels_coords)
+    X, y = extract_features_and_labels(depth_image, mask, offsets=offsets, pixels=pixels)
     evaluate(model, X, y)
     
-#load_dataset(0, 1)
-load_evaluate() 
+def create_rdf_for_different_number_of_features():
+    # max number of features 2000
+    # further it's computionally intensive
+    # let's incrementally train in 50 image batches
+    # features number 50 - 2000
+    for features_per_pixel in range(50, 2001, 50):
+        create_train_incrementally_save(features_per_pixel)
+
+def evaluate_features_count_test():
+    precision = []
+    recall = []
+    f1score = []
+    
+    for features_per_pixel in range(50, 2001, 50):
+        print(F"\nEvaluation of {features_per_pixel} model")
+        rdf, pixels, offsets = load_model('./saved_models/features_count_test', F"_{features_per_pixel}")
+        y_pred = []
+        y = []
+        
+        step = 50
+        for i in range(5000, 10000, step):
+            depth_images, masks = dataset.load_images(i, i + step)
+            X_test, y_test = extract_features_and_labels(depth_images, masks, offsets=offsets, pixels=pixels)
+            
+            predicted_proba = rdf.predict_proba(X_test)
+            predicted_subset = (predicted_proba [:,1] >= 0.5).astype('int')
+            y_pred.extend(predicted_subset)
+            y.extend(y_test)
+            
+        precision.append(precision_score(y, y_pred))
+        recall.append(recall_score(y, y_pred))
+        f1score.append(f1_score(y, y_pred))
+        
+        print("Precision:", precision[-1])
+        print("Recall:", recall[-1])
+        print("F1 score:", f1score[-1]) 
+    
+    print(precision)
+    print(recall)
+    print(f1score)
+   
+evaluate_features_count_test() 
    
 """
 Detects a hand in the depth image. 
