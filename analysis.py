@@ -14,8 +14,43 @@ def graph_scores_vs_feature_numbers():
     plt.legend(("Precision", "Recall", "F1 score"))
     plt.xlabel("Number of features")
     plt.ylabel("Score")
-    plt.title("Relation between number of features and score")
-    plt.show()
+    plt.title("Relation between the number of features and the score", pad=15)
     plt.savefig("./figures/RdfNumberOfFeatures.pdf")
+    plt.show()
+    
+def graph_scores_vs_trees_per_iter():
+    trees_per_iter = range(1, 13)
+    precision = [0.8097722157900898, 0.8155555839738098, 0.8067158840916145, 0.8327497308629385, 0.8321569643204041, 0.8231159159716503, 0.8138271717876296, 0.8242488162825663, 0.839712298587412, 0.8368173361059429, 0.8244279923620649, 0.8352814696923385]
+    recall = [0.4015404165833457, 0.41138411719551293, 0.38556859304748325, 0.47403288544280525, 0.4973842591099385, 0.4577385291214852, 0.4590931668204073, 0.4738780697057856, 0.5015642840094695, 0.4932171355218258, 0.47625191100675385, 0.511208014294653]
+    f1score = [0.5368659818710273, 0.5468999228196553, 0.5217619022678468, 0.6041567324925596, 0.6226234551701584, 0.5883133249320157, 0.5870320116796027, 0.6017800605368033, 0.6280131976948456, 0.6206345147792348, 0.6037387151642025, 0.6342456982793118]
+    plt.plot(trees_per_iter, precision, "k--")
+    plt.plot(trees_per_iter, recall, "b:")
+    plt.plot(trees_per_iter, f1score, "r")
+    plt.ylim([0, 1])
+    plt.legend(("Precision", "Recall", "F1 score"))
+    plt.xlabel("Number of trees")
+    plt.ylabel("Score")
+    plt.title("Relation between the number of learned trees per iteration and the score", pad=15)
+    plt.savefig("./figures/RdfNumberOfTreesPerIter.pdf")
+    plt.show()
 
-graph_scores_vs_feature_numbers()
+def graph_scores_vs_tree_height():
+    trees_per_iter = range(4, 25, 2)
+    precision = [0.0, 0.8827329752469669, 0.8414729583959052, 0.8315789473684211, 0.8281391830559758, 0.8294398230884943, 0.829680732729037, 0.8300304278993521, 0.8288679514946294, 0.8316241354638684, 0.8328462447620071]
+    recall = [0.0, 0.1515968598208008, 0.2566328867329364, 0.32053953284351355, 0.3707643381949775, 0.41615115176457684, 0.4522748237358327, 0.4768647232991234, 0.4863342858801597, 0.4948556020719506, 0.5000096759835637]
+    f1score = [0.0, 0.25875604197174723, 0.39331296774129765, 0.46271964540129806, 0.5122088152993387, 0.5542306337574419, 0.5854238943927458, 0.605729128258073, 0.6129960728833816, 0.6204902353307532, 0.6248705122675771] 
+    plt.plot(trees_per_iter, precision, "k--")
+    plt.plot(trees_per_iter, recall, "b:")
+    plt.plot(trees_per_iter, f1score, "r")
+    plt.ylim([0, 1])
+    plt.legend(("Precision", "Recall", "F1 score"))
+    plt.xlabel("Tree height")
+    plt.ylabel("Score")
+    plt.title("Relation between the tree height and the score", pad=15)
+    plt.savefig("./figures/RdfTreeHeight.pdf")
+    plt.show()
+    
+
+#graph_scores_vs_feature_numbers()
+#graph_scores_vs_trees_per_iter()
+graph_scores_vs_tree_height()
