@@ -17,6 +17,11 @@ from skimage import data, exposure
 from model import create_model, parse_cfg
 from utils import output_boxes, draw_output_boxes
 import tensorflow as tf
+from config import Config
+from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
+
+# disable CUDA, run on CPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def get_model_size(net_info_block):
     w = int(net_info_block['width'])
@@ -69,6 +74,7 @@ def test():
     draw_output_boxes(np.squeeze(image), boxes[0], scores[0], classes[0], num_detections[0])
 
 def train():
+    """
     blocks = parse_cfg("cfg/yolov3-tiny.cfg")
     net_info = blocks[0]
     model = create_model(blocks)
@@ -77,13 +83,22 @@ def train():
     image, boxes = dataset.load_image(50050)
     # no need to load labels, there is a single label: a hand
     
+    """
+    
+    
+    config = Config()
+    dataset = HandsegDatasetBboxes(config)
+    
+    for images, bboxes in dataset.batch_iterator:
+        
+        
+        break
     
     
     return
         
 
 if __name__ == '__main__':
-    #test()
     train()
 
 

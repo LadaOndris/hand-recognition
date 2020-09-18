@@ -4,7 +4,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, \
     LeakyReLU, ZeroPadding2D, UpSampling2D
 from tensorflow.keras import Model
-print('Tensorflow Version', tf.__version__)
 
 
 class Yolo(tf.keras.layers.Layer):
