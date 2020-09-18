@@ -7,8 +7,8 @@ import os
 import glob
 import time
 
-HUGE_INT = 2147483647
 
+HUGE_INT = 2147483647
 
 class HandsegDataset:
     
