@@ -41,12 +41,12 @@ def test():
     
     image = tf.expand_dims(image, 0)
     image = tf.expand_dims(image, -1)
-    image = tf.image.resize(image, [240, 320])
+    image = tf.image.resize(image, [416, 416])
     
     print(image.shape)
     model_size = get_model_size(net_info)
-    max_output_size = 2
-    max_output_size_per_class=2
+    max_output_size = 5
+    max_output_size_per_class=2 # is ignored..
     iou_threshold = 0.5
     confidence_threshold = 0.7
     
@@ -99,6 +99,6 @@ def train():
         
 
 if __name__ == '__main__':
-    train()
+    test()
 
 

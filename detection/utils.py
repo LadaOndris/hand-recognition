@@ -10,7 +10,7 @@ def non_max_suppression(inputs, model_size, max_output_size,
     bbox, confs, class_probs = tf.split(inputs, [4, 1, -1], axis=-1)
     bbox = bbox / model_size[0]
     
-    scores = confs * class_probs
+    scores = confs #* class_probs
     print("tf.image.combined_non_max_suppression")
     boxes, scores, classes, num_valid_detections = tf.image.combined_non_max_suppression(
         boxes=tf.reshape(bbox, (tf.shape(bbox)[0], -1, 1, 4)),

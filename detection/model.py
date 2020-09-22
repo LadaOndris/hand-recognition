@@ -2,13 +2,13 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, \
-    LeakyReLU, ZeroPadding2D, UpSampling2D
+    LeakyReLU, ZeroPadding2D, UpSampling2D, MaxPool2D
 from tensorflow.keras import Model
 
 
-class Yolo(tf.keras.layers.Layer):
+class YoloLayer(tf.keras.layers.Layer):
     def __init__(self, anchors, n_classes, input_layer_shape, name=None):
-        super(Yolo, self).__init__(name=name)
+        super(YoloLayer, self).__init__(name=name)
         self.anchors = anchors
         self.n_anchors = len(anchors)
         self.n_classes = n_classes
@@ -30,12 +30,11 @@ class Yolo(tf.keras.layers.Layer):
         
         # convert to range 0 - 1
         box_centers = tf.sigmoid(box_centers)
-        confidence = tf.sigmoid(confidence)
-        classes = tf.sigmoid(classes)
+        confidence = tf.sigmoid(confidence) # confidence is objectness
+        classes = tf.sigmoid(classes) # classes are class predictions
         
         # repeat anchors for all cells
         anchors = tf.tile(self.anchors, [out_shape[1] * out_shape[2], 1])
-        box_shapes = tf.exp(box_shapes) * tf.cast(anchors, dtype=tf.float32)
         
         # create coordinates for each anchor for each cell
         # for 3 anchors per cell:
@@ -49,10 +48,11 @@ class Yolo(tf.keras.layers.Layer):
         cxy = tf.tile(cxy, [1, self.n_anchors])
         cxy = tf.reshape(cxy, [1, -1, 2])
         
-        # get box_centers in real image coordinates
+        # get box_centers and box_shapes in real image coordinates
         strides = (self.input_layer_shape[1] // out_shape[1], \
                    self.input_layer_shape[2] // out_shape[2])
         box_centers = (box_centers + cxy) * strides
+        box_shapes = tf.exp(box_shapes) * tf.cast(anchors, dtype=tf.float32)
         
         # put it back together
         prediction = tf.concat([box_centers, box_shapes, confidence, classes], axis=-1)
@@ -142,6 +142,12 @@ def create_model(blocks):
         elif block_type == 'upsample':
             stride = int(block['stride'])
             inputs = UpSampling2D(stride)(inputs)
+        
+        elif block_type == 'maxpool':
+            size = int(block['size'])
+            stride = int(block['stride'])
+            
+            inputs = MaxPool2D(pool_size=(size, size), strides=(stride, stride))(inputs)
             
         elif block_type == 'route':
             layers = block['layers'].split(',')
@@ -180,7 +186,7 @@ def create_model(blocks):
                            for i in range(0, len(anchors), 2)]
             anchors = [anchors[m] for m in mask]
             
-            prediction = Yolo(anchors, num_classes, 
+            prediction = YoloLayer(anchors, num_classes, 
                                       input_layer.shape, name=F"yolo_{i}")(inputs)
             
             if scale:
@@ -188,6 +194,8 @@ def create_model(blocks):
             else:
                 out_pred = prediction
                 scale = 1
+        else:
+            raise ValueError(F"Unexpected block type while parsing YOLO cfg file: {block_type}")
                 
         outputs.append(inputs)
         #output_filters.append(filters)
