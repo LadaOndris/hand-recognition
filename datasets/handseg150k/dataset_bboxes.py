@@ -62,19 +62,20 @@ class HandsegDatasetBboxes:
         dataset = tf.data.Dataset.from_tensor_slices(self.annotations)
         dataset = dataset.shuffle(len(self.annotations), reshuffle_each_iteration=True)
         dataset = dataset.map(self._prepare_sample)
-        dataset = dataset.padded_batch(self.batch_size)
+        shapes = (tf.TensorShape([480, 640, 1]), tf.TensorShape([None, 4]))
+        dataset = dataset.padded_batch(self.batch_size, padded_shapes=shapes)
         dataset = dataset.prefetch(buffer_size=5)
         return dataset
-    
     
     # annotation line consists of depth_image file name and bounding boxes coordinates
     @tf.function()
     def _prepare_sample(self, annotation):
-        tf.print(annotation)
+        #tf.print(annotation)
         annotation_parts = tf.strings.split(annotation, sep=' ')
         image_file_name = annotation_parts[0]
         image_file_path = tf.strings.join([self.dataset_path, "/images/", image_file_name])
-        depth_image = tf.io.read_file(image_file_path)
+        depth_image_file_content = tf.io.read_file(image_file_path)
+        depth_image = tf.io.decode_image(depth_image_file_content)
         bboxes = tf.reshape(annotation_parts[1:], shape=[-1,4])
         return depth_image, bboxes
 """
