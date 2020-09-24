@@ -76,6 +76,7 @@ class DatasetGenerator:
         self.strides = self.compute_strides(input_shape, output_shapes)
         self.output_shapes = output_shapes
         self.anchors = anchors
+        self.anchors_per_scale = len(anchors[0])
         self.iterator = iter(self.dataset_bboxes_iterator)
         self.n_anchors = 3
     
@@ -118,7 +119,7 @@ class DatasetGenerator:
                 # for each scale (13x13 and 26x26)
                 for scale_index in range(len(self.output_shapes)):
                     
-                    anchors_xywh = np.zeros((self.n_anchors, 4))
+                    anchors_xywh = np.zeros((self.anchors_per_scale, 4))
                     anchors_xywh[:, 0:2] = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32) + 0.5
                     anchors_xywh[:, 2:4] = self.anchors[scale_index]
                     
@@ -137,14 +138,18 @@ class DatasetGenerator:
                 
                 # if no prediction matched the true bounding box enough
                 if not exist_positive:
-                    pass
-                    
-                
-            
+                    best_anchor_index = np.argmax(np.array(iou_for_all_scales).reshape(-1), axis=-1)
+                    best_detect = int(best_anchor_index / self.anchors_per_scale)
+                    best_anchor = int(best_anchor_index % self.anchors_per_scale)
+                    x_index, y_index = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
+                        
+                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, :] = 0
+                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
+                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
             
             
         #print(len(y_true), y_true[0].shape)
-        return None
+        return y_true
 
     
 

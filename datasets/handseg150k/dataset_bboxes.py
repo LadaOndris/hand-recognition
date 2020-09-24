@@ -77,6 +77,7 @@ class HandsegDatasetBboxes:
         depth_image_file_content = tf.io.read_file(image_file_path)
         depth_image = tf.io.decode_image(depth_image_file_content)
         bboxes = tf.reshape(annotation_parts[1:], shape=[-1,4])
+        bboxes = tf.strings.to_number(bboxes, out_type=tf.float32)
         return depth_image, bboxes
 """
 if __name__ == '__main__':

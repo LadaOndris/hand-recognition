@@ -65,6 +65,7 @@ class Model:
         self.yolo_output_shapes = None
         self.tf_model = None
         self.learning_rate = 1e-3
+        self.anchors = []
         return
     
     @property
@@ -126,10 +127,12 @@ class Model:
         filters = []
         yolo_out_preds = []
         yolo_out_shapes = []
+        anchors_all = []
         
         net_info = blocks[0]
         input_shape = (int(net_info['width']), int(net_info['height']), int(net_info['channels']))
         batch_size = int(net_info['batch'])
+        
         inputs = input_layer = Input(shape=input_shape, batch_size=batch_size)
         print("Input shape", inputs.shape)
         
@@ -214,10 +217,11 @@ class Model:
                 mask = block['mask'].split(',')
                 mask = [int(m) for m in mask]
                 anchors = block['anchors'].split(',')
-                anchors = [int(a) for a in anchors]
+                anchors = [float(a) for a in anchors]
                 anchors = [(anchors[i], anchors[i + 1]) 
                                for i in range(0, len(anchors), 2)]
                 anchors = [anchors[m] for m in mask]
+                anchors_all.append(anchors)
                 
                 prediction = YoloLayer(anchors, num_classes, 
                                           input_layer.shape, name=F"yolo_{i}")(inputs)
@@ -237,6 +241,7 @@ class Model:
         model.tf_model = tf_model
         model.input_shape = input_shape
         model.yolo_output_shapes = yolo_out_shapes
+        model.anchors = anchors_all
         return model
     
 
