@@ -13,10 +13,10 @@ import time
 # inspired by https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py
 class HandsegDatasetBboxes:
 
-    def __init__(self, cfg):
+    def __init__(self, cfg = None, batch_size = 16):
         
         self.dataset_path = os.path.dirname(__file__)
-        self.batch_size = cfg.DETECTION_BATCH_SIZE
+        self.batch_size = batch_size
         self.batch_index = 0
         
         self.annotations = self._load_annotations()
@@ -60,9 +60,9 @@ class HandsegDatasetBboxes:
     """ 
     def _build_iterator(self):
         dataset = tf.data.Dataset.from_tensor_slices(self.annotations)
-        dataset = dataset.shuffle(len(self.annotations), reshuffle_each_iteration=True)
+        #dataset = dataset.shuffle(len(self.annotations), reshuffle_each_iteration=True)
         dataset = dataset.map(self._prepare_sample)
-        shapes = (tf.TensorShape([480, 640, 1]), tf.TensorShape([None, 4]))
+        shapes = (tf.TensorShape([416, 416, 1]), tf.TensorShape([None, 4]))
         dataset = dataset.padded_batch(self.batch_size, padded_shapes=shapes)
         dataset = dataset.prefetch(buffer_size=5)
         return dataset
@@ -70,12 +70,13 @@ class HandsegDatasetBboxes:
     # annotation line consists of depth_image file name and bounding boxes coordinates
     @tf.function()
     def _prepare_sample(self, annotation):
-        #tf.print(annotation)
         annotation_parts = tf.strings.split(annotation, sep=' ')
         image_file_name = annotation_parts[0]
         image_file_path = tf.strings.join([self.dataset_path, "/images/", image_file_name])
         depth_image_file_content = tf.io.read_file(image_file_path)
-        depth_image = tf.io.decode_image(depth_image_file_content)
+        depth_image = tf.io.decode_image(depth_image_file_content, channels=1)
+        depth_image.set_shape([480, 640, 1]) 
+        depth_image = tf.image.resize_with_pad(depth_image, 416, 416)
         bboxes = tf.reshape(annotation_parts[1:], shape=[-1,4])
         bboxes = tf.strings.to_number(bboxes, out_type=tf.float32)
         return depth_image, bboxes

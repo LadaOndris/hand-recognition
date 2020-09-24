@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import os
 from datasets.handseg150k.dataset import HandsegDataset
+from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
 
 dirname = os.path.dirname(__file__)
     
@@ -26,13 +27,21 @@ def foo():
     
     print(depth_im.shape)
     
-def show_images(num):
+def show_images_from_handseg_dataset(num):
     dataset = HandsegDataset()
     images, masks = dataset.load_images(start_index = 0, end_index = num - 1)
     for i, m in zip(images, masks):
         #print(np.histogram(m, bins=[0,1,2,3]))
         plt.imshow(i); plt.title('Depth Image'); plt.show() # Displaying Depth Image
         plt.imshow(m); plt.title('Mask Image'); plt.show() # Displaying Mask Image
+
+
+def show_images_from_handseg_dataset_bboxes(num):
+    dataset = HandsegDatasetBboxes(batch_size=num)
+    for images, bboxes in dataset.batch_iterator:
+        for image in images:
+            plt.imshow(np.squeeze(image, axis=-1)); plt.title('Depth Image'); plt.show()
+        break
 
 def get_bbox_from_mask(mask, hand_label):
     hand_coords = np.where(mask == hand_label)
@@ -56,35 +65,51 @@ def draw_bounding_box(axis, bbox):
         axis.add_patch(rect)
     
 
-def generate_bounding_boxes(print_images = False, save_to_file = False, bboxes_filename=''):
+def generate_bounding_boxes(print_images = False, save_to_file = False, bboxes_filename='', max_count = None):
     filenames = os.listdir('masks/')
     
-    with open(bboxes_filename, 'w') as bboxes_file:
-        for filename in filenames:
-            image = np.array(Image.open(os.path.join(dirname, 'images', filename)))
-            mask = np.array(Image.open(os.path.join(dirname, 'masks', filename)))
-            #print(mask.shape)
-            #print(np.histogram(mask, bins=[0,1,2,3]))
-            
-            first_bbox = get_bbox_from_mask(mask, 1)
-            second_bbox = get_bbox_from_mask(mask, 2)
-            
-            if save_to_file:
-                bboxes_file.write(filename)
-                if not first_bbox is None:
-                    bboxes_file.write(F" {first_bbox[0]} {first_bbox[1]} {first_bbox[2]} {first_bbox[3]};")
-                if not second_bbox is None:
-                    bboxes_file.write(F" {second_bbox[0]} {second_bbox[1]} {second_bbox[2]} {second_bbox[3]};")
-                bboxes_file.write('\n')
-            
-            #print(first_bbox, second_bbox)
-            
-            if print_images:
-                fig, ax = plt.subplots(1)
-                ax.imshow(image)
-                draw_bounding_box(ax, first_bbox)
-                draw_bounding_box(ax, second_bbox)
-                plt.title('Depth image with bounding boxes');
-                plt.show()
+    lines = []
+    count = 0
+    for filename in filenames:
+        if count % 10000 == 0:
+            print(F"Generating bounding boxes: {count}/{len(filenames)}")
+        if count == max_count:
+            break
+        
+        image = np.array(Image.open(os.path.join(dirname, 'images', filename)))
+        mask = np.array(Image.open(os.path.join(dirname, 'masks', filename)))
+        #print(mask.shape)
+        #print(np.histogram(mask, bins=[0,1,2,3]))
+        
+        first_bbox = get_bbox_from_mask(mask, 1)
+        second_bbox = get_bbox_from_mask(mask, 2)
+        
+        line = filename
+        if not first_bbox is None:
+            line += F" {first_bbox[0]} {first_bbox[1]} {first_bbox[2]} {first_bbox[3]}"
+        if not second_bbox is None:
+            line += F" {second_bbox[0]} {second_bbox[1]} {second_bbox[2]} {second_bbox[3]}"
+        line += '\n'
+        lines.append(line)
+        
+        #print(first_bbox, second_bbox)
+        
+        if print_images:
+            fig, ax = plt.subplots(1)
+            ax.imshow(image)
+            draw_bounding_box(ax, first_bbox)
+            draw_bounding_box(ax, second_bbox)
+            plt.title('Depth image with bounding boxes');
+            plt.show()
+        
+        count += 1
     
-generate_bounding_boxes(print_images=False, save_to_file=True, bboxes_filename='bounding_boxes.txt')
+    if save_to_file:
+        with open(bboxes_filename, 'w') as bboxes_file:
+            bboxes_file.writelines(lines)
+        
+
+if __name__ == '__main__':
+    #show_images_from_handseg_dataset_bboxes(5)
+    generate_bounding_boxes(print_images=False, save_to_file=True, 
+                            bboxes_filename='bounding_boxes.txt')

@@ -78,7 +78,6 @@ class DatasetGenerator:
         self.anchors = anchors
         self.anchors_per_scale = len(anchors[0])
         self.iterator = iter(self.dataset_bboxes_iterator)
-        self.n_anchors = 3
     
     def compute_strides(self, input_shape, output_shapes):
         # input_shape is (416, 416, 1)
@@ -95,14 +94,15 @@ class DatasetGenerator:
         return batch_images, y_true
     
     
+    # Mostly taken from https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py.
     def preprocess_true_bboxes(self, batch_bboxes):
-        y_true = [np.zeros((self.output_shapes[i][0],
+        y_true = [np.zeros((len(batch_bboxes),
                             self.output_shapes[i][1], 
                             self.output_shapes[i][2], 
-                            3, 5)) for i in range(len(self.output_shapes))]
+                            self.anchors_per_scale, 5)) for i in range(len(self.output_shapes))]
         
         for image_in_batch, bboxes in enumerate(batch_bboxes):
-            
+            print(bboxes)
             # find best anchor for each true bbox
             # (there are 13x13x3 anchors) 
             
@@ -111,47 +111,91 @@ class DatasetGenerator:
                 bbox_center = (bbox[2:] + bbox[:2]) * 0.5
                 bbox_wh = bbox[2:] - bbox[:2]
                 bbox_xywh = np.concatenate([bbox_center, bbox_wh], axis=-1)
+                # transform bbox coordinates into scaled values - for each scale
+                # (ie. 13x13 grid box, instead of 416*416 pixels)
+                # bbox_xywh_grid_scaled.shape = (2 scales, 4 coords) 
                 bbox_xywh_grid_scaled = bbox_xywh[np.newaxis, :] / self.strides[:, np.newaxis]
-                
+                print(bbox_xywh_grid_scaled)
                 exist_positive = False
                 iou_for_all_scales = []
                 
                 # for each scale (13x13 and 26x26)
                 for scale_index in range(len(self.output_shapes)):
-                    
+                    grid_box_xy = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
+                    print(grid_box_xy)
+                    # get anchors coordinates for the current 
                     anchors_xywh = np.zeros((self.anchors_per_scale, 4))
-                    anchors_xywh[:, 0:2] = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32) + 0.5
+                    # the center of an anchor is the center of a grid box
+                    anchors_xywh[:, 0:2] = grid_box_xy + 0.5
+                    # self.anchors defines only widths and heights of anchors
+                    # Values of self.anchors should be already scaled.
                     anchors_xywh[:, 2:4] = self.anchors[scale_index]
                     
-                    iou_of_this_scale = self.bbox_iou()
+                    # compute IOU for true bbox and anchors
+                    iou_of_this_scale = self.bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis,:], anchors_xywh)
                     iou_for_all_scales.append(iou_of_this_scale) 
                     iou_mask = iou_of_this_scale > 0.3
                     
+                    # update y_true for anchors of grid boxes which satisfy the iou threshold
                     if np.any(iou_mask):
-                        x_index, y_index = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
-                        
+                        x_index, y_index = grid_box_xy
+                        iou_mask = [True, False, False]
+                        #print(y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4].shape)
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, :] = 0
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4] = bbox_xywh
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 4:5] = 1.0
                         
                         exist_positive = True
                 
-                # if no prediction matched the true bounding box enough
+                # if no prediction across all scales for the current bbox
+                # matched the true bounding box enough
                 if not exist_positive:
+                    # get the prediction with the highest IOU
                     best_anchor_index = np.argmax(np.array(iou_for_all_scales).reshape(-1), axis=-1)
                     best_detect = int(best_anchor_index / self.anchors_per_scale)
                     best_anchor = int(best_anchor_index % self.anchors_per_scale)
-                    x_index, y_index = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
+                    x_index, y_index = np.floor(bbox_xywh_grid_scaled[best_detect, 0:2]).astype(np.int32)
                         
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, :] = 0
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
-            
-            
+        
+        print("y_true confidences sum:", np.sum(y_true[...,4:5]))
         #print(len(y_true), y_true[0].shape)
         return y_true
-
     
+    def bbox_iou(self, boxes1, boxes2):
+        """
+        boxes1.shape (n, 4)
+        boxes2.shape (m, 4)
+        
+        Returns
+            Returns an array of iou for each combination of possible intersection.
+        """
+        return 0.4
+        # convert to numpy arrays
+        boxes1 = np.array(boxes1)
+        boxes2 = np.array(boxes2)
+        
+        boxes1_area = boxes1[..., 2] * boxes1[..., 3] # width * height
+        boxes2_area = boxes2[..., 2] * boxes2[..., 3] # width * height
+        
+        # convert xy_wh to two point coordinate of the rectangle - top left and bottom right
+        boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                                boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
+        boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                                boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+        
+        left_up = np.maximum(boxes1[..., :2], boxes2[..., :2])
+        right_down = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
+
+        # Find the length of x and y where the rectangles overlap.
+        # If the length is less than 0, they do not overlap.
+        intersection_lengths = np.maximum(right_down - left_up, 0.0)
+        intersection_area = intersection_lengths[..., 0] * intersection_lengths[..., 1]
+        union_area = boxes1_area + boxes2_area - intersection_area
+    
+        return intersection_area / union_area
 
 if __name__ == '__main__':
     train()
