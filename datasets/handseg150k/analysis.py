@@ -38,9 +38,14 @@ def show_images_from_handseg_dataset(num):
 
 def show_images_from_handseg_dataset_bboxes(num):
     dataset = HandsegDatasetBboxes(batch_size=num)
-    for images, bboxes in dataset.batch_iterator:
-        for image in images:
-            plt.imshow(np.squeeze(image, axis=-1)); plt.title('Depth Image'); plt.show()
+    for batch_images, batch_bboxes in dataset.batch_iterator:
+        for image, bboxes in zip(batch_images, batch_bboxes):
+            fig, ax = plt.subplots(1)
+            ax.imshow(np.squeeze(image, axis=-1))
+            for bbox in bboxes:
+                draw_bounding_box(ax, bbox)
+            plt.title('Resized depth image with bounding boxes');
+            plt.show()
         break
 
 def get_bbox_from_mask(mask, hand_label):
@@ -110,6 +115,6 @@ def generate_bounding_boxes(print_images = False, save_to_file = False, bboxes_f
         
 
 if __name__ == '__main__':
-    #show_images_from_handseg_dataset_bboxes(5)
-    generate_bounding_boxes(print_images=False, save_to_file=True, 
-                            bboxes_filename='bounding_boxes.txt')
+    show_images_from_handseg_dataset_bboxes(5)
+    #generate_bounding_boxes(print_images=False, save_to_file=False, 
+    #                        bboxes_filename='bounding_boxes.txt')

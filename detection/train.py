@@ -24,23 +24,45 @@ from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-def custom_loss():
+class YoloLoss(tf.keras.losses.Loss):
     
-    # xy loss
+    def __init__(self, name='yolo_loss'):
+        super(YoloLoss, self).__init__(name=name)
+        return
     
-    # wh loss
-    
-    # confidence loss
-    
-    # there is no class loss, since there is a single class
-    
-    
-    def loss(y_true, y_pred):
+    def call(self, y_true, y_pred):
+        tf.print("Y_true", tf.shape(y_true))
+        tf.print("Y_pred", tf.shape(y_pred))
         
-        return 1000
+        tf.print("TRUE", y_true[:,6,6,0,...])
+        tf.print("PRED", y_pred[:,6,6,0,...])
+        # xy loss
+        
+        # wh loss
+        
+        # confidence loss
+        
+        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], bboxes[:, np.newaxis, np.newaxis, np.newaxis, :, :])
+        max_iou = tf.expand_dims(tf.reduce_max(iou, axis=-1), axis=-1)
+        
+        """
+        From YOLOv3 paper:
+        If the bounding box prior is not the best but does overlap a ground truth object by
+        more than some threshold we ignore the prediction.
+        """
+        respond_bgd = (1.0 - respond_bbox) * tf.cast( max_iou < self.iou_loss_thresh, tf.float32 )
+        conf_loss = \
+                respond_bbox * tf.nn.sigmoid_cross_entropy_with_logits(labels=respond_bbox, logits=conv_raw_conf)\
+              + respond_bgd * tf.nn.sigmoid_cross_entropy_with_logits(labels=respond_bbox, logits=conv_raw_conf)
+        
+        
+        # there is loss for class labels, since there is a single class
+        # and confidence score represenets that class
     
-    
-    return loss
+        
+        y_pred = y_pred[0]
+        y_true = tf.cast(y_true[0], y_pred.dtype)
+        return tf.reduce_mean(tf.math.square(y_pred - y_true), axis=-1)
 
 def train():
     
@@ -49,13 +71,14 @@ def train():
     tf_model = model.tf_model
     
     config = Config()
-    dataset_bboxes = HandsegDatasetBboxes(config)
+    dataset_bboxes = HandsegDatasetBboxes(batch_size=16)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
     # compile model
+    loss = YoloLoss()
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
-                     loss=custom_loss())
+                     loss=loss)
         
     tf_model.fit(dataset_generator, epochs=1, verbose=1)
    
@@ -102,7 +125,7 @@ class DatasetGenerator:
                             self.anchors_per_scale, 5)) for i in range(len(self.output_shapes))]
         
         for image_in_batch, bboxes in enumerate(batch_bboxes):
-            print(bboxes)
+            #print(bboxes)
             # find best anchor for each true bbox
             # (there are 13x13x3 anchors) 
             
@@ -115,14 +138,14 @@ class DatasetGenerator:
                 # (ie. 13x13 grid box, instead of 416*416 pixels)
                 # bbox_xywh_grid_scaled.shape = (2 scales, 4 coords) 
                 bbox_xywh_grid_scaled = bbox_xywh[np.newaxis, :] / self.strides[:, np.newaxis]
-                print(bbox_xywh_grid_scaled)
+                #print(bbox_xywh_grid_scaled)
                 exist_positive = False
                 iou_for_all_scales = []
                 
                 # for each scale (13x13 and 26x26)
                 for scale_index in range(len(self.output_shapes)):
                     grid_box_xy = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
-                    print(grid_box_xy)
+                    #print(grid_box_xy)
                     # get anchors coordinates for the current 
                     anchors_xywh = np.zeros((self.anchors_per_scale, 4))
                     # the center of an anchor is the center of a grid box
@@ -139,7 +162,8 @@ class DatasetGenerator:
                     # update y_true for anchors of grid boxes which satisfy the iou threshold
                     if np.any(iou_mask):
                         x_index, y_index = grid_box_xy
-                        iou_mask = [True, False, False]
+                        
+                        #iou_mask = [True, False, False]
                         #print(y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4].shape)
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, :] = 0
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4] = bbox_xywh
@@ -159,8 +183,9 @@ class DatasetGenerator:
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, :] = 0
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
-        
-        print("y_true confidences sum:", np.sum(y_true[...,4:5]))
+            
+        print("y_true confidences sum:", np.sum([np.sum(y_true[scale][...,4:5]) 
+                                                 for scale in range(len(y_true))]))
         #print(len(y_true), y_true[0].shape)
         return y_true
     
@@ -172,7 +197,6 @@ class DatasetGenerator:
         Returns
             Returns an array of iou for each combination of possible intersection.
         """
-        return 0.4
         # convert to numpy arrays
         boxes1 = np.array(boxes1)
         boxes2 = np.array(boxes2)
