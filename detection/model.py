@@ -15,6 +15,22 @@ class YoloLayer(tf.keras.layers.Layer):
             
         
     def call(self, inputs):
+        """
+        Reshapes inputs to [batch_size, grid_size, grid_size, anchors_per_grid, 6]
+        where the axis=-1 contains [x, y, w, h, conf, raw_conf].
+
+        Parameters
+        ----------
+        inputs : 
+            Outputs of previous layer in the model.
+
+        Returns
+        -------
+        yolo_outputs : Tensor of shape [batch_size, grid_size, grid_size, anchors_per_grid, 5 + n_classes]
+            Returns raw predictions [tx, ty, tw, th].
+            It is ready for loss calculation, but needs to gor through further postprocessing 
+            to convert it to real dimensions.
+        """
         # transform to [None, B * grid size * grid size, 5 + C]
         # The B is the number of anchors and C is the number of classes.
         #inputs = tf.reshape(inputs, [-1, self.n_anchors * out_shape[1] * out_shape[2], \
@@ -22,41 +38,37 @@ class YoloLayer(tf.keras.layers.Layer):
         
         inputs_shape = tf.shape(inputs)
         batch_size = inputs_shape[0]
-        output_size = inputs_shape[1]
-        inputs = tf.reshape(inputs, [batch_size, output_size, output_size, \
+        grid_size_y = inputs_shape[1]
+        grid_size_x = inputs_shape[2]
+        reshaped_inputs = tf.reshape(inputs, [batch_size, grid_size_y, grid_size_x, \
                                      self.n_anchors, 5 + self.n_classes])
-        
+              
         # extract information
-        box_centers = inputs[..., 0:2]
-        box_shapes = inputs[..., 2:4]
-        confidence = inputs[..., 4:5]
-        #classes = inputs[..., 5:self.n_classes + 5]
-        
+        box_centers = reshaped_inputs[..., 0:2]
+        box_shapes = reshaped_inputs[..., 2:4]
+        confidence = reshaped_inputs[..., 4:5]
         
         # create coordinates for each anchor for each cell
-        y = tf.tile(tf.range(output_size, dtype=tf.int32)[:, tf.newaxis], [1, output_size])
-        x = tf.tile(tf.range(output_size, dtype=tf.int32)[tf.newaxis, :], [output_size, 1])
+        y = tf.tile(tf.range(grid_size_y, dtype=tf.int32)[:, tf.newaxis], [1, grid_size_y])
+        x = tf.tile(tf.range(grid_size_x, dtype=tf.int32)[tf.newaxis, :], [grid_size_x, 1])
         
         xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
         xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, self.n_anchors, 1])
         xy_grid = tf.cast(xy_grid, tf.float32)
         
-        
         # for example: 416 x 416 pixel images, 13 x 13 tiles
         # 416 // 13 = 32
-        stride = (self.input_layer_shape[1] // output_size, \
-                   self.input_layer_shape[2] // output_size)
+        stride = (self.input_layer_shape[1] // grid_size_y, \
+                   self.input_layer_shape[2] // grid_size_x)
             
         # get dimensions in pixels instead of grid boxes by multiplying with stride
         pred_xy = (tf.sigmoid(box_centers) + xy_grid) * stride
         pred_wh = (tf.exp(box_shapes) * self.anchors) * stride
         pred_xywh = tf.concat([pred_xy, pred_wh], axis=-1)
         
-        #pred_conf = tf.sigmoid(confidence) # confidence is objectness
-        #pred_class = tf.sigmoid(classes) # classes are class predictions
+        pred_conf = tf.sigmoid(confidence) # confidence is objectness
         
-        prediction = tf.concat([pred_xywh, confidence], axis=-1)
-        return prediction
+        return tf.concat([pred_xywh, pred_conf, confidence], axis=-1)
 
 
 class Model:
@@ -83,7 +95,7 @@ class Model:
     @tf_model.setter
     def tf_model(self, value):
         self._tf_model = value
-    
+        
     @classmethod
     def from_cfg(cls, cfg_file_path):
         blocks = Model.parse_cfg(cfg_file_path)

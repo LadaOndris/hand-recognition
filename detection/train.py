@@ -26,14 +26,36 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class YoloLoss(tf.keras.losses.Loss):
     
-    def __init__(self, ignore_thresh=.5, name='yolo_loss'):
+    def __init__(self, model_input_image_size, ignore_thresh=.5, name='yolo_loss'):
+        """
+
+        Parameters
+        ----------
+        model_input_image_size : TYPE
+            DESCRIPTION.
+        ignore_thresh : TYPE, optional
+            DESCRIPTION. The default is .5.
+        name : TYPE, optional
+            DESCRIPTION. The default is 'yolo_loss'.
+
+        Returns
+        -------
+        None.
+
+        """
         super(YoloLoss, self).__init__(name=name)
+        self.model_input_image_size = model_input_image_size # (416, 416, 1)
         self.ignore_thresh = ignore_thresh
         return
     
     def call(self, y_true, y_pred):
         """
             Computes loss for YOLO network used in object detection.
+            
+            It doesn't include calculation of class predictions, since a single class is being predicted 
+            and confidence is all that is required.
+            
+            Neither y_true and y_pred should contain class predictions.
         
         Parameters
         ----------
@@ -42,8 +64,9 @@ class YoloLoss(tf.keras.losses.Loss):
             Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 5).
         y_pred : 5D array
             Prediction of bounding boxes and class labels.
-            Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 5).
-
+            Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 6).
+            The last dimension also contains raw confidence.
+            
         Returns
         -------
         tf.Tensor
@@ -57,28 +80,84 @@ class YoloLoss(tf.keras.losses.Loss):
         #tf.print("TRUE", y_true[:,6,6,0,...])
         #tf.print("PRED", y_pred[:,6,6,0,...])
         
-        # Look out for xywh in different measurements!!! 
+        # Look out for xywh in different units!!! 
         
         pred_xywh = y_pred[...,0:4]
         pred_conf = y_pred[...,4:5]
+        raw_conf = y_pred[...,5:6]
         
         true_xywh = y_true[...,0:4]
         true_conf = y_true[...,4:5]
         
-        #raw_conf = self.logit(pred_conf)
-        tf.print("conf min max", tf.reduce_min(pred_conf), tf.reduce_max(pred_conf))
+        tf.print("shape", tf.shape(true_xywh))
+        #tf.print("pred_xywh, min, max", tf.reduce_min(pred_xywh[...,2:]), tf.reduce_max(pred_xywh[...,2:]))
+        tf.print("true_xywh, min, max", tf.reduce_min(true_xywh[...,2:]), tf.reduce_max(true_xywh[...,2:]))
         
-        # xy loss
+        zeros = tf.cast(tf.zeros_like(pred_xywh),dtype=tf.bool)
+        ones = tf.cast(tf.ones_like(pred_xywh),dtype=tf.bool)
+        loc = tf.where(pred_conf > 0.3, ones, zeros)
+        pred_xywh_masked = tf.boolean_mask(pred_xywh, loc)
+        tf.print("conf > 0.3: shape, wh_min, wh_max", tf.shape(pred_xywh_masked), 
+                 tf.reduce_min(pred_xywh_masked[...,2:]),
+                 tf.reduce_max(pred_xywh_masked[...,2:]))
+
+        tf.print("conf mean min max sum true_sum", 
+                 tf.reduce_mean(pred_conf), 
+                 tf.reduce_min(pred_conf),
+                 tf.reduce_max(pred_conf),
+                 tf.reduce_sum(pred_conf),
+                 tf.reduce_sum(true_conf)) 
         
-        # wh loss
+        xywh_loss = self.iou_loss(true_conf, pred_xywh, true_xywh)
+        conf_loss = self.confidence_loss(raw_conf, true_conf, pred_xywh, true_xywh)
         
+        # There is no loss for class labels, since there is a single class
+        # and confidence score represenets that class
+    
+        return conf_loss
+    
+    def xywh_loss(self, true_conf, pred_xywh, true_xywh):
+        input_size = tf.cast(self.model_input_image_size[0], tf.float32)
+        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
         
-        # confidence loss
+        xy_loss = true_conf * bbox_loss_scale * tf.keras.backend.square(true_xywh[...,:2] - pred_xywh[...,:2])
+        wh_loss = true_conf * bbox_loss_scale * 0.5 * tf.keras.backend.square(true_xywh[...,2:] - pred_xywh[...,2:])
         
-        bboxes_mask = y_true[...,4:5]
+        return xy_loss + wh_loss
+    
+        
+    def giou_loss(self, true_conf, pred_xywh, true_xywh):
+        input_size = tf.cast(self.model_input_image_size[0], tf.float32)
+        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
+        
+        giou = tf.expand_dims(self.bbox_giou(pred_xywh, true_xywh), axis=-1)
+        input_size = tf.cast(self.model_input_image_size, tf.float32)
+        #tf.print("giou shape", tf.shape(giou))
+        #tf.print("GIOU", tf.reduce_min(giou), tf.reduce_max(giou))
+        bbox_loss_scale = 2.0 - 1.0 * true_xywh[:, :, :, :, 2:3] * true_xywh[:, :, :, :, 3:4] / (input_size ** 2)
+        giou_loss = true_conf * bbox_loss_scale * (1 - giou)
+        return giou_loss
+    
+        
+    def iou_loss(self, true_conf, pred_xywh, true_xywh):
+        input_size = tf.cast(self.model_input_image_size[0], tf.float32)
+        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
+        
+        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], true_xywh[:, :, :, :, np.newaxis, :])
+        
+        #tf.print("iou shape", tf.shape(iou))
+        #tf.print("IOU", tf.reduce_min(iou), tf.reduce_max(iou))
+        #tf.print("true_conf.shape, bbox_loss_scale.shape", tf.shape(true_conf), tf.shape(bbox_loss_scale))
+        iou_loss = true_conf * bbox_loss_scale * iou
+        #tf.print("iou_loss.shape", tf.shape(iou_loss))
+        #tf.print("iou_loss", tf.reduce_min(iou_loss), tf.reduce_max(iou_loss))
+        return iou_loss
+    
+    def confidence_loss(self, raw_conf, true_conf, pred_xywh, true_xywh):
+        bboxes_mask = true_conf
         #tf.print("bboxes masked", tf.shape(bboxes_mask))
         bboxes_mask = tf.cast(bboxes_mask, dtype=tf.bool)
-        bboxes = tf.boolean_mask(y_true[...,0:4], bboxes_mask[...,0])
+        bboxes = tf.boolean_mask(true_xywh, bboxes_mask[...,0])
         #tf.print("bboxes masked", tf.shape(bboxes))
         #tf.print("pred_xywh.shape", tf.shape(pred_xywh))
         
@@ -102,14 +181,39 @@ class YoloLoss(tf.keras.losses.Loss):
         
         ignore_conf = (1.0 - true_conf) * tf.cast(max_iou < self.ignore_thresh, tf.float32)
         conf_loss = \
-                true_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=pred_conf) \
-              + ignore_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=pred_conf)
-        
-        tf.print(tf.shape(conf_loss))
-        # there is loss for class labels, since there is a single class
-        # and confidence score represenets that class
-    
+                true_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf) \
+              + ignore_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
         return conf_loss
+    
+    def bbox_giou(self, boxes1, boxes2):
+        boxes1 = tf.concat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
+        boxes2 = tf.concat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+
+        boxes1 = tf.concat([tf.minimum(boxes1[..., :2], boxes1[..., 2:]),
+                            tf.maximum(boxes1[..., :2], boxes1[..., 2:])], axis=-1)
+        boxes2 = tf.concat([tf.minimum(boxes2[..., :2], boxes2[..., 2:]),
+                            tf.maximum(boxes2[..., :2], boxes2[..., 2:])], axis=-1)
+
+        boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
+        boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
+
+        left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
+        right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
+
+        inter_section = tf.maximum(right_down - left_up, 0.0)
+        inter_area = inter_section[..., 0] * inter_section[..., 1]
+        union_area = boxes1_area + boxes2_area - inter_area
+        iou = inter_area / union_area
+
+        enclose_left_up = tf.minimum(boxes1[..., :2], boxes2[..., :2])
+        enclose_right_down = tf.maximum(boxes1[..., 2:], boxes2[..., 2:])
+        enclose = tf.maximum(enclose_right_down - enclose_left_up, 0.0)
+        enclose_area = enclose[..., 0] * enclose[..., 1]
+        
+        giou = iou - (enclose_area - union_area) / enclose_area
+        return giou
     
     def bbox_iou(self, boxes1, boxes2):
         boxes1_area = boxes1[..., 2] * boxes1[..., 3]
@@ -130,8 +234,6 @@ class YoloLoss(tf.keras.losses.Loss):
 
         return iou
     
-    def logit(self, x):
-        return tf.math.log(x / (1. - x))
 
 def train():
     
@@ -145,12 +247,19 @@ def train():
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
     # compile model
-    loss = YoloLoss()
+    loss = YoloLoss(model.input_shape, ignore_thresh=.5)
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
                      loss=loss)
-        
-    tf_model.fit(dataset_generator, epochs=1, verbose=1)
+    
+    tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=1)
+    
+    model_name = "overfitted_model"
+    tf_model.save(model_name)
+    
+    loaded_model = tf.keras.models.load_model(model_name, custom_objects={'YoloLoss':YoloLoss}, compile=False)
+    tf.print(loaded_model)
    
+    
     """
     for images, bboxes in dataset.batch_iterator:
         # images.shape is (batch_size, 480, 640, 1)
@@ -253,8 +362,7 @@ class DatasetGenerator:
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
             
-        print("y_true confidences sum:", np.sum([np.sum(y_true[scale][...,4:5]) 
-                                                 for scale in range(len(y_true))]))
+        print(F"y_true conf sum ({np.sum(y_true[0][...,4:5])}, {np.sum(y_true[1][...,4:5])}):")
         #print(len(y_true), y_true[0].shape)
         return y_true
     
@@ -273,7 +381,7 @@ class DatasetGenerator:
         boxes1_area = boxes1[..., 2] * boxes1[..., 3] # width * height
         boxes2_area = boxes2[..., 2] * boxes2[..., 3] # width * height
         
-        # convert xy_wh to two point coordinate of the rectangle - top left and bottom right
+        # Convert xywh to x1,y1,x2,y2 (top left and bottom right point).
         boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
                                 boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
         boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,

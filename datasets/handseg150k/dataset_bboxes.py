@@ -59,8 +59,9 @@ class HandsegDatasetBboxes:
         return None, None
     """ 
     def _build_iterator(self):
-        dataset = tf.data.Dataset.from_tensor_slices(self.annotations)
-        dataset = dataset.shuffle(len(self.annotations), reshuffle_each_iteration=True)
+        dataset = tf.data.Dataset.from_tensor_slices(self.annotations[:16])
+        dataset = dataset.repeat()
+        #dataset = dataset.shuffle(len(self.annotations), reshuffle_each_iteration=True)
         dataset = dataset.map(self._prepare_sample)
         shapes = (tf.TensorShape([416, 416, 1]), tf.TensorShape([None, 4]))
         dataset = dataset.padded_batch(self.batch_size, padded_shapes=shapes)
