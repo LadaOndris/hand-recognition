@@ -26,43 +26,112 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class YoloLoss(tf.keras.losses.Loss):
     
-    def __init__(self, name='yolo_loss'):
+    def __init__(self, ignore_thresh=.5, name='yolo_loss'):
         super(YoloLoss, self).__init__(name=name)
+        self.ignore_thresh = ignore_thresh
         return
     
     def call(self, y_true, y_pred):
-        tf.print("Y_true", tf.shape(y_true))
-        tf.print("Y_pred", tf.shape(y_pred))
+        """
+            Computes loss for YOLO network used in object detection.
         
-        tf.print("TRUE", y_true[:,6,6,0,...])
-        tf.print("PRED", y_pred[:,6,6,0,...])
+        Parameters
+        ----------
+        y_true : 5D array
+            True bounding boxes and class labels.
+            Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 5).
+        y_pred : 5D array
+            Prediction of bounding boxes and class labels.
+            Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 5).
+
+        Returns
+        -------
+        tf.Tensor
+            Loss computed for bounding boxes and the confidence whether it contains an object.
+            It is used in a YOLO network in object detection.
+        """
+        
+        #tf.print("Y_true", tf.shape(y_true))
+        #tf.print("Y_pred", tf.shape(y_pred))
+        
+        #tf.print("TRUE", y_true[:,6,6,0,...])
+        #tf.print("PRED", y_pred[:,6,6,0,...])
+        
+        # Look out for xywh in different measurements!!! 
+        
+        pred_xywh = y_pred[...,0:4]
+        pred_conf = y_pred[...,4:5]
+        
+        true_xywh = y_true[...,0:4]
+        true_conf = y_true[...,4:5]
+        
+        #raw_conf = self.logit(pred_conf)
+        tf.print("conf min max", tf.reduce_min(pred_conf), tf.reduce_max(pred_conf))
+        
         # xy loss
         
         # wh loss
         
+        
         # confidence loss
         
-        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], bboxes[:, np.newaxis, np.newaxis, np.newaxis, :, :])
-        max_iou = tf.expand_dims(tf.reduce_max(iou, axis=-1), axis=-1)
+        bboxes_mask = y_true[...,4:5]
+        #tf.print("bboxes masked", tf.shape(bboxes_mask))
+        bboxes_mask = tf.cast(bboxes_mask, dtype=tf.bool)
+        bboxes = tf.boolean_mask(y_true[...,0:4], bboxes_mask[...,0])
+        #tf.print("bboxes masked", tf.shape(bboxes))
+        #tf.print("pred_xywh.shape", tf.shape(pred_xywh))
+        
+        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], bboxes)
+        # max_iou.shape for example (16, 26, 26, 3, 1)
+        max_iou = tf.expand_dims(tf.reduce_max(iou, axis=-1), axis=-1) 
+        
+        """
+        zeros = tf.cast(tf.zeros_like(iou),dtype=tf.bool)
+        ones = tf.cast(tf.ones_like(iou),dtype=tf.bool)
+        loc = tf.where(iou>0.3, ones, zeros)
+        result=tf.boolean_mask(iou, loc)
+        tf.print("iou > 0.3", tf.shape(result), result)
+        """
         
         """
         From YOLOv3 paper:
-        If the bounding box prior is not the best but does overlap a ground truth object by
-        more than some threshold we ignore the prediction.
+        'If the bounding box prior is not the best but does overlap a ground truth object by
+        more than some threshold we ignore the prediction.'
         """
-        respond_bgd = (1.0 - respond_bbox) * tf.cast( max_iou < self.iou_loss_thresh, tf.float32 )
+        
+        ignore_conf = (1.0 - true_conf) * tf.cast(max_iou < self.ignore_thresh, tf.float32)
         conf_loss = \
-                respond_bbox * tf.nn.sigmoid_cross_entropy_with_logits(labels=respond_bbox, logits=conv_raw_conf)\
-              + respond_bgd * tf.nn.sigmoid_cross_entropy_with_logits(labels=respond_bbox, logits=conv_raw_conf)
+                true_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=pred_conf) \
+              + ignore_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=pred_conf)
         
-        
+        tf.print(tf.shape(conf_loss))
         # there is loss for class labels, since there is a single class
         # and confidence score represenets that class
     
-        
-        y_pred = y_pred[0]
-        y_true = tf.cast(y_true[0], y_pred.dtype)
-        return tf.reduce_mean(tf.math.square(y_pred - y_true), axis=-1)
+        return conf_loss
+    
+    def bbox_iou(self, boxes1, boxes2):
+        boxes1_area = boxes1[..., 2] * boxes1[..., 3]
+        boxes2_area = boxes2[..., 2] * boxes2[..., 3]
+
+        boxes1 = tf.concat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
+        boxes2 = tf.concat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+
+        left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
+        right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
+
+        inter_section = tf.maximum(right_down - left_up, 0.0)
+        inter_area = inter_section[..., 0] * inter_section[..., 1]
+        union_area = boxes1_area + boxes2_area - inter_area
+        iou = 1.0 * inter_area / union_area
+
+        return iou
+    
+    def logit(self, x):
+        return tf.math.log(x / (1. - x))
 
 def train():
     
@@ -147,15 +216,15 @@ class DatasetGenerator:
                     grid_box_xy = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
                     #print(grid_box_xy)
                     # get anchors coordinates for the current 
-                    anchors_xywh = np.zeros((self.anchors_per_scale, 4))
+                    anchors_xywh_scaled = np.zeros((self.anchors_per_scale, 4))
                     # the center of an anchor is the center of a grid box
-                    anchors_xywh[:, 0:2] = grid_box_xy + 0.5
+                    anchors_xywh_scaled[:, 0:2] = grid_box_xy + 0.5
                     # self.anchors defines only widths and heights of anchors
                     # Values of self.anchors should be already scaled.
-                    anchors_xywh[:, 2:4] = self.anchors[scale_index]
+                    anchors_xywh_scaled[:, 2:4] = self.anchors[scale_index]
                     
                     # compute IOU for true bbox and anchors
-                    iou_of_this_scale = self.bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis,:], anchors_xywh)
+                    iou_of_this_scale = self.bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis,:], anchors_xywh_scaled)
                     iou_for_all_scales.append(iou_of_this_scale) 
                     iou_mask = iou_of_this_scale > 0.3
                     

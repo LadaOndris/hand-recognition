@@ -47,15 +47,15 @@ class YoloLayer(tf.keras.layers.Layer):
         stride = (self.input_layer_shape[1] // output_size, \
                    self.input_layer_shape[2] // output_size)
             
-        
+        # get dimensions in pixels instead of grid boxes by multiplying with stride
         pred_xy = (tf.sigmoid(box_centers) + xy_grid) * stride
-        pred_wh = tf.exp(box_shapes) * tf.cast(self.anchors, dtype=tf.float32)
+        pred_wh = (tf.exp(box_shapes) * self.anchors) * stride
         pred_xywh = tf.concat([pred_xy, pred_wh], axis=-1)
         
-        pred_conf = tf.sigmoid(confidence) # confidence is objectness
+        #pred_conf = tf.sigmoid(confidence) # confidence is objectness
         #pred_class = tf.sigmoid(classes) # classes are class predictions
         
-        prediction = tf.concat([pred_xywh, pred_conf], axis=-1)
+        prediction = tf.concat([pred_xywh, confidence], axis=-1)
         return prediction
 
 
