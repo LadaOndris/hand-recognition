@@ -114,7 +114,7 @@ class YoloLoss(tf.keras.losses.Loss):
         # There is no loss for class labels, since there is a single class
         # and confidence score represenets that class
     
-        return conf_loss
+        return xywh_loss + conf_loss
     
     def xywh_loss(self, true_conf, pred_xywh, true_xywh):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)
@@ -234,6 +234,7 @@ class YoloLoss(tf.keras.losses.Loss):
 
         return iou
     
+batch_size = 1
 
 def train():
     
@@ -242,7 +243,7 @@ def train():
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_bboxes = HandsegDatasetBboxes(batch_size=16)
+    dataset_bboxes = HandsegDatasetBboxes(batch_size=batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -251,26 +252,30 @@ def train():
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
                      loss=loss)
     
-    tf_model.fit(dataset_generator, epochs=20, verbose=1, steps_per_epoch=10)
+    tf_model.fit(dataset_generator, epochs=10, verbose=1, steps_per_epoch=30)
     
-    model_name = "overfitted_model_conf_only"
-    tf_model.save(model_name)
+    model_name = "overfitted_model_single_image.h5"
+    tf_model.save_weights(model_name)
     
-    loaded_model = tf.keras.models.load_model(model_name, custom_objects={'YoloLoss':YoloLoss}, compile=False)
-    tf.print(loaded_model)
+    #loaded_model = tf.keras.models.load_model(model_name, custom_objects={'YoloLoss':YoloLoss}, compile=False)
+    #tf.print(loaded_model)
    
     
     """
-    for images, bboxes in dataset.batch_iterator:
-        # images.shape is (batch_size, 480, 640, 1)
+    for images, bboxes in dataset_bboxes.batch_iterator:
+        # images.shape is (batch_size, 416, 416, 1)
         # bboxes.shape is (batch_size, 2, 4)
     """
     return
 
 def predict():
-    loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    batch_size = 16
+    model = Model.from_cfg("cfg/yolov3-tiny.cfg")
+    yolo_out_shapes = model.yolo_output_shapes
+    loaded_model = model.tf_model
+    loaded_model.load_weights("overfitted_model_single_image.h5")
+    #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
+    
     dataset_bboxes = HandsegDatasetBboxes(batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
@@ -285,12 +290,12 @@ def predict():
         #image = np.squeeze(batch_images[0])
         
         draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1])
-        #draw_detected_objects(batch_images, outputs, [416, 416, 1])
+        draw_detected_objects(batch_images, outputs, [416, 416, 1])
         
         break
 
 
 if __name__ == '__main__':
-    train()
+    predict()
 
 

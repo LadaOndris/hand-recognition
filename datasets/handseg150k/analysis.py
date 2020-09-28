@@ -112,9 +112,21 @@ def generate_bounding_boxes(print_images = False, save_to_file = False, bboxes_f
     if save_to_file:
         with open(bboxes_filename, 'w') as bboxes_file:
             bboxes_file.writelines(lines)
+
+
+def analyse_pixel_distance():
+    dataset = HandsegDatasetBboxes(batch_size=16)
+    for batch_images, batch_bboxes in dataset.batch_iterator:
         
+        ones = np.ones(batch_images.shape)
+        zeros = np.zeros(batch_images.shape)
+        mask = np.where(batch_images > 0, ones, zeros)
+        print(batch_images[mask == 1])
+        print(np.min(batch_images), np.max(batch_images))   
+        break
 
 if __name__ == '__main__':
-    show_images_from_handseg_dataset_bboxes(5)
+    analyse_pixel_distance()
+    #show_images_from_handseg_dataset_bboxes(5)
     #generate_bounding_boxes(print_images=False, save_to_file=False, 
     #                        bboxes_filename='bounding_boxes.txt')

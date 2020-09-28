@@ -94,12 +94,15 @@ def draw_output_boxes(image, boxes, nums):
     plt.show()
     return
 
+conf_thresh = .3
+
 def draw_detected_objects(images, predictions_for_the_image, model_size):
     
-    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 5, .5, .3)
+    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 2, .5, conf_thresh)
     
     tf.print("In draw detected", tf.reduce_mean(boxes))
     for i in range(len(boxes)):
+        print("Drawing boxes witch scores:", scores[i][:nums[i]])
         draw_output_boxes(images[i], boxes[i], nums[i])
         
         
@@ -121,7 +124,7 @@ def draw_grid_detection(images, yolo_outputs, model_size):
             #pred_xywh, pred_conf, pred_conf_raw = tf.split(outputs, [4,1,1,], axis=-1)
             for y in range(grid_size[0]):
                 for x in range(grid_size[1]):
-                    mask = outputs[i, y, x, :, 4:5] > 0.4
+                    mask = outputs[i, y, x, :, 4:5] > conf_thresh
                     if np.any(mask):
                         rect = patches.Rectangle((x*stride,y*stride),stride,stride,linewidth=1,edgecolor='r',facecolor='none')
                         ax.add_patch(rect)

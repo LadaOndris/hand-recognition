@@ -33,7 +33,7 @@ class HandsegDatasetBboxes:
         dataset = dataset.map(self._prepare_sample)
         shapes = (tf.TensorShape([416, 416, 1]), tf.TensorShape([None, 4]))
         dataset = dataset.padded_batch(self.batch_size, padded_shapes=shapes)
-        dataset = dataset.prefetch(buffer_size=5)
+        dataset = dataset.prefetch(buffer_size=1)
         return dataset
     
     # annotation line consists of depth_image file name and bounding boxes coordinates
@@ -44,8 +44,10 @@ class HandsegDatasetBboxes:
         image_file_path = tf.strings.join([self.dataset_path, "/images/", image_file_name])
         
         depth_image_file_content = tf.io.read_file(image_file_path)
+        # loads depth images and converts values to fit in dtype.uint8
         depth_image = tf.io.decode_image(depth_image_file_content, channels=1)
         depth_image.set_shape([480, 640, 1]) 
+        #depth_image /= 255 # normalize to range [0, 1]
         
         bboxes = tf.reshape(annotation_parts[1:], shape=[-1,4])
         bboxes = tf.strings.to_number(bboxes, out_type=tf.float32)
