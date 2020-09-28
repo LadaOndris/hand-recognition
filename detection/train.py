@@ -1,5 +1,4 @@
 
-
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import recall_score, precision_score, f1_score
@@ -15,10 +14,11 @@ import cv2
 from skimage.feature import hog
 from skimage import data, exposure
 from model import Model
-from utils import output_boxes, draw_output_boxes
+from utils import output_boxes, draw_output_boxes, draw_detected_objects, draw_grid_detection
 import tensorflow as tf
 from config import Config
 from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
+from dataset_generator import DatasetGenerator
 
 # disable CUDA, run on CPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -241,7 +241,7 @@ def train():
     yolo_out_shapes = model.yolo_output_shapes
     tf_model = model.tf_model
     
-    config = Config()
+    #config = Config()
     dataset_bboxes = HandsegDatasetBboxes(batch_size=16)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
@@ -251,9 +251,9 @@ def train():
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
                      loss=loss)
     
-    tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=1)
+    tf_model.fit(dataset_generator, epochs=20, verbose=1, steps_per_epoch=10)
     
-    model_name = "overfitted_model"
+    model_name = "overfitted_model_conf_only"
     tf_model.save(model_name)
     
     loaded_model = tf.keras.models.load_model(model_name, custom_objects={'YoloLoss':YoloLoss}, compile=False)
@@ -267,136 +267,28 @@ def train():
     """
     return
 
-"""
-Preprocesses bounding boxes from tf.Dataset and produces y_true.
-"""
-class DatasetGenerator:
+def predict():
+    loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    def __init__(self, dataset_bboxes_iterator, input_shape, output_shapes, anchors):
-        self.dataset_bboxes_iterator = dataset_bboxes_iterator
-        self.strides = self.compute_strides(input_shape, output_shapes)
-        self.output_shapes = output_shapes
-        self.anchors = anchors
-        self.anchors_per_scale = len(anchors[0])
-        self.iterator = iter(self.dataset_bboxes_iterator)
+    batch_size = 16
+    dataset_bboxes = HandsegDatasetBboxes(batch_size=batch_size)
+    #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
-    def compute_strides(self, input_shape, output_shapes):
-        # input_shape is (416, 416, 1)
-        grid_sizes = np.array([output_shapes[i][1] 
-                               for i in range(len(output_shapes))])
-        return input_shape[0] / grid_sizes
-    
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        batch_images, batch_bboxes = self.iterator.get_next()
-        y_true = self.preprocess_true_bboxes(batch_bboxes)
-        return batch_images, y_true
-    
-    
-    # Mostly taken from https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py.
-    def preprocess_true_bboxes(self, batch_bboxes):
-        y_true = [np.zeros((len(batch_bboxes),
-                            self.output_shapes[i][1], 
-                            self.output_shapes[i][2], 
-                            self.anchors_per_scale, 5)) for i in range(len(self.output_shapes))]
+    for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
+        print(batch_images.shape)
+        yolo_outputs = loaded_model.predict(batch_images)
+        scale1_outputs = tf.reshape(yolo_outputs[0], [batch_size, -1, 6])
+        scale2_outputs = tf.reshape(yolo_outputs[1], [batch_size, -1, 6])
+        outputs = tf.concat([scale1_outputs, scale2_outputs], axis=1) # outputs for the whole batch
         
-        for image_in_batch, bboxes in enumerate(batch_bboxes):
-            #print(bboxes)
-            # find best anchor for each true bbox
-            # (there are 13x13x3 anchors) 
-            
-            for bbox in bboxes: # for every true bounding box in the image
-                # bbox is [x1, y1, x2, y2]
-                bbox_center = (bbox[2:] + bbox[:2]) * 0.5
-                bbox_wh = bbox[2:] - bbox[:2]
-                bbox_xywh = np.concatenate([bbox_center, bbox_wh], axis=-1)
-                # transform bbox coordinates into scaled values - for each scale
-                # (ie. 13x13 grid box, instead of 416*416 pixels)
-                # bbox_xywh_grid_scaled.shape = (2 scales, 4 coords) 
-                bbox_xywh_grid_scaled = bbox_xywh[np.newaxis, :] / self.strides[:, np.newaxis]
-                #print(bbox_xywh_grid_scaled)
-                exist_positive = False
-                iou_for_all_scales = []
-                
-                # for each scale (13x13 and 26x26)
-                for scale_index in range(len(self.output_shapes)):
-                    grid_box_xy = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
-                    #print(grid_box_xy)
-                    # get anchors coordinates for the current 
-                    anchors_xywh_scaled = np.zeros((self.anchors_per_scale, 4))
-                    # the center of an anchor is the center of a grid box
-                    anchors_xywh_scaled[:, 0:2] = grid_box_xy + 0.5
-                    # self.anchors defines only widths and heights of anchors
-                    # Values of self.anchors should be already scaled.
-                    anchors_xywh_scaled[:, 2:4] = self.anchors[scale_index]
-                    
-                    # compute IOU for true bbox and anchors
-                    iou_of_this_scale = self.bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis,:], anchors_xywh_scaled)
-                    iou_for_all_scales.append(iou_of_this_scale) 
-                    iou_mask = iou_of_this_scale > 0.3
-                    
-                    # update y_true for anchors of grid boxes which satisfy the iou threshold
-                    if np.any(iou_mask):
-                        x_index, y_index = grid_box_xy
-                        
-                        #iou_mask = [True, False, False]
-                        #print(y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4].shape)
-                        y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, :] = 0
-                        y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4] = bbox_xywh
-                        y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 4:5] = 1.0
-                        
-                        exist_positive = True
-                
-                # if no prediction across all scales for the current bbox
-                # matched the true bounding box enough
-                if not exist_positive:
-                    # get the prediction with the highest IOU
-                    best_anchor_index = np.argmax(np.array(iou_for_all_scales).reshape(-1), axis=-1)
-                    best_detect = int(best_anchor_index / self.anchors_per_scale)
-                    best_anchor = int(best_anchor_index % self.anchors_per_scale)
-                    x_index, y_index = np.floor(bbox_xywh_grid_scaled[best_detect, 0:2]).astype(np.int32)
-                        
-                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, :] = 0
-                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
-                    y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
-            
-        print(F"y_true conf sum ({np.sum(y_true[0][...,4:5])}, {np.sum(y_true[1][...,4:5])}):")
-        #print(len(y_true), y_true[0].shape)
-        return y_true
-    
-    def bbox_iou(self, boxes1, boxes2):
-        """
-        boxes1.shape (n, 4)
-        boxes2.shape (m, 4)
+        #single_image_preds = outputs[0]
+        #image = np.squeeze(batch_images[0])
         
-        Returns
-            Returns an array of iou for each combination of possible intersection.
-        """
-        # convert to numpy arrays
-        boxes1 = np.array(boxes1)
-        boxes2 = np.array(boxes2)
+        draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1])
+        #draw_detected_objects(batch_images, outputs, [416, 416, 1])
         
-        boxes1_area = boxes1[..., 2] * boxes1[..., 3] # width * height
-        boxes2_area = boxes2[..., 2] * boxes2[..., 3] # width * height
-        
-        # Convert xywh to x1,y1,x2,y2 (top left and bottom right point).
-        boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                                boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
-        boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                                boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
-        
-        left_up = np.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
+        break
 
-        # Find the length of x and y where the rectangles overlap.
-        # If the length is less than 0, they do not overlap.
-        intersection_lengths = np.maximum(right_down - left_up, 0.0)
-        intersection_area = intersection_lengths[..., 0] * intersection_lengths[..., 1]
-        union_area = boxes1_area + boxes2_area - intersection_area
-    
-        return intersection_area / union_area
 
 if __name__ == '__main__':
     train()

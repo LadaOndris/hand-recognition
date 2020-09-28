@@ -1,14 +1,8 @@
 
-from PIL import Image
-from matplotlib import pyplot as plt
-from collections import Counter
-from pathlib import Path
+
 import tensorflow as tf
 import numpy as np
 import os
-import glob
-import time
-
 
 # inspired by https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py
 class HandsegDatasetBboxes:
@@ -32,32 +26,6 @@ class HandsegDatasetBboxes:
             annotations = f.readlines()
         return annotations        
     
-    """
-    def __iter__(self):
-        return self
-
-    
-    def __next__(self):
-        if self.batch_index >= self.num_batches:
-            self.batch_index = 0
-            np.random.shuffle(self.annotations)
-            raise StopIteration
-            
-        images_in_batch = 0
-        while images_in_batch < self.batch_size:
-            image_index = self.batch_index * self.batch_size + images_in_batch
-            if image_index < self.num_samples:
-                ## load image and bboxes
-                ## possibly preproccess image
-                pass    
-            else:
-                break
-            images_in_batch += 1
-            
-        
-        self.batch_index += 1
-        return None, None
-    """ 
     def _build_iterator(self):
         dataset = tf.data.Dataset.from_tensor_slices(self.annotations[:16])
         dataset = dataset.repeat()
