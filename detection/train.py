@@ -232,11 +232,14 @@ class YoloLoss(tf.keras.losses.Loss):
     def bbox_iou(self, boxes1, boxes2):
         boxes1_area = boxes1[..., 2] * boxes1[..., 3]
         boxes2_area = boxes2[..., 2] * boxes2[..., 3]
+        
+        boxes1_xy, boxes1_wh = tf.split(boxes1, [2, 2])
+        boxes2_xy, boxes2_wh = tf.split(boxes2, [2, 2])
 
-        boxes1 = tf.concat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
-        boxes2 = tf.concat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+        boxes1 = tf.concat([boxes1_xy - boxes1_wh * 0.5,
+                            boxes1_xy + boxes1_wh * 0.5], axis=-1)
+        boxes2 = tf.concat([boxes2_xy - boxes2_wh * 0.5,
+                            boxes2_xy + boxes2_wh * 0.5], axis=-1)
 
         left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
         right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
@@ -248,8 +251,6 @@ class YoloLoss(tf.keras.losses.Loss):
 
         return iou
     
-batch_size = 4
-
 def train():
     
     model = Model.from_cfg("cfg/yolov3-tiny.cfg")
@@ -257,7 +258,7 @@ def train():
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_bboxes = SimpleBoxesDataset(type='train', train_size=0.8, batch_size=batch_size)
+    dataset_bboxes = SimpleBoxesDataset(type='train', train_size=0.8, batch_size=model.batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -268,7 +269,7 @@ def train():
     
     tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=500)
     
-    model_name = "simple_boxes4_iou.h5"
+    model_name = "simple_boxes5_new_anchors.h5"
     tf_model.save_weights(model_name)
     
     
@@ -283,21 +284,20 @@ def predict():
     
     model = Model.from_cfg("cfg/yolov3-tiny.cfg")
     loaded_model = model.tf_model
-    loaded_model.load_weights("simple_boxes4_iou.h5")
+    loaded_model.load_weights("simple_boxes5_new_anchors.h5")
+    batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
     dataset_bboxes = SimpleBoxesDataset(type='test', train_size=0.8, batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
     for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
-        print(batch_images.shape)
+        
         yolo_outputs = loaded_model.predict(batch_images)
         scale1_outputs = tf.reshape(yolo_outputs[0], [batch_size, -1, 6])
         scale2_outputs = tf.reshape(yolo_outputs[1], [batch_size, -1, 6])
         outputs = tf.concat([scale1_outputs, scale2_outputs], axis=1) # outputs for the whole batch
         
-        #single_image_preds = outputs[0]
-        #image = np.squeeze(batch_images[0])
         
         draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1])
         draw_detected_objects(batch_images, outputs, [416, 416, 1])

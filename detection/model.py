@@ -254,6 +254,7 @@ class Model:
         model.input_shape = input_shape
         model.yolo_output_shapes = yolo_out_shapes
         model.anchors = anchors_all
+        model.batch_size = batch_size
         return model
     
 

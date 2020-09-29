@@ -61,6 +61,8 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
         tf.split(inputs, [1, 1, 1, 1, 1, -1], axis=-1)
     
     top_left_x = center_x - width * 0.5
+    tf.print("min max", tf.reduce_min(top_left_x), tf.reduce_min(center_x))
+    tf.print("Well", center_x[0], width[0], top_left_x[0])
     top_left_y = center_y - height * 0.5
     bottom_right_x = center_x + width * 0.5
     bottom_right_y = center_y + height * 0.5
@@ -83,7 +85,7 @@ def draw_output_boxes(image, boxes, nums):
     
     for i in range(nums):
         x, y = boxes[i,0:2]# * [image.shape[1],image.shape[0]]
-        w, h = boxes[i,2:4]# * [image.shape[1],image.shape[0]]
+        w, h = boxes[i,2:4] - boxes[i,0:2]# * [image.shape[1],image.shape[0]]
         print(x, y, w, h)
         rect = patches.Rectangle((x,y),w,h,linewidth=1,edgecolor='r',facecolor='none')
         ax.add_patch(rect)
@@ -91,15 +93,15 @@ def draw_output_boxes(image, boxes, nums):
     plt.show()
     return
 
-conf_thresh = .5
+conf_thresh = .4
 
 def draw_detected_objects(images, predictions_for_the_image, model_size):
     
     boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 2, .5, conf_thresh)
     
-    tf.print("In draw detected", tf.reduce_mean(boxes))
+    #tf.print("In draw detected", tf.reduce_mean(boxes))
     for i in range(len(boxes)):
-        print("Drawing boxes witch scores:", scores[i][:nums[i]])
+        print("Drawing boxes with scores:", scores[i][:nums[i]])
         draw_output_boxes(images[i], boxes[i], nums[i])
         
         
@@ -134,7 +136,7 @@ def draw_grid_detection(images, yolo_outputs, model_size):
             grid_size = outputs_shape[1:3]
             stride = model_size[0] / grid_size[0]
             
-            tf.print("min max pred", tf.reduce_min(outputs[i,...,4]), tf.reduce_max(outputs[i,...,4]))
+            #tf.print("min max pred", tf.reduce_min(outputs[i,...,4]), tf.reduce_max(outputs[i,...,4]))
             
             #pred_xywh, pred_conf, pred_conf_raw = tf.split(outputs, [4,1,1,], axis=-1)
             for y in range(grid_size[0]):
