@@ -66,7 +66,7 @@ class YoloLoss(tf.keras.losses.Loss):
         y_pred : 5D array
             Prediction of bounding boxes and class labels.
             Shape is (batch_size, grid_size, grid_size, anchors_per_grid_box, 6).
-            The last dimension also contains raw confidence.
+            The last dimension also contains raw confidence.(tf.exp(box_shapes) * self.anchors) * stride
             
         Returns
         -------
@@ -121,6 +121,11 @@ class YoloLoss(tf.keras.losses.Loss):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)
         bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
         
+        # wh = (tf.exp(box_shapes) * self.anchors) * stride
+        #strides = self.model_input_image_size[0] / true_xywh.shape[1]
+        #pred_wh_inversed = tf.math.log(pred_xywh[2:] / (strides * self.anchors))
+        #true_wh_inversed = tf.math.log(true_xywh[2:] / (strides * self.anchors))
+        
         xy_loss = true_conf * bbox_loss_scale * tf.keras.backend.square(true_xywh[...,:2] - pred_xywh[...,:2])
         wh_loss = true_conf * bbox_loss_scale * 0.5 * tf.keras.backend.square(true_xywh[...,2:] - pred_xywh[...,2:])
         
@@ -142,16 +147,24 @@ class YoloLoss(tf.keras.losses.Loss):
         
     def iou_loss(self, true_conf, pred_xywh, true_xywh):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)
-        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
         
+        # Big boxes will generaly have greater IOU than small boxes.
+        # We need to compensate for the different box sizes, 
+        # so that the model is trained equally for small boxes and big boxes.
+        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
         iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], true_xywh[:, :, :, :, np.newaxis, :])
+        
+        # If IOU = 0, then the boxes don't overlap - the worst result.
+        # If IOU = 1, then the boxes overlap exactly - the best result.
+        iou_loss = true_conf * bbox_loss_scale * (1 - iou) 
         
         #tf.print("iou shape", tf.shape(iou))
         #tf.print("IOU", tf.reduce_min(iou), tf.reduce_max(iou))
         #tf.print("true_conf.shape, bbox_loss_scale.shape", tf.shape(true_conf), tf.shape(bbox_loss_scale))
-        iou_loss = true_conf * bbox_loss_scale * iou
+        
         #tf.print("iou_loss.shape", tf.shape(iou_loss))
         #tf.print("iou_loss", tf.reduce_min(iou_loss), tf.reduce_max(iou_loss))
+        
         return iou_loss
     
     def confidence_loss(self, raw_conf, true_conf, pred_xywh, true_xywh):
@@ -235,7 +248,7 @@ class YoloLoss(tf.keras.losses.Loss):
 
         return iou
     
-batch_size = 1
+batch_size = 4
 
 def train():
     
@@ -244,7 +257,7 @@ def train():
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_bboxes = SimpleBoxesDataset(batch_size=batch_size)
+    dataset_bboxes = SimpleBoxesDataset(type='train', train_size=0.8, batch_size=batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -253,9 +266,9 @@ def train():
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
                      loss=loss)
     
-    tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=312)
+    tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=500)
     
-    model_name = "simple_boxes.h5"
+    model_name = "simple_boxes4_iou.h5"
     tf_model.save_weights(model_name)
     
     
@@ -270,13 +283,12 @@ def predict():
     
     model = Model.from_cfg("cfg/yolov3-tiny.cfg")
     loaded_model = model.tf_model
-    loaded_model.load_weights("simple_boxes.h5")
+    loaded_model.load_weights("simple_boxes4_iou.h5")
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    dataset_bboxes = SimpleBoxesDataset(batch_size=batch_size)
+    dataset_bboxes = SimpleBoxesDataset(type='test', train_size=0.8, batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
-    i = 0
     for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
         print(batch_images.shape)
         yolo_outputs = loaded_model.predict(batch_images)
@@ -290,9 +302,7 @@ def predict():
         draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1])
         draw_detected_objects(batch_images, outputs, [416, 416, 1])
         
-        i += 1
-        if i == 10:
-            break
+        break
 
 
 if __name__ == '__main__':

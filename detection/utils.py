@@ -60,10 +60,10 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
     center_x, center_y, width, height, confidence, classes = \
         tf.split(inputs, [1, 1, 1, 1, 1, -1], axis=-1)
     
-    top_left_x = center_x - width / 2.0
-    top_left_y = center_y - height / 2.0
-    bottom_right_x = center_x + width / 2.0
-    bottom_right_y = center_y + height / 2.0
+    top_left_x = center_x - width * 0.5
+    top_left_y = center_y - height * 0.5
+    bottom_right_x = center_x + width * 0.5
+    bottom_right_y = center_y + height * 0.5
     
     inputs = tf.concat([top_left_x, 
                         top_left_y, 
@@ -81,9 +81,6 @@ def draw_output_boxes(image, boxes, nums):
     fig, ax = plt.subplots(1)
     ax.imshow(image)
     
-    
-    tf.print(tf.reduce_mean(boxes))
-    print("VALID BOXES:", nums)
     for i in range(nums):
         x, y = boxes[i,0:2]# * [image.shape[1],image.shape[0]]
         w, h = boxes[i,2:4]# * [image.shape[1],image.shape[0]]
@@ -107,7 +104,25 @@ def draw_detected_objects(images, predictions_for_the_image, model_size):
         
         
 def draw_grid_detection(images, yolo_outputs, model_size):
-    
+    """
+    Draws images and highlights grid boxes where the model is quite certain 
+    that it overlaps an object (the grid box is reponsible for that object prediction).
+
+    Parameters
+    ----------
+    images : TYPE
+        DESCRIPTION.
+    yolo_outputs : TYPE
+        Boxes defined as (x, y, w, h) where x, y are box centers coordinates
+        and w, h their width and height.
+    model_size : TYPE
+        Image size.
+
+    Returns
+    -------
+    None.
+
+    """
     for i in range(len(images)):
         fig, ax = plt.subplots(1)
         ax.imshow(images[i])
