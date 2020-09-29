@@ -94,7 +94,7 @@ def draw_output_boxes(image, boxes, nums):
     plt.show()
     return
 
-conf_thresh = .3
+conf_thresh = .5
 
 def draw_detected_objects(images, predictions_for_the_image, model_size):
     

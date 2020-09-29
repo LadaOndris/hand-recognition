@@ -18,6 +18,7 @@ from utils import output_boxes, draw_output_boxes, draw_detected_objects, draw_g
 import tensorflow as tf
 from config import Config
 from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
+from datasets.simple_boxes.dataset_bboxes import SimpleBoxesDataset
 from dataset_generator import DatasetGenerator
 
 # disable CUDA, run on CPU
@@ -243,7 +244,7 @@ def train():
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_bboxes = HandsegDatasetBboxes(batch_size=batch_size)
+    dataset_bboxes = SimpleBoxesDataset(batch_size=batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -252,14 +253,11 @@ def train():
     tf_model.compile(optimizer=tf.optimizers.Adam(lr=model.learning_rate), 
                      loss=loss)
     
-    tf_model.fit(dataset_generator, epochs=10, verbose=1, steps_per_epoch=30)
+    tf_model.fit(dataset_generator, epochs=1, verbose=1, steps_per_epoch=312)
     
-    model_name = "overfitted_model_single_image.h5"
+    model_name = "simple_boxes.h5"
     tf_model.save_weights(model_name)
     
-    #loaded_model = tf.keras.models.load_model(model_name, custom_objects={'YoloLoss':YoloLoss}, compile=False)
-    #tf.print(loaded_model)
-   
     
     """
     for images, bboxes in dataset_bboxes.batch_iterator:
@@ -271,14 +269,14 @@ def train():
 def predict():
     
     model = Model.from_cfg("cfg/yolov3-tiny.cfg")
-    yolo_out_shapes = model.yolo_output_shapes
     loaded_model = model.tf_model
-    loaded_model.load_weights("overfitted_model_single_image.h5")
+    loaded_model.load_weights("simple_boxes.h5")
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    dataset_bboxes = HandsegDatasetBboxes(batch_size=batch_size)
+    dataset_bboxes = SimpleBoxesDataset(batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
+    i = 0
     for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
         print(batch_images.shape)
         yolo_outputs = loaded_model.predict(batch_images)
@@ -292,7 +290,9 @@ def predict():
         draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1])
         draw_detected_objects(batch_images, outputs, [416, 416, 1])
         
-        break
+        i += 1
+        if i == 10:
+            break
 
 
 if __name__ == '__main__':
