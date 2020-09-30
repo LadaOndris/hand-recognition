@@ -91,4 +91,4 @@ def step(params):
         print(key, value)
     
 pso = PSO()
-pso.optimize(target=(900, -900), iterations=100, callback = step)
+pso.optimize(target=(900, -900), iterations=200, callback = step)
