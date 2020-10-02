@@ -7,9 +7,15 @@ import os
 # inspired by https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py
 class HandsegDatasetBboxes:
 
-    def __init__(self, cfg = None, batch_size = 16):
+    def __init__(self, type, train_size, batch_size = 16):
+        if type != 'train' and type != 'test':
+            raise ValueError("Invalid dataset type {type}")
+        if train_size < 0 or train_size > 1:
+            raise ValueError("Train_size expected to be in range [0, 1], but got {train_size}.")
         
         self.dataset_path = os.path.dirname(__file__)
+        self.type = type
+        self.train_size = train_size
         self.batch_size = batch_size
         self.batch_index = 0
         
@@ -24,7 +30,12 @@ class HandsegDatasetBboxes:
         annotations_path = os.path.join(self.dataset_path, 'bounding_boxes.txt')
         with open(annotations_path, 'r') as f:
             annotations = f.readlines()
-        return annotations        
+            
+        boundary_index = int(len(annotations) * self.train_size)
+        if type == 'train':
+            return annotations[:boundary_index]
+        else:
+            return annotations[boundary_index:]
     
     def _build_iterator(self):
         dataset = tf.data.Dataset.from_tensor_slices(self.annotations[:16])

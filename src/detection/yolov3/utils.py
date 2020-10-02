@@ -86,16 +86,16 @@ def draw_output_boxes(image, boxes, nums):
     for i in range(nums):
         x, y = boxes[i,0:2]# * [image.shape[1],image.shape[0]]
         w, h = boxes[i,2:4] - boxes[i,0:2]# * [image.shape[1],image.shape[0]]
-        print(x, y, w, h)
+        
         rect = patches.Rectangle((x,y),w,h,linewidth=1,edgecolor='r',facecolor='none')
         ax.add_patch(rect)
     
     plt.show()
     return
 
-conf_thresh = .4
 
-def draw_detected_objects(images, predictions_for_the_image, model_size):
+
+def draw_detected_objects(images, predictions_for_the_image, model_size, conf_thresh):
     
     boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 2, .5, conf_thresh)
     
@@ -105,7 +105,7 @@ def draw_detected_objects(images, predictions_for_the_image, model_size):
         draw_output_boxes(images[i], boxes[i], nums[i])
         
         
-def draw_grid_detection(images, yolo_outputs, model_size):
+def draw_grid_detection(images, yolo_outputs, model_size, conf_thresh):
     """
     Draws images and highlights grid boxes where the model is quite certain 
     that it overlaps an object (the grid box is reponsible for that object prediction).

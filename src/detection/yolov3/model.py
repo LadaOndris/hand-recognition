@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, \
     LeakyReLU, ZeroPadding2D, UpSampling2D, MaxPool2D
 
 
+
 class YoloLayer(tf.keras.layers.Layer):
     def __init__(self, anchors, n_classes, input_layer_shape, name=None):
         super(YoloLayer, self).__init__(name=name)
@@ -67,7 +68,7 @@ class YoloLayer(tf.keras.layers.Layer):
         pred_xywh = tf.concat([pred_xy, pred_wh], axis=-1)
         
         pred_conf = tf.sigmoid(confidence) # confidence is objectness
-        
+                
         return tf.concat([pred_xywh, pred_conf, confidence], axis=-1)
 
 
