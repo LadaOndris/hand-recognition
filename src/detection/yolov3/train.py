@@ -12,13 +12,13 @@ from matplotlib import pyplot as plt
 from skimage.feature import hog
 from skimage import data, exposure
 
-from utils import draw_detected_objects, draw_grid_detection
+from utils import draw_detected_objects, draw_grid_detection, tensorflow_bbox_iou
 from model import Model
 from datasets.handseg150k.dataset import HandsegDataset, HUGE_INT
 from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
 from datasets.simple_boxes.dataset_bboxes import SimpleBoxesDataset
 from dataset_generator import DatasetGenerator
-from metrics import YoloConfPrecisionMetric, YoloConfRecallMetric
+from metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
 
 # disable CUDA, run on CPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -149,7 +149,7 @@ class YoloLoss(tf.keras.losses.Loss):
         # We need to compensate for the different box sizes, 
         # so that the model is trained equally for small boxes and big boxes.
         bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
-        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], true_xywh[:, :, :, :, np.newaxis, :])
+        iou = tensorflow_bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], true_xywh[:, :, :, :, np.newaxis, :])
         
         # If IOU = 0, then the boxes don't overlap - the worst result.
         # If IOU = 1, then the boxes overlap exactly - the best result.
@@ -172,7 +172,7 @@ class YoloLoss(tf.keras.losses.Loss):
         #tf.print("bboxes masked", tf.shape(bboxes))
         #tf.print("pred_xywh.shape", tf.shape(pred_xywh))
         
-        iou = self.bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], bboxes)
+        iou = tensorflow_bbox_iou(pred_xywh[:, :, :, :, np.newaxis, :], bboxes)
         # max_iou.shape for example (16, 26, 26, 3, 1)
         max_iou = tf.expand_dims(tf.reduce_max(iou, axis=-1), axis=-1) 
         
@@ -196,57 +196,6 @@ class YoloLoss(tf.keras.losses.Loss):
               + ignore_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
         return conf_loss
     
-    def bbox_giou(self, boxes1, boxes2):
-        boxes1 = tf.concat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
-        boxes2 = tf.concat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
-
-        boxes1 = tf.concat([tf.minimum(boxes1[..., :2], boxes1[..., 2:]),
-                            tf.maximum(boxes1[..., :2], boxes1[..., 2:])], axis=-1)
-        boxes2 = tf.concat([tf.minimum(boxes2[..., :2], boxes2[..., 2:]),
-                            tf.maximum(boxes2[..., :2], boxes2[..., 2:])], axis=-1)
-
-        boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-        boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
-
-        left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
-
-        inter_section = tf.maximum(right_down - left_up, 0.0)
-        inter_area = inter_section[..., 0] * inter_section[..., 1]
-        union_area = boxes1_area + boxes2_area - inter_area
-        iou = inter_area / union_area
-
-        enclose_left_up = tf.minimum(boxes1[..., :2], boxes2[..., :2])
-        enclose_right_down = tf.maximum(boxes1[..., 2:], boxes2[..., 2:])
-        enclose = tf.maximum(enclose_right_down - enclose_left_up, 0.0)
-        enclose_area = enclose[..., 0] * enclose[..., 1]
-        
-        giou = iou - (enclose_area - union_area) / enclose_area
-        return giou
-    
-    def bbox_iou(self, boxes1, boxes2):
-        boxes1_area = boxes1[..., 2] * boxes1[..., 3]
-        boxes2_area = boxes2[..., 2] * boxes2[..., 3]
-        
-        boxes1_xy, boxes1_wh = tf.split(boxes1, [2, 2], axis=-1)
-        boxes2_xy, boxes2_wh = tf.split(boxes2, [2, 2], axis=-1)
-
-        boxes1 = tf.concat([boxes1_xy - boxes1_wh * 0.5,
-                            boxes1_xy + boxes1_wh * 0.5], axis=-1)
-        boxes2 = tf.concat([boxes2_xy - boxes2_wh * 0.5,
-                            boxes2_xy + boxes2_wh * 0.5], axis=-1)
-
-        left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
-
-        inter_section = tf.maximum(right_down - left_up, 0.0)
-        inter_area = inter_section[..., 0] * inter_section[..., 1]
-        union_area = boxes1_area + boxes2_area - inter_area
-        iou = 1.0 * inter_area / union_area
-
-        return iou
     
       
 def train():
@@ -264,10 +213,11 @@ def train():
     # compile model
     loss = YoloLoss(model.input_shape, ignore_thresh=.5)
     tf_model.compile(optimizer=tf.optimizers.Adam(learning_rate=model.learning_rate), 
-                     loss=loss, metrics=[YoloConfPrecisionMetric(), YoloConfRecallMetric()])
+                     loss=loss, metrics=[YoloConfPrecisionMetric(), YoloConfRecallMetric(),
+                                         YoloBoxesIoU()])
    
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='batch')
-    history = tf_model.fit(dataset_generator, epochs=20, verbose=1, steps_per_epoch=10,
+    tf_model.fit(dataset_generator, epochs=50, verbose=1, steps_per_epoch=10,
                  callbacks=[tensorboard_callback])
     
     #train_summary_writer = tf.summary.create_file_writer(log_dir)
@@ -275,7 +225,7 @@ def train():
     #    for epoch in range(len(history.history['loss'])):
     #        tf.summary.scalar('history_loss', history.history['loss'][epoch], step=epoch)
             
-    model_name = "../../../saved_models/simple_boxes10.h5"
+    model_name = "../../../saved_models/simple_boxes12.h5"
     tf_model.save_weights(model_name)
     
     
@@ -291,7 +241,7 @@ def predict():
     
     model = Model.from_cfg("../../core/cfg/yolov3-tiny.cfg")
     loaded_model = model.tf_model
-    loaded_model.load_weights("../../../saved_models/simple_boxes10.h5")
+    loaded_model.load_weights("../../../saved_models/simple_boxes8.h5")
     batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
@@ -313,6 +263,6 @@ def predict():
 
 
 if __name__ == '__main__':
-    train()
+    predict()
 
 

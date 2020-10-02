@@ -1,5 +1,7 @@
 import tensorflow as tf
-
+import utils
+import numpy as np
+#from utils import 
 
 def get_positives_and_negatives(y_true, y_pred, conf_threshold):
 
@@ -24,15 +26,6 @@ def get_positives_and_negatives(y_true, y_pred, conf_threshold):
     
     # fn = true ^ ~pred
     fn_vec = tf.math.logical_and(tf.math.logical_not(pred_conf), true_conf)
-    """
-    confusion_matrix = tf.math.confusion_matrix(labels=true_conf, predictions=pred_conf)
-    tf.print(tf.shape(confusion_matrix), tf.shape(true_conf), tf.shape(pred_conf))
-    tf.print(confusion_matrix)
-    tn = confusion_matrix[0][0]
-    fn = confusion_matrix[0][1]
-    tp = confusion_matrix[1][0]
-    fp = confusion_matrix[1][1]
-    """
     
     # tf.reduce_sum could be used, but it would require input vectors to be cast to float
     # as it cannot count booleans.
@@ -95,4 +88,38 @@ class YoloConfRecallMetric(tf.keras.metrics.Metric):
     def reset_states(self):
         self._total.assign(0.)
         self._count.assign(0.)
+        
+        
+class YoloBoxesIoU(tf.keras.metrics.Metric):
+    
+    def __init__(self, name='boxes_iou', **kwargs):
+        super(YoloBoxesIoU, self).__init__(name=name, **kwargs)
+        self._total = self.add_weight(name='total', initializer='zeros')
+        self._count = self.add_weight(name='count', initializer='zeros')
+        
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        true_boxes = y_true[...,0:4]
+        pred_boxes = y_pred[...,0:4]
+        
+        # TODO: replace numpy with tensorflow
+        ious = utils.tensorflow_bbox_iou(true_boxes[..., np.newaxis, :], 
+                                         pred_boxes[..., np.newaxis, :])
+        
+        # Take into account only IoU of true boxes
+        true_conf = y_true[...,4:5]
+        ious_masked = tf.boolean_mask(ious, true_conf)
+        
+        # Compute mean value of all those IoUs
+        mean_iou = tf.reduce_mean(ious_masked)
+        
+        self._total.assign_add(mean_iou)
+        self._count.assign_add(1)
+            
+    def result(self):
+        return tf.math.divide_no_nan(self._total, self._count)
+    
+    def reset_states(self):
+        self._total.assign(0.)
+        self._count.assign(0.)
+        
         
