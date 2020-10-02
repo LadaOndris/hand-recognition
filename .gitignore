@@ -1,0 +1,16 @@
+__pycache__/
+.spyproject/
+
+logs/
+other/
+saved_models/ 
+
+
+datasets/handseg150k/images
+datasets/handseg150k/masks
+
+datasets/simple_boxes/images
+datasets/simple_boxes/bboxes.txt
+
+datasets/nyu_hand_dataset_rdf/
+
