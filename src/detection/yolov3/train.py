@@ -4,13 +4,13 @@ import os
 import sys
 from datetime import datetime
 
-from utils import draw_detected_objects, draw_grid_detection
-from model import Model
-from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from datasets.simple_boxes.dataset_bboxes import SimpleBoxesDataset
-from dataset_generator import DatasetGenerator
-from metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
-from yolo_loss import YoloLoss
+from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
+from src.datasets.simple_boxes.dataset_bboxes import SimpleBoxesDataset
+from src.detection.yolov3.dataset_generator import DatasetGenerator
+from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
+from src.detection.yolov3.yolo_loss import YoloLoss
+from src.detection.yolov3.model import Model
+from src.detection.yolov3 import utils
 
 # disable CUDA, run on CPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -22,7 +22,8 @@ def train(base_path):
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_bboxes = SimpleBoxesDataset(type='train', train_size=0.8, batch_size=model.batch_size)
+    dataset_path = os.path.join(base_path, "datasets/simple_boxes")
+    dataset_bboxes = SimpleBoxesDataset(dataset_path, type='train', train_size=0.8, batch_size=model.batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -53,7 +54,7 @@ def train(base_path):
     """
     return
 
-def predict():
+def predict(base_path):
     conf_threshold = .5
     
     model = Model.from_cfg(os.path.join(base_path, "src/core/cfg/yolov3-tiny.cfg"))
@@ -62,7 +63,8 @@ def predict():
     batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    dataset_bboxes = SimpleBoxesDataset(type='test', train_size=0.8, batch_size=batch_size)
+    dataset_path = os.path.join(base_path, "datasets/simple_boxes")
+    dataset_bboxes = SimpleBoxesDataset(dataset_path, type='test', train_size=0.8, batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
     for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
@@ -73,8 +75,8 @@ def predict():
         outputs = tf.concat([scale1_outputs, scale2_outputs], axis=1) # outputs for the whole batch
         
         
-        draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], conf_threshold)
-        draw_detected_objects(batch_images, outputs, [416, 416, 1], conf_threshold)
+        utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], conf_threshold)
+        utils.draw_detected_objects(batch_images, outputs, [416, 416, 1], conf_threshold)
         
         break
 

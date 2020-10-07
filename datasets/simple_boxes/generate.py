@@ -10,9 +10,11 @@ Edit the dataset_size to determine the number of images in the dataset.
 """
 
 current_dir_path = os.path.dirname(__file__)
+images_path = os.path.join(current_dir_path, "images")
+os.makedirs(images_path, exist_ok=True)
 
 image_size = (416, 416, 1)
-dataset_size = 5000
+dataset_size = 10
 
 value = 150
 radius_range = (10, 60)
@@ -38,7 +40,7 @@ for i, (center, radius) in enumerate(zip(centers, radiuses)):
     cv2.circle(img, tuple(center[0]), radius[0], value, thickness=-1, lineType=8, shift=0)
     cv2.circle(img, tuple(center[1]), radius[1], value, thickness=-1, lineType=8, shift=0)
     file_name = F"image_{i}.png"
-    cv2.imwrite(os.path.join(current_dir_path, "images", file_name), img)
+    cv2.imwrite(os.path.join(images_path, file_name), img)
     
     lines.append(file_name)
     lines[i] += F" {topleft[0][0]} {topleft[0][1]} {rightbottom[0][0]} {rightbottom[0][1]}"

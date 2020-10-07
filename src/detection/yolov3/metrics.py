@@ -1,7 +1,6 @@
 import tensorflow as tf
 import utils
 import numpy as np
-#from utils import 
 
 def get_positives_and_negatives(y_true, y_pred, conf_threshold):
 
