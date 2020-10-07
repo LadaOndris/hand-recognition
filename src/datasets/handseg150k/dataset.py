@@ -1,11 +1,7 @@
 from PIL import Image
-from matplotlib import pyplot as plt
-from collections import Counter
-from pathlib import Path
 import numpy as np
 import os
 import glob
-import time
 
 
 HUGE_INT = 2147483647

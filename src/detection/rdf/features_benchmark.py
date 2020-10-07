@@ -1,5 +1,5 @@
-from datasets.handseg150k.dataset import HandsegDataset, HUGE_INT
-from feature_extraction_numba import extract_features, get_pixel_coords, get_feature_offsets
+from datasets.handseg150k.dataset import HandsegDataset
+from src.detection.rdf.feature_extraction_numba import extract_features, get_pixel_coords, get_feature_offsets
 from joblib import dump, load
 import timeit
 import numpy as np

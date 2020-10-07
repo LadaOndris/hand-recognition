@@ -1,6 +1,5 @@
 
 from matplotlib import pyplot as plt
-import numpy as np
 
 def graph_scores_vs_feature_numbers():
     features = range(50, 2001, 50)

@@ -1,12 +1,5 @@
-from datasets.handseg150k.dataset import HandsegDataset, HUGE_INT
-from PIL import Image
-from matplotlib import pyplot as plt
-from collections import Counter
-from pathlib import Path
+from src.datasets.handseg150k.dataset import HUGE_INT
 import numpy as np
-import os
-import glob
-import time
 
 def get_pixel_coords(feature_pixel_distance, image_shape):
     return np.array([[i, j] for i in range(0, image_shape[0], feature_pixel_distance) 
