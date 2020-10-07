@@ -34,7 +34,7 @@ def get_positives_and_negatives(y_true, y_pred, conf_threshold):
     fp = tf.math.count_nonzero(fp_vec, dtype=tf.float32)
     fn = tf.math.count_nonzero(fn_vec, dtype=tf.float32)
     
-    tf.print(tp, tn, fp, fn)
+    #tf.print(tp, tn, fp, fn)
     return tp, tn, fp, fn
 
 class YoloConfPrecisionMetric(tf.keras.metrics.Metric):

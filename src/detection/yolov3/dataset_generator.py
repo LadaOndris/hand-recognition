@@ -96,7 +96,7 @@ class DatasetGenerator:
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
             
-        print(F"y_true conf sum ({np.sum(y_true[0][...,4:5])}, {np.sum(y_true[1][...,4:5])}):")
+        #print(F"y_true conf sum ({np.sum(y_true[0][...,4:5])}, {np.sum(y_true[1][...,4:5])}):")
         #print(len(y_true), y_true[0].shape)
         return y_true
     
