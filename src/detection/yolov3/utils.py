@@ -6,6 +6,9 @@ import numpy as np
 
 
 def tensorflow_bbox_iou(boxes1, boxes2):
+    boxes1 = tf.cast(boxes1, dtype=tf.float32)
+    boxes2 = tf.cast(boxes2, dtype=tf.float32)
+    
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]
     boxes2_area = boxes2[..., 2] * boxes2[..., 3]
     

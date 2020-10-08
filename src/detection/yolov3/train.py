@@ -13,7 +13,7 @@ from src.detection.yolov3.model import Model
 from src.detection.yolov3 import utils
 
 # disable CUDA, run on CPU
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def train(base_path):
     log_dir = os.path.join(base_path, "logs/", datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -22,8 +22,9 @@ def train(base_path):
     tf_model = model.tf_model
     
     #config = Config()
-    dataset_path = os.path.join(base_path, "datasets/simple_boxes")
-    dataset_bboxes = SimpleBoxesDataset(dataset_path, type='train', train_size=0.8, batch_size=model.batch_size)
+    dataset_path = os.path.join(base_path, "datasets/handseg150k")
+    dataset_bboxes = HandsegDatasetBboxes(dataset_path, type='train', train_size=0.8, 
+                                          batch_size=model.batch_size)
     dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
@@ -34,16 +35,21 @@ def train(base_path):
                      loss=loss, metrics=[YoloConfPrecisionMetric(), YoloConfRecallMetric(),
                                          YoloBoxesIoU()])
    
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='batch')
-    tf_model.fit(dataset_generator, epochs=50, verbose=1, steps_per_epoch=10,
-                 callbacks=[tensorboard_callback])
+    checkpoint_prefix = os.path.join(log_dir, 'train_ckpts', "ckpt_{epoch}")
+    
+    callbacks = [
+        tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='batch'),
+        tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True),
+    ]
+    
+    tf_model.fit(dataset_generator, epochs=50, verbose=0, steps_per_epoch=312, callbacks=callbacks)
     
     #train_summary_writer = tf.summary.create_file_writer(log_dir)
     #with train_summary_writer.as_default():
     #    for epoch in range(len(history.history['loss'])):
     #        tf.summary.scalar('history_loss', history.history['loss'][epoch], step=epoch)
             
-    model_name = os.path.join(base_path, "saved_models/simple_boxes12.h5")
+    model_name = os.path.join(base_path, "saved_models/handseg1.h5")
     tf_model.save_weights(model_name)
     
     
@@ -63,8 +69,8 @@ def predict(base_path):
     batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
-    dataset_path = os.path.join(base_path, "datasets/simple_boxes")
-    dataset_bboxes = SimpleBoxesDataset(dataset_path, type='test', train_size=0.8, batch_size=batch_size)
+    dataset_path = os.path.join(base_path, "datasets/handseg150k")
+    dataset_bboxes = HandsegDatasetBboxes(dataset_path, type='test', train_size=0.8, batch_size=batch_size)
     #yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
     
     for batch_images, batch_bboxes in dataset_bboxes.batch_iterator:
