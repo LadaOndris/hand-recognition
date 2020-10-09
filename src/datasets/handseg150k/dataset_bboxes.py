@@ -50,6 +50,7 @@ class HandsegDatasetBboxes:
     # annotation line consists of depth_image file name and bounding boxes coordinates
     @tf.function()
     def _prepare_sample(self, annotation):
+        annotation = tf.strings.strip(annotation) # remove white spaces causing FileNotFound
         annotation_parts = tf.strings.split(annotation, sep=' ')
         image_file_name = annotation_parts[0]
         image_file_path = tf.strings.join([self.dataset_path, "/images/", image_file_name])
