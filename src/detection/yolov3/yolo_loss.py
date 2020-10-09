@@ -86,13 +86,13 @@ class YoloLoss(tf.keras.losses.Loss):
         #         tf.reduce_sum(pred_conf),
         #         tf.reduce_sum(true_conf)) 
         
-        xywh_loss = self.iou_loss(true_conf, pred_xywh, true_xywh)
+        bbox_loss = self.iou_loss(true_conf, pred_xywh, true_xywh)
         conf_loss = self.confidence_loss(raw_conf, true_conf, pred_xywh, true_xywh)
         
         # There is no loss for class labels, since there is a single class
         # and confidence score represenets that class
     
-        return xywh_loss + conf_loss
+        return bbox_loss + conf_loss
     
     def xywh_loss(self, true_conf, pred_xywh, true_xywh):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)
