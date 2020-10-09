@@ -16,7 +16,8 @@ from src.detection.yolov3 import utils
 #os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def train(base_path):
-    log_dir = os.path.join(base_path, "logs/", datetime.now().strftime("%Y%m%d-%H%M%S"))
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = os.path.join(base_path, "logs/", timestamp)
     model = Model.from_cfg(os.path.join(base_path, "src/core/cfg/yolov3-tiny.cfg"))
     yolo_out_shapes = model.yolo_output_shapes
     tf_model = model.tf_model
@@ -42,14 +43,14 @@ def train(base_path):
         tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True),
     ]
     
-    tf_model.fit(dataset_generator, epochs=50, verbose=0, steps_per_epoch=312, callbacks=callbacks)
+    tf_model.fit(dataset_generator, epochs=10, verbose=0, steps_per_epoch=3125, callbacks=callbacks)
     
     #train_summary_writer = tf.summary.create_file_writer(log_dir)
     #with train_summary_writer.as_default():
     #    for epoch in range(len(history.history['loss'])):
     #        tf.summary.scalar('history_loss', history.history['loss'][epoch], step=epoch)
             
-    model_name = os.path.join(base_path, "saved_models/handseg1.h5")
+    model_name = os.path.join(base_path, F"saved_models/handseg_{timestamp}.h5")
     tf_model.save_weights(model_name)
     
     
@@ -65,7 +66,8 @@ def predict(base_path):
     
     model = Model.from_cfg(os.path.join(base_path, "src/core/cfg/yolov3-tiny.cfg"))
     loaded_model = model.tf_model
-    loaded_model.load_weights(os.path.join(base_path, "saved_models/simple_boxes8.h5"))
+    #loaded_model.load_weights(os.path.join(base_path, "saved_models/simple_boxes8.h5"))
+    loaded_model.load_weights(os.path.join(base_path, "logs/20201009-132512/train_ckpts/ckpt_8"))
     batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     

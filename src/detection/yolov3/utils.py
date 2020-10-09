@@ -26,7 +26,7 @@ def tensorflow_bbox_iou(boxes1, boxes2):
     inter_section = tf.maximum(right_down - left_up, 0.0)
     inter_area = inter_section[..., 0] * inter_section[..., 1]
     union_area = boxes1_area + boxes2_area - inter_area
-    iou = 1.0 * inter_area / union_area
+    iou = 1.0 * tf.math.divide_no_nan(inter_area, union_area)
 
     return iou
 
