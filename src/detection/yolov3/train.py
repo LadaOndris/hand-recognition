@@ -67,7 +67,7 @@ def predict(base_path):
     model = Model.from_cfg(os.path.join(base_path, "src/core/cfg/yolov3-tiny.cfg"))
     loaded_model = model.tf_model
     #loaded_model.load_weights(os.path.join(base_path, "saved_models/simple_boxes8.h5"))
-    loaded_model.load_weights(os.path.join(base_path, "logs/20201009-132512/train_ckpts/ckpt_8"))
+    loaded_model.load_weights(os.path.join(base_path, "logs/20201009-181239/train_ckpts/ckpt_3"))
     batch_size = model.batch_size
     #loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss}, compile=False)
     
@@ -95,6 +95,6 @@ if __name__ == '__main__':
     else:
         base_path = "../../../"
         
-    train(base_path)
+    predict(base_path)
 
 

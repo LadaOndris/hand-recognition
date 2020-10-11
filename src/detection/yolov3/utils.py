@@ -93,7 +93,7 @@ def non_max_suppression(inputs, model_size, max_output_size,
     """
     bboxes, confs, other = tf.split(inputs, [4, 1, -1], axis=-1)
     #bboxes = bboxes / model_size[0]
-    tf.print(tf.reduce_mean(bboxes))
+    #tf.print(tf.reduce_mean(bboxes))
     bboxes = tf.expand_dims(bboxes, axis=2) # the third dimension is 1 according to documentation
     
     boxes, scores, classes, num_valid_boxes = tf.image.combined_non_max_suppression(
@@ -106,7 +106,7 @@ def non_max_suppression(inputs, model_size, max_output_size,
         clip_boxes=False
     )
     
-    tf.print(tf.reduce_mean(boxes))
+    #tf.print(tf.reduce_mean(boxes))
     return boxes, scores, num_valid_boxes
 
 
@@ -117,8 +117,8 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
         tf.split(inputs, [1, 1, 1, 1, 1, -1], axis=-1)
     
     top_left_x = center_x - width * 0.5
-    tf.print("min max", tf.reduce_min(top_left_x), tf.reduce_min(center_x))
-    tf.print("Well", center_x[0], width[0], top_left_x[0])
+    #tf.print("min max", tf.reduce_min(top_left_x), tf.reduce_min(center_x))
+    #tf.print("Well", center_x[0], width[0], top_left_x[0])
     top_left_y = center_y - height * 0.5
     bottom_right_x = center_x + width * 0.5
     bottom_right_y = center_y + height * 0.5
@@ -129,7 +129,7 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
                         bottom_right_y, 
                         confidence, classes], axis=-1)
     
-    print("Non max suppression")
+    #print("Non max suppression")
     boxes_dicts = non_max_suppression(inputs, model_size, max_output_size, \
         max_output_size_per_class, iou_threshold, confidence_threshold)
     
@@ -151,9 +151,14 @@ def draw_output_boxes(image, boxes, nums):
 
 
 
-def draw_detected_objects(images, predictions_for_the_image, model_size, conf_thresh):
+def draw_detected_objects(images, yolo_outputs, model_size, conf_thresh):
+    batch_size = tf.shape(images)[0]
     
-    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 2, .5, conf_thresh)
+    scale1_outputs = tf.reshape(yolo_outputs[0], [batch_size, -1, 6])
+    scale2_outputs = tf.reshape(yolo_outputs[1], [batch_size, -1, 6])
+    predictions_for_the_image = tf.concat([scale1_outputs, scale2_outputs], axis=1) # outputs for the whole batch
+    
+    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 1, .3, conf_thresh)
     
     #tf.print("In draw detected", tf.reduce_mean(boxes))
     for i in range(len(boxes)):
@@ -204,5 +209,33 @@ def draw_grid_detection(images, yolo_outputs, model_size, conf_thresh):
         
         plt.show()
     
+
+def tf_load_preprocessed_image(image_file_path, shape = [416, 416]):
+    """
+    Loads an image from file and resizes it with pad to target shape.
+
+    Returns
+    -------
+    depth_image
+        A 3-D Tensor of shape [shape[0], shape[1], 1].
+
+    """
+    depth_image_file_content = tf.io.read_file(image_file_path)
+    
+    # loads depth images and converts values to fit in dtype.uint8
+    depth_image = tf.io.decode_image(depth_image_file_content, channels=1)
+    depth_image.set_shape([480, 640, 1]) 
+    #depth_image /= 255 # normalize to range [0, 1]
+    
+    return tf_preprocess_image(depth_image)
+
+def tf_preprocess_image(depth_image, shape = [416, 416]):
+    # convert the values to range 0-255 as tf.io.read_file does
+    depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
+    # resize image
+    depth_image = tf.image.resize_with_pad(depth_image, shape[0], shape[1])
+    
+    tf.print("MIN MAX: ", tf.reduce_min(depth_image), tf.reduce_max(depth_image), tf.reduce_mean(depth_image))
+    return depth_image
     
     
