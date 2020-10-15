@@ -21,7 +21,7 @@ class HandsegDatasetBboxes:
         
         self.annotations = self._load_annotations()
         self.num_samples = len(self.annotations)
-        self.num_batches = int(np.ceil(self.num_samples / self.batch_size))
+        self.num_batches = int(self.num_samples // self.batch_size)
         
         self.batch_iterator = self._build_iterator()
         return
@@ -32,7 +32,7 @@ class HandsegDatasetBboxes:
             annotations = f.readlines()
             
         boundary_index = int(len(annotations) * self.train_size)
-        if type == 'train':
+        if self.type == 'train':
             return annotations[:boundary_index]
         else:
             return annotations[boundary_index:]

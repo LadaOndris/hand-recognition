@@ -108,11 +108,15 @@ class YoloBoxesIoU(tf.keras.metrics.Metric):
         true_conf = y_true[...,4:5]
         ious_masked = tf.boolean_mask(ious, true_conf)
         
-        # Compute mean value of all those IoUs
-        mean_iou = tf.reduce_mean(ious_masked)
-        
-        self._total.assign_add(mean_iou)
-        self._count.assign_add(1)
+        # If there is no true box in the batch, tf.reduce_mean returns nan
+        # and spoils the whole metric
+        if tf.size(ious_masked) > 0:
+            
+            # Compute mean value of all those IoUs
+            mean_iou = tf.reduce_mean(ious_masked)
+            
+            self._total.assign_add(mean_iou)
+            self._count.assign_add(1)
             
     def result(self):
         return tf.math.divide_no_nan(self._total, self._count)

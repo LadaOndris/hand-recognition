@@ -73,10 +73,11 @@ class YoloLoss(tf.keras.losses.Loss):
         #tf.print("pred_xywh, min, max", tf.reduce_min(pred_xywh[...,2:]), tf.reduce_max(pred_xywh[...,2:]))
         #tf.print("true_xywh, min, max", tf.reduce_min(true_xywh[...,2:]), tf.reduce_max(true_xywh[...,2:]))
         
-        zeros = tf.cast(tf.zeros_like(pred_xywh),dtype=tf.bool)
-        ones = tf.cast(tf.ones_like(pred_xywh),dtype=tf.bool)
-        loc = tf.where(pred_conf > 0.3, ones, zeros)
-        pred_xywh_masked = tf.boolean_mask(pred_xywh, loc)
+        #zeros = tf.cast(tf.zeros_like(pred_xywh),dtype=tf.bool)
+        #ones = tf.cast(tf.ones_like(pred_xywh),dtype=tf.bool)
+        #loc = tf.where(pred_conf > 0.3, ones, zeros)
+        #pred_xywh_masked = tf.boolean_mask(pred_xywh, loc)
+        
         #tf.print("conf > 0.3: shape, wh_min, wh_max", tf.shape(pred_xywh_masked), 
         #         tf.reduce_min(pred_xywh_masked[...,2:]),
         #         tf.reduce_max(pred_xywh_masked[...,2:]))

@@ -22,19 +22,23 @@ def train(base_path):
     yolo_out_shapes = model.yolo_output_shapes
     tf_model = model.tf_model
     
-    #config = Config()
     dataset_path = os.path.join(base_path, "datasets/handseg150k")
-    dataset_bboxes = HandsegDatasetBboxes(dataset_path, type='train', train_size=0.8, 
+    train_dataset_bboxes = HandsegDatasetBboxes(dataset_path, type='train', train_size=0.8, 
                                           batch_size=model.batch_size)
-    dataset_generator = DatasetGenerator(dataset_bboxes.batch_iterator, 
+    train_dataset_generator = DatasetGenerator(train_dataset_bboxes.batch_iterator, 
+                                         model.input_shape, yolo_out_shapes, model.anchors)
+    
+    test_dataset_bboxes = HandsegDatasetBboxes(dataset_path, type='test', train_size=0.8, 
+                                          batch_size=model.batch_size)
+    test_dataset_generator = DatasetGenerator(test_dataset_bboxes.batch_iterator, 
                                          model.input_shape, yolo_out_shapes, model.anchors)
     
     
-    # compile model
+    optimizer=tf.optimizers.Adam(learning_rate=model.learning_rate)
+    metrics = [YoloConfPrecisionMetric(), YoloConfRecallMetric(), YoloBoxesIoU()]
     loss = YoloLoss(model.input_shape, ignore_thresh=.5)
-    tf_model.compile(optimizer=tf.optimizers.Adam(learning_rate=model.learning_rate), 
-                     loss=loss, metrics=[YoloConfPrecisionMetric(), YoloConfRecallMetric(),
-                                         YoloBoxesIoU()])
+    
+    tf_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
    
     checkpoint_prefix = os.path.join(log_dir, 'train_ckpts', "ckpt_{epoch}")
     
@@ -43,13 +47,11 @@ def train(base_path):
         tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True),
     ]
     
-    tf_model.fit(dataset_generator, epochs=10, verbose=0, steps_per_epoch=3125, callbacks=callbacks)
+    tf_model.fit(train_dataset_generator, epochs=10, verbose=0, callbacks=callbacks,
+                 steps_per_epoch=train_dataset_bboxes.num_batches,
+                 validation_data=test_dataset_generator, 
+                 validation_steps=test_dataset_bboxes.num_batches)
     
-    #train_summary_writer = tf.summary.create_file_writer(log_dir)
-    #with train_summary_writer.as_default():
-    #    for epoch in range(len(history.history['loss'])):
-    #        tf.summary.scalar('history_loss', history.history['loss'][epoch], step=epoch)
-            
     model_name = os.path.join(base_path, F"saved_models/handseg_{timestamp}.h5")
     tf_model.save_weights(model_name)
     
@@ -95,6 +97,6 @@ if __name__ == '__main__':
     else:
         base_path = "../../../"
         
-    predict(base_path)
+    train(base_path)
 
 

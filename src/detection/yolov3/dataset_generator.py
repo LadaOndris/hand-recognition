@@ -130,4 +130,4 @@ class DatasetGenerator:
         intersection_area = intersection_lengths[..., 0] * intersection_lengths[..., 1]
         union_area = boxes1_area + boxes2_area - intersection_area
     
-        return intersection_area / union_area
+        return np.nan_to_num(intersection_area / union_area)
