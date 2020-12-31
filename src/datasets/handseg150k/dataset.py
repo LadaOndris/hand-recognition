@@ -3,16 +3,16 @@ import numpy as np
 import os
 import glob
 
-
 HUGE_INT = 2147483647
 
+
 class HandsegDataset:
-    
-    
-    def __init__(self):
+
+    def __init__(self, dataset_path):
         self.image_shape = (480, 640)
+        self.dataset_path = dataset_path
         return
-    
+
     """
     Load a subset of images of the dataset.
     The subset is defined by start_index and end_index.
@@ -21,54 +21,53 @@ class HandsegDataset:
     If end_index is set to None, the subset ends at the end of the dataset.
     If both set to None, selects the whole dataset. Not recommended.
     """
-    def load_images(self, start_index = 0, end_index = 99):
-        dirname = os.path.dirname(__file__)
-        all_images_paths = glob.glob(os.path.join(dirname, 'images/*'))
+
+    def load_images(self, start_index=0, end_index=99):
+        all_images_paths = glob.glob(os.path.join(self.dataset_path, 'images/*'))
         masks_paths = []
-        
-        if (start_index != None and end_index != None):
+
+        if start_index is not None and end_index is not None:
             images_paths = all_images_paths[start_index:end_index]
-        elif (start_index == None and end_index != None):
+        elif start_index is None and end_index is not None:
             images_paths = all_images_paths[:end_index]
-        elif (start_index != None and end_index == None):
+        elif start_index is not None and end_index is None:
             images_paths = all_images_paths[start_index:]
         else:
             images_paths = all_images_paths
-        
+
         for image_path in images_paths:
             _, filename = os.path.split(image_path)
-            masks_paths.append(os.path.join(dirname, 'masks', filename))
-            
+            masks_paths.append(os.path.join(self.dataset_path, 'masks', filename))
+
         images = np.array([np.array(Image.open(filename)) for filename in images_paths])
         for image in images:
-            image[image == 0] = HUGE_INT
+            image[image > 9000] = 0
         masks = [np.array(Image.open(filename)) for filename in masks_paths]
         return images, masks
-        
+
     """
     Reads a depth image and its mask at the specified index.
     """
+
     def load_image(self, index):
-        dirname = os.path.dirname(__file__)
-        all_images_paths = glob.glob(os.path.join(dirname, 'images/*'))
+        all_images_paths = glob.glob(os.path.join(self.dataset_path, 'images/*'))
         image_path = all_images_paths[index]
-        
+
         _, filename = os.path.split(image_path)
-        mask_path = os.path.join(dirname, 'masks', filename)
-            
+        mask_path = os.path.join(self.dataset_path, 'masks', filename)
+
         image = np.array(Image.open(image_path))
         image[image == 0] = HUGE_INT
         mask = np.array(Image.open(mask_path))
         return image, mask
-        
-    
+
     """    
     images, masks = load_images(4)
     
     for i, m in zip(images, masks):
         plt.imshow(i); plt.title('Depth Image'); plt.show() # Displaying Depth Image
         plt.imshow(m); plt.title('Mask Image'); plt.show() # Displaying Mask Image
-    """    
+    """
     """
     def get_random_pixels(self, count, image_shape):
         #x = np.arange(0, 480, step=12)
@@ -105,14 +104,14 @@ class HandsegDataset:
     def get_depth_m(self, image, coords):
         depths = np.full(shape=(len(coords)), fill_value=HUGE_INT, dtype=int)
         """
-    
+
     """
         for i, c in enumerate(coords):
             if (c[0] >= 0 and c[1] >= 0 and
                 c[0] < image.shape[0] and
                 c[1] < image.shape[1]):
                 depths[i] = image[c[0], c[1]]
-    """ 
+    """
     """
         x_coords = coords[:,0]
         y_coords = coords[:,1]
@@ -182,7 +181,7 @@ class HandsegDataset:
             features[i] = self.get_features_for_pixel_m(image, pixel)
             labels[i] = self.get_label(mask, pixel)
         return features, labels
-    """        
+    """
     """
     Returns a tuple consisting of features and corresponding labels.
     

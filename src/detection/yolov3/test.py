@@ -15,7 +15,7 @@ import cv2
 from skimage.feature import hog
 from skimage import data, exposure
 from model import create_model, parse_cfg
-from utils import output_boxes, draw_output_boxes
+from utils import output_boxes, draw_predictions
 import tensorflow as tf
 from config import Config
 from datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
@@ -71,7 +71,7 @@ def test():
     # num_detections.shape = num_images ; number of valid detections per image
     # ... (1, 2, 4) (1, 2) (1, 2) (1,) 
     # print('Drawing boxes', boxes.shape, scores.shape, classes.shape, num_detections.shape)
-    draw_output_boxes(np.squeeze(image), boxes[0], scores[0], classes[0], num_detections[0])
+    draw_predictions(np.squeeze(image), boxes[0], scores[0], classes[0], num_detections[0])
 
 
 if __name__ == '__main__':

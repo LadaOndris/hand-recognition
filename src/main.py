@@ -56,7 +56,7 @@ def generate_live_images():
         
 def load_detection_model(base_path):
     model = yolov3_model.Model.from_cfg(os.path.join(base_path, "src/core/cfg/yolov3-tiny.cfg"))
-    model.tf_model.load_weights(os.path.join(base_path, "logs/20201009-181239/train_ckpts/ckpt_3"))
+    model.tf_model.load_weights(os.path.join(base_path, "logs/20201016-125612/train_ckpts/ckpt_10"))
     return model
         
     
@@ -73,8 +73,6 @@ def detect_live(base_path):
         
         # create a batch with a single image
         batch_images = tf.expand_dims(depth_image, axis=0)
-        
-        tf.print(batch_images.shape)
         
         # predict
         yolo_outputs = model.tf_model.predict(batch_images)
