@@ -215,7 +215,9 @@ def draw_detected_objects(images, yolo_outputs, model_size, conf_thresh, draw_ce
         if draw_cells:
             draw_predictions_with_cells(i, images[i], boxes[i], nums[i], stride)
         else:
-            draw_predictions(images[i], boxes[i], nums[i], fig_location.format(i))
+            if fig_location:
+                fig_location = fig_location.format(i)
+            draw_predictions(images[i], boxes[i], nums[i], fig_location)
 
 
 def draw_grid_detection(images, yolo_outputs, model_size, conf_thresh, fig_location=None):
