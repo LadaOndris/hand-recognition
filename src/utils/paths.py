@@ -10,5 +10,7 @@ SAVED_MODELS_DIR = _ROOT_PATH.joinpath('saved_models')
 SRC_DIR = _ROOT_PATH.joinpath('src')
 
 HANDSEG_DATASET_DIR = _ROOT_PATH.joinpath("datasets/handseg150k")
+MSRA15_DATASET_DIR = _ROOT_PATH.joinpath("datasets/cvpr15_MSRAHandGestureDB")
+BIGHAND_DATASET_DIR = _ROOT_PATH.joinpath("datasets/bighand")
 
 

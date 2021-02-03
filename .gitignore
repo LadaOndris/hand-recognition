@@ -15,3 +15,6 @@ datasets/simple_boxes/bboxes.txt
 
 datasets/nyu_hand_dataset_rdf/
 
+datasets/bighand/full_annotation
+datasets/cvpr15_MSRAHandGestureDB/*
+
