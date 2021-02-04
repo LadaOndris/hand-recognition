@@ -3,6 +3,7 @@ import os
 import glob
 import matplotlib.pyplot as plt
 from src.utils.paths import BIGHAND_DATASET_DIR
+from src.utils import plots
 
 
 class BighandDataset:
@@ -34,41 +35,26 @@ class BighandDataset:
             full_pattern = os.path.join(self.dataset_path, pattern)
             annotation_files += glob.glob(full_pattern)
 
-        print(annotation_files)
         boundary_index = int(len(annotation_files) * self.train_size)
         return annotation_files[:boundary_index], annotation_files[boundary_index:]
 
     def _build_dataset(self, annotation_files):
-        """
-        1. read files in directory - tf.data.Dataset.list_files
-        2. TextLineDataset for each of these files
-        3. interleave these TextLineDatasets
-        4. read the depth image and return it together with labels te
-        """
-
         """ Read specified files """
         # dataset = tf.data.Dataset.from_tensor_slices(annotations)
 
         """ Read all available annotations """
         # pattern = os.path.join(self.dataset_path, 'full_annotation/*/*.txt')
         # dataset = tf.data.Dataset.list_files(pattern)
+
+        """ Convert to Tensor and shuffle the files """
         annotation_files = tf.constant(annotation_files, dtype=tf.string)
         annotation_files = tf.random.shuffle(annotation_files)
 
-        """ Create a TextLineDataset for each annotations file """
-        # datasets = tf.map_fn(lambda x: tf.data.TextLineDataset(x), annotation_files)
-        """ Randomly interleave all those files """
-        # dataset = tf.data.experimental.sample_from_datasets(datasets, weights=None)
-
-        # files_dataset = tf.data.Dataset.from_tensor_slices(annotation_files)
-        # dataset = files_dataset.flat_map(lambda x: tf.data.TextLineDataset(x).map(self._prepare_sample))
         dataset = tf.data.TextLineDataset(annotation_files)
         """ Reshuffle the dataset each iteration """
         if self.shuffle:
             dataset = dataset.shuffle(buffer_size=16384, reshuffle_each_iteration=True)
         dataset = dataset.repeat()
-        # shapes = (tf.TensorShape([480, 640, 1]), tf.TensorShape([None, ]))
-        # dataset = dataset.padded_batch(self.batch_size, padded_shapes=([480, 640, 1], [None]))
         dataset = dataset.map(self._prepare_sample)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(buffer_size=1)
@@ -76,7 +62,8 @@ class BighandDataset:
 
     def _prepare_sample(self, annotation_line):
         """ Each line contains 64 values: file_name, 21 (joints) x 3 (coords) """
-        tf.print(annotation_line)
+
+        """ If the function processes a single line """
         splits = tf.strings.split(annotation_line, sep='\t', maxsplit=63)  # Split by whitespaces
         filename, labels = tf.split(splits, [1, 63], 0)
         """
@@ -84,22 +71,25 @@ class BighandDataset:
         splits = splits.to_tensor()
         filename, labels = tf.split(splits, [1, 63], 1)
         """
+
+        """ Compose a full path to the image """
         image_paths = tf.strings.join([tf.constant(str(self.dataset_path)), filename], separator=os.sep)
+        """ Squeeze the arrays dimension if necessary"""
         image_paths = tf.squeeze(image_paths)
 
+        """ Read and decode image (tf doesn't support for more than a single image)"""
         depth_image = tf.io.read_file(image_paths)
-        image = tf.io.decode_image(depth_image, channels=1)
-        image.set_shape([480, 640, 1])
+        depth_image = tf.io.decode_image(depth_image, channels=1, dtype=tf.float64)
+        depth_image.set_shape([480, 640, 1])
 
-        return image, labels
+        return depth_image, labels
 
 
 if __name__ == '__main__':
-    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=2)
+    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=4)
     iterator = iter(ds.train_dataset)
-    batch = next(iterator)
-    print(batch)
-    for image, labels in batch:
-        plt.imshow(image)
-        plt.show()
-        print(labels)
+    batch_images, batch_labels = next(iterator)
+
+    for image, labels in zip(batch_images, batch_labels):
+        image = tf.squeeze(image)
+        plots.plot_depth_image(image)

@@ -27,7 +27,8 @@ def get_dir_from_filename(filename: str) -> str:
 
 
 def load_df(filename: str) -> pd.DataFrame:
-    return pd.read_table(filename, header=None, dtype=str)
+    df = pd.read_table(filename, header=None, dtype=str, sep=r"\s+")
+    return df.dropna(axis='columns', how='any')  # When the last column is empty
 
 
 def amend_df(df: pd.DataFrame, directory: str) -> pd.DataFrame:
