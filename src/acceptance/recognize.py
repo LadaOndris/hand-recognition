@@ -3,8 +3,6 @@ import scipy.spatial
 
 
 def _upper_tri(A):
-    # if A.ndim != 4:
-    #    raise ValueError(F"Dimension should be three, but is {A.ndim}")
     r = np.arange(A.shape[A.ndim - 2])
     mask = r[:, None] < r
     return A[..., mask]
@@ -62,13 +60,8 @@ def relative_distance_diff_sum(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarr
 def get_relative_distances(joints, db_joints):
     if joints.ndim == 2:
         return relative_distance_diff(joints[np.newaxis, ...], db_joints)
-        # return np.fromiter((relative_distance_diff_sum(joints, x) for x in db_joints), db_joints.dtype)
     elif joints.ndim == 3:
         return relative_distance_diff(joints, db_joints)
-        # rds = np.empty(shape=(joints.shape[0], db_joints.shape[0]))
-        # for idx, j in enumerate(joints):
-        #    rds[idx] = [relative_distance_diff_sum(joints[idx], j) for j in db_joints]
-        # return rds
     else:
         raise ValueError("Bad dimension of input ndarray.")
 

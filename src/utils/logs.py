@@ -1,6 +1,5 @@
 from datetime import datetime
 import os
-
 from src.utils.paths import LOGS_DIR, SAVED_MODELS_DIR
 
 
@@ -8,15 +7,30 @@ def get_current_timestamp():
     return datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def make_log_dir():
+def make_timestamped_dir(path: str) -> str:
+    """
+    Creates a new directory with a name of a current timestamp
+    in a location defined by 'path'.
+    Parameters
+    ----------
+    path    string : Location of the new directory.
+
+    Returns
+    -------
+    Returns path to the new directory.
+    """
+    timestamp = get_current_timestamp()
+    subdir = path.joinpath(timestamp)
+    if not os.path.isdir(subdir):
+        os.mkdir(subdir)
+    return subdir
+
+
+def make_log_dir() -> str:
     """
     Creates a new directory with a timestamp in the logs directory.
     """
-    timestamp = get_current_timestamp()
-    log_subdir = LOGS_DIR.joinpath(timestamp)
-    if not os.path.isdir(log_subdir):
-        os.mkdir(log_subdir)
-    return log_subdir
+    return make_timestamped_dir(LOGS_DIR)
 
 
 def compose_ckpt_path(log_dir: str):
