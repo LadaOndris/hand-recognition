@@ -106,10 +106,10 @@ def best_fitting_hyperplane(z: np.ndarray):
     norm_vec = vh[1]
     return norm_vec, z_mean
 
+
 if __name__ == '__main__':
     # test_relative_distances()
-    best_fitting_hyperplane()
-    A = np.array([[1, 3], [2, 4], [2, 6]])
+    A = np.array([[1, 3], [2, 4], [2, 8]])
     norm_vec, mean = best_fitting_hyperplane(A)
 
     pass
