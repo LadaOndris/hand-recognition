@@ -66,7 +66,7 @@ def get_relative_distances(joints, db_joints):
         raise ValueError("Bad dimension of input ndarray.")
 
 
-if __name__ == '__main__':
+def test_relative_distances():
     h1 = np.random.randint(0, 1000, size=(21, 3))
     h2 = np.random.randint(0, 1000, size=(21, 3))
 
@@ -75,3 +75,41 @@ if __name__ == '__main__':
 
     print('rd:', relative_distance_diff_single(h1, h2))
     print('my_rd:', relative_distance_diff_sum(h1[np.newaxis, ...], h2[np.newaxis, ...]))
+
+
+def average_hand_distance(joints: np.ndarray) -> np.float:
+    """
+    Calculates a distance from all joints to the camera
+    positioned at (160, 120, 0) and averages the results.
+    """
+    distances = np.linalg.norm(joints - [160, 120, 0])
+    return np.mean(distances)
+
+
+def find_hand_rotation(joints: np.ndarray):
+    """
+    Determines the rotation of the hand in comparison to base position
+    along each axis x, y, and z.
+
+    First, it finds a plane going through six specific points.
+    """
+    A = joints
+    b = scipy.linalg.norm(A, axis=1)
+    return scipy.linalg.lstsq(A, -b)
+    pass
+
+
+def best_fitting_hyperplane(z: np.ndarray):
+    z_mean = np.mean(z, axis=0)
+    x = z - z_mean
+    u, s, vh = np.linalg.svd(x)
+    norm_vec = vh[1]
+    return norm_vec, z_mean
+
+if __name__ == '__main__':
+    # test_relative_distances()
+    best_fitting_hyperplane()
+    A = np.array([[1, 3], [2, 4], [2, 6]])
+    norm_vec, mean = best_fitting_hyperplane(A)
+
+    pass

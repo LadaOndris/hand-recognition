@@ -22,27 +22,18 @@ def read_image(file_path: str):
 
 def read_images(path: str):
     image_file_paths = sorted(path.glob('*.bin'))
-    images_and_boundaries = np.array([read_image(file_path) for file_path in image_file_paths])
-    images = images_and_boundaries[..., 0]
-    global_boundaries = np.stack(images_and_boundaries[..., 1])
+    images_and_bboxes = np.array([read_image(file_path) for file_path in image_file_paths])
+    images = images_and_bboxes[..., 0]
+    bbox_coords = np.stack(images_and_bboxes[..., 1])
     centered_joints, labels = load_joints(path.joinpath('joint.txt'), gesture=-1)
-    local_joints = transform_joints_to_local(centered_joints, global_boundaries)
-    return images, local_joints
+    global_joints = transform_joints_to_global(centered_joints)
+    return images, bbox_coords, global_joints
 
 
-def transform_joints_to_local(joints, global_boundaries):
-    left, top, right, bottom = np.hsplit(global_boundaries, 4)
+def transform_joints_to_global(joints):
     image_center = (160, 120)
-    # it looks like the joint coordinates are y,x,z instead of x,y,z
-
-    # to global coordinates
     joints[..., 0] += image_center[0]
     joints[..., 1] = image_center[1] - joints[..., 1]
-    # plot_joints_only(None, joints[0])
-
-    # to local coordinates
-    joints[..., 0] -= left
-    joints[..., 1] -= top
     return joints
 
 
@@ -84,7 +75,6 @@ def load_dataset() -> np.ndarray:
 
 
 if __name__ == '__main__':
-    images, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/5'))
+    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/5'))
     idx = 8
-    plot_joints(images[idx], joints[idx])
-
+    plot_joints(images[idx], bbox_coords[idx], joints[idx])
