@@ -103,7 +103,11 @@ def best_fitting_hyperplane(z: np.ndarray):
     z_mean = np.mean(z, axis=0)
     x = z - z_mean
     u, s, vh = np.linalg.svd(x)
-    norm_vec = vh[1]
+
+    # vh is a matrix containing orthonormal vectors
+    # the last is a unit vector normal to the plane
+    # the others form an orthonormal basis in the plane
+    norm_vec = vh[-1]
     return norm_vec, z_mean
 
 
@@ -111,5 +115,3 @@ if __name__ == '__main__':
     # test_relative_distances()
     A = np.array([[1, 3], [2, 4], [2, 8]])
     norm_vec, mean = best_fitting_hyperplane(A)
-
-    pass

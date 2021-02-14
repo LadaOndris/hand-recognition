@@ -1,4 +1,4 @@
-from src.acceptance.recognize import get_relative_distances, relative_distance_diff_single, \
+from src.acceptance.base import get_relative_distances, relative_distance_diff_single, \
     relative_distance_diff_sum
 import src.datasets.MSRAHandGesture.dataset as msra_dataset
 import matplotlib.pyplot as plt

@@ -75,6 +75,6 @@ def load_dataset() -> np.ndarray:
 
 
 if __name__ == '__main__':
-    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/5'))
+    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/1'))
     idx = 8
-    plot_joints(images[idx], bbox_coords[idx], joints[idx])
+    plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
