@@ -29,6 +29,16 @@ def distance_matrix(a):
     return diff ** 0.5
 
 
+def relative_distance_matrix(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
+    if hand1.ndim != 3 or hand2.ndim != 3:
+        raise ValueError(F"Expected dimension is 3, but is {hand1.ndim} and {hand2.ndim}")
+
+    a = distance_matrix(hand1).astype(np.float16)
+    b = distance_matrix(hand2).astype(np.float16)
+    diff_matrix = a[:, np.newaxis, :, :] - b[np.newaxis, ...]
+    return diff_matrix
+
+
 def relative_distance_diff(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
     """
     Calculates the  difference between relative distances of two hands.
@@ -42,13 +52,7 @@ def relative_distance_diff(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
     np.ndarray of distances between all points
     Returns ndarray of shape (A * B, 210)
     """
-
-    if hand1.ndim != 3 or hand2.ndim != 3:
-        raise ValueError(F"Expected dimension is 3, but is {hand1.ndim} and {hand2.ndim}")
-
-    a = distance_matrix(hand1).astype(np.float16)
-    b = distance_matrix(hand2).astype(np.float16)
-    diff = a[:, np.newaxis, :, :] - b[np.newaxis, ...]
+    diff = relative_distance_matrix(hand1, hand2)
     return np.sum(np.abs(_upper_tri(diff)), axis=-1)
 
 
@@ -100,6 +104,21 @@ def find_hand_rotation(joints: np.ndarray):
 
 
 def best_fitting_hyperplane(z: np.ndarray):
+    """
+    It approximates the best fitting hyperplane through
+    these points using SVD (Singular Value Decomposition).
+
+    Parameters
+    ----------
+    z   np.ndarray  A 2-D numpy array of points in space.
+
+    Returns
+    -------
+    Returns a tuple. The first value returns a normal vector of the hyperplane.
+    The second value is the mean value of given points.
+    These values can be used to plot the normal vector at the mean coordinate
+    for visualization purposes.
+    """
     z_mean = np.mean(z, axis=0)
     x = z - z_mean
     u, s, vh = np.linalg.svd(x)
@@ -109,6 +128,14 @@ def best_fitting_hyperplane(z: np.ndarray):
     # the others form an orthonormal basis in the plane
     norm_vec = vh[-1]
     return norm_vec, z_mean
+
+
+def rds_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
+    rds_diff = relative_distance_matrix(hands1, hands2)
+    rds_abs = np.abs(rds_diff)
+    aggregated_joint_errors = np.sum(rds_abs, axis=-1)
+    averaged_joint_errors = np.divide(aggregated_joint_errors, rds_abs.shape[-1])
+    return averaged_joint_errors
 
 
 if __name__ == '__main__':
