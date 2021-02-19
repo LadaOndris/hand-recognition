@@ -49,8 +49,8 @@ def relative_distance_diff(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray of distances between all points
-    Returns ndarray of shape (A * B, 210)
+        np.ndarray of distances between all points
+        Returns ndarray of shape (A * B, 210)
     """
     diff = relative_distance_matrix(hand1, hand2)
     return np.sum(np.abs(_upper_tri(diff)), axis=-1)
@@ -81,12 +81,15 @@ def test_relative_distances():
     print('my_rd:', relative_distance_diff_sum(h1[np.newaxis, ...], h2[np.newaxis, ...]))
 
 
-def average_hand_distance(joints: np.ndarray) -> np.float:
+def hand_distance(joints: np.ndarray, camera_position=[160, 120, 0]) -> np.float:
     """
-    Calculates a distance from all joints to the camera
-    positioned at (160, 120, 0) and averages the results.
+    Calculates a distance from camera to the hand
+    by computing the distance of each joint and averaging the distances.
+
+    Returns 1-D scalar
+    -------
     """
-    distances = np.linalg.norm(joints - [160, 120, 0])
+    distances = np.linalg.norm(joints - camera_position)
     return np.mean(distances)
 
 
@@ -110,14 +113,14 @@ def best_fitting_hyperplane(z: np.ndarray):
 
     Parameters
     ----------
-    z   np.ndarray  A 2-D numpy array of points in space.
-
+    z   np.ndarray
+        A 2-D numpy array of points in space.
     Returns
     -------
-    Returns a tuple. The first value returns a normal vector of the hyperplane.
-    The second value is the mean value of given points.
-    These values can be used to plot the normal vector at the mean coordinate
-    for visualization purposes.
+        Returns a tuple. The first value returns a normal vector of the hyperplane.
+        The second value is the mean value of given points.
+        These values can be used to plot the normal vector at the mean coordinate
+        for visualization purposes.
     """
     z_mean = np.mean(z, axis=0)
     x = z - z_mean
@@ -131,6 +134,21 @@ def best_fitting_hyperplane(z: np.ndarray):
 
 
 def rds_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
+    """
+    Computes the average relative difference of joint positions of one hand
+    in comparison to the second hand.
+    First, it computes relative distances for each hand. Relative distances are represented
+    in a matrix with shape (21, 21), as the relative distance is computed between each joint.
+    Then, it subtracts these relative distances producing a so-called Relative Distance Matrix.
+    This operation produces the following shapes: (21, 21) - (21, 21) = (21, 21).
+    Relative distances for each joint are summed and averaged by the number of joints, producing
+    21 scalars, which are the actual RDS errors.
+
+    Returns (21,) np.ndarray Vector
+        A vector of 21 scalars: an error for each joint.
+    -------
+
+    """
     rds_diff = relative_distance_matrix(hands1, hands2)
     rds_abs = np.abs(rds_diff)
     aggregated_joint_errors = np.sum(rds_abs, axis=-1)
