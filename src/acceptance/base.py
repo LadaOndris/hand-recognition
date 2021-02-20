@@ -56,9 +56,11 @@ def relative_distance_diff(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
     return np.sum(np.abs(_upper_tri(diff)), axis=-1)
 
 
+"""
 def relative_distance_diff_sum(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
     rd_diff = relative_distance_diff(hand1, hand2)
     return np.sum(np.abs(rd_diff), axis=-1)
+"""
 
 
 def get_relative_distances(joints, db_joints):
@@ -78,7 +80,7 @@ def test_relative_distances():
     h2 = np.arange(21 * 3, 2 * 21 * 3).reshape((21, 3))
 
     print('rd:', relative_distance_diff_single(h1, h2))
-    print('my_rd:', relative_distance_diff_sum(h1[np.newaxis, ...], h2[np.newaxis, ...]))
+    print('my_rd:', relative_distance_diff(h1[np.newaxis, ...], h2[np.newaxis, ...]))
 
 
 def hand_distance(joints: np.ndarray, camera_position=[160, 120, 0]) -> np.float:
@@ -93,17 +95,16 @@ def hand_distance(joints: np.ndarray, camera_position=[160, 120, 0]) -> np.float
     return np.mean(distances)
 
 
-def find_hand_rotation(joints: np.ndarray):
+def hand_rotation(joints: np.ndarray):
     """
     Determines the rotation of the hand in comparison to base position
     along each axis x, y, and z.
 
-    First, it finds a plane going through six specific points.
+    It finds a plane going through six specific points of a hand,
+    and returns the normal vector of the plane and a mean value of the six points.
     """
-    A = joints
-    b = scipy.linalg.norm(A, axis=1)
-    return scipy.linalg.lstsq(A, -b)
-    pass
+    norm_vec, mean = best_fitting_hyperplane(joints)
+    return norm_vec, mean
 
 
 def best_fitting_hyperplane(z: np.ndarray):
@@ -154,6 +155,20 @@ def rds_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
     aggregated_joint_errors = np.sum(rds_abs, axis=-1)
     averaged_joint_errors = np.divide(aggregated_joint_errors, rds_abs.shape[-1])
     return averaged_joint_errors
+
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+
+def vectors_angle(v1, v2):
+    """
+    Returns the angle between two vectors.
+    """
+    v1 = unit_vector(v1)
+    v2 = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1, v2), -1.0, 1.0))
 
 
 if __name__ == '__main__':
