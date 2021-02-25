@@ -1,5 +1,5 @@
 from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, GlobalAveragePooling2D, Dense, \
-    MaxPooling2D
+    MaxPooling2D, UpSampling2D
 from tensorflow.keras import Model
 import tensorflow as tf
 
@@ -44,26 +44,71 @@ class ResnetBlock(tf.keras.layers.Layer):
 
 # TODO
 class HourglassModule(tf.keras.layers.Layer):
-    def __init__(self, kernel_size, filters):
+    def __init__(self, n, input_shape):
         super(HourglassModule, self).__init__(name='')
+        self.features = input_shape[-1]
+        self.x = Input(shape=input_shape[1:])
+        self.graph = self.create_recursively(self.x, n)
+
+    def create_recursively(self, input, n):
+        left = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(input)
+        left = ResnetBlock(kernel_size=(3, 3), filters=self.features)(left)
+        top = ResnetBlock(kernel_size=(3, 3), filters=self.features)(input)
+
+        if n > 1:
+            middle = self.create_recursively(left, n - 1)
+        else:
+            middle = left
+
+        right = ResnetBlock(kernel_size=(3, 3), filters=self.features)(middle)
+        right = UpSampling2D(size=(2, 2), interpolation='nearest')(right)
+        return right + top
 
     def call(self, inputs, training=False):
-        return inputs
+        return Model(self.x, self.graph)(inputs)
 
 
-# TODO
-class JointGraphReasoningModule(tf.keras.layers.Layer):
-    def __init__(self):
-        super(JointGraphReasoningModule, self).__init()
+def hourglass_module(inputs, n, features):
+    with tf.name_scope(name='hourglass') as scope:
+        left = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(inputs)
+        left = ResnetBlock(kernel_size=(3, 3), filters=features)(left)
+        top = ResnetBlock(kernel_size=(3, 3), filters=features)(inputs)
 
-    def call(self, inputs):
-        return inputs
+        if n > 1:
+            middle = hourglass_module(left, n - 1, features)
+        else:
+            middle = left
+
+        right = ResnetBlock(kernel_size=(3, 3), filters=features)(middle)
+        right = UpSampling2D(size=(2, 2), interpolation='nearest')(right)
+        return right + top
+
+
+def joint_graph_reasoning_module(x):
+    w, F = pixel_to_joint_voting(x)
+    Fe = graph_reasoning(F)
+    x_ = joint_to_pixel_mapping(Fe, w)
+
+    # local feature enhancement
+    x_ = x_ + x
+    x_ = conv_bn_relu(x_, x.shape[-1], (1, 1))
+    return x_
+
+
+def conv_bn_relu(x, filters, kernel_size):
+    x = tf.keras.layers.Conv2D(filters, kernel_size)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    return tf.keras.layers.ReLU()(x)
+
+
+def pixel_to_joint_voting(x):
+    return
 
 
 # TODO
 class PixelToOffsetModule(tf.keras.layers.Layer):
     def __init__(self):
-        super(PixelToOffsetModule, self).__init()
+        super(PixelToOffsetModule, self).__init__()
 
     def call(self, inputs):
         return inputs
@@ -71,6 +116,9 @@ class PixelToOffsetModule(tf.keras.layers.Layer):
 
 hourglass_features = 128
 input = Input(shape=(96, 96, 1))
+
+# The following layers precede the hourglass module
+# according to Hourglass and JGR-P2O papers
 x = Conv2D(filters=32, kernel_size=(7, 7), strides=(2, 2), padding='same',
            kernel_initializer='normal')(input)  # 48, 48, 32
 x = ResnetBlock(kernel_size=(3, 3), filters=64)(x)
@@ -78,10 +126,11 @@ x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
 x = ResnetBlock(kernel_size=(3, 3), filters=x.shape[-1])(x)
 x = ResnetBlock(kernel_size=(3, 3), filters=hourglass_features)(x)  # 24, 24, hourglass_features
 
-x = HourglassModule()(x)
+# The number of features stays the same across the whole hourglass module
+x = hourglass_module(x, n=3, features=x.shape[-1])
 x = ResnetBlock(kernel_size=(3, 3), filters=x.shape[-1])(x)
 
-x_jgr = JointGraphReasoningModule()(x)
+x_jgr = joint_graph_reasoning_module(x)
 x_p2o = PixelToOffsetModule()(x)
 
 model = Model(input, x)
