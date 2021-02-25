@@ -127,13 +127,11 @@ def plot_joints(image, bbox, joints, show_norm=False):
 
     joints[..., 2] = -joints[..., 2]  # Convert negative Z axis to positive
 
-    ax.contourf(image3d[..., 0], image3d[..., 1], image3d[..., 2], levels=64, cmap='gist_gray', linewidths=0)
+    # ax.contourf(image3d[..., 0], image3d[..., 1], image3d[..., 2], levels=64, cmap='gist_gray', linewidths=0)
 
-    # ax.scatter(joints[..., 0], joints[..., 1], joints[..., 2], marker='o', s=20, c="red", alpha=1)
     for i in range(len(ax.collections)):
         ax.collections[i].__class__ = FixZorderCollection
     _plot_skeleton(fig, ax, joints)
-    # ax.collections[-1].__class__ = FixZorderCollection
 
     if show_norm:
         # 0: wrist,
@@ -143,27 +141,13 @@ def plot_joints(image, bbox, joints, show_norm=False):
         # 13-16: little_mcp, little_pip, little_dip, little_tip,
         # 17-20: thumb_mcp, thumb_pip, thumb_dip, thumb_tip
 
-        palm_joints = np.take(joints, [0, 1, 5, 9, 13, 17], axis=0)
+        palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=0)
         norm, mean = best_fitting_hyperplane(palm_joints)
-        direction = mean + norm
-        ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
-                  pivot='tail', length=np.std(joints), arrow_length_ratio=0.2)
-    # np.std(joints) / joints.shape[0]
-    """
-    
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    ax.grid(False)
-    plt.axis('off')
-    """
-    ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
 
-    """
-    max_z = np.max(joints[..., 2]) * 1.2
-    ax.set_xlim([0, max_z])
-    ax.set_ylim([0, max_z])
-    ax.set_zlim([0, max_z])
-    """
+        ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
+                  pivot='tail', length=np.std(joints), arrow_length_ratio=0.1)
+
+    ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
     fig.tight_layout()
     plt.show()
 
@@ -182,5 +166,51 @@ def plot_joints_only(joints):
 
     ax.set_xlim([0, 360])
     ax.set_ylim([0, 360])
+    fig.tight_layout()
+    plt.show()
+
+
+def project_onto_2d_plane(points_3d, focal_length=241.42, principal_point=(160, 120)):
+    """
+    Projects the given points through pinhole camera on a plane at a distance of focal_length.
+    Returns
+    -------
+        2-D coordinates
+    """
+    coefficient = -focal_length / points_3d[..., 2:3]
+    xy_moved_to_middle = points_3d[..., 0:2] - principal_point
+    return coefficient * xy_moved_to_middle + principal_point
+
+
+def plot_joints_2d(image, bbox, joints, show_norm=False):
+    left, top, right, bottom = bbox
+    width = right - left
+    height = bottom - top
+
+    # project joint coords through pinhole camera
+    joints2d = project_onto_2d_plane(joints)
+    # correct the points coordinates to match the image indices starting at 0.
+    joints2d -= [left, top]
+
+    fig, ax = plt.subplots(1)
+    ax.imshow(image, cmap=depth_image_cmap)
+    ax.scatter(joints2d[..., 0], joints2d[..., 1])
+
+    if show_norm:
+        # 0: wrist,
+        # 1-4: index_mcp, index_pip, index_dip, index_tip,
+        # 5-8: middle_mcp, middle_pip, middle_dip, middle_tip,
+        # 9-12: ring_mcp, ring_pip, ring_dip, ring_tip,
+        # 13-16: little_mcp, little_pip, little_dip, little_tip,
+        # 17-20: thumb_mcp, thumb_pip, thumb_dip, thumb_tip
+
+        palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=0)
+        norm, mean = best_fitting_hyperplane(palm_joints)
+
+        # norm += np.std(joints)
+        norm_2d, mean_2d = project_onto_2d_plane(np.stack([mean + norm, mean])) - [left, top]
+
+        ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
+
     fig.tight_layout()
     plt.show()

@@ -1,5 +1,5 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
-from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff
+from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d
 from src.acceptance.base import rds_errors
 import numpy as np
 import glob
@@ -77,12 +77,13 @@ def load_dataset() -> np.ndarray:
 
 if __name__ == '__main__':
     images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/1'))
-    images2, bbox_coords2, joints2 = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/1'))
+    images2, bbox_coords2, joints2 = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/2'))
 
     # errs = rds_errors(np.expand_dims(joints[0], axis=0), np.expand_dims(joints[1], axis=0))
 
     idx = 8
-    plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
+    # plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
+    # plot_joints_2d(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
     hand1 = (images[idx], bbox_coords[idx], joints[idx])
     hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])
-    # plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
+    plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
