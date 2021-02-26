@@ -102,7 +102,36 @@ def conv_bn_relu(x, filters, kernel_size):
 
 
 def pixel_to_joint_voting(x):
-    return
+    weights = tf.keras.layers.Conv2D(n_joints, (1, 1))(x)
+    weights = spatial_softmax(weights)  # [-1, W, dim * dim]
+
+    x = conv_bn_relu(x, x.shape[-1], (1, 1))
+    x = tf.reshape(x, [-1, x.shape[1] * x.shape[2], x.shape[3]])  # [-1, features, dim * dim]
+    F = tf.matmul(weights, x)
+    return weights, F
+
+def graph_reasoning(F):
+    pass
+
+def joint_to_pixel_mapping(Fe, w):
+    pass
+
+def spatial_softmax(features):
+    """
+    Computes the softmax function for four-dimensional array.
+    Parameters
+    ----------
+    features
+        Features has a shape (batch_size, height, width, channels).
+    """
+    _, H, W, C = features.shape
+    features = tf.reshape(features, [-1, H * W, C])
+    features = tf.transpose(features, [0, 2, 1])
+    # features = tf.reshape(tf.transpose(features, [0, 3, 1, 2]), [B * C, H * W])
+    softmax = tf.nn.softmax(features, axis=1)
+    # softmax = tf.reshape(softmax, [B, C, H, W])
+    # softmax = tf.transpose(tf.reshape(softmax, [B, C, H, W]), [0, 2, 3, 1])
+    return softmax
 
 
 # TODO
@@ -114,6 +143,7 @@ class PixelToOffsetModule(tf.keras.layers.Layer):
         return inputs
 
 
+n_joints = 21
 hourglass_features = 128
 input = Input(shape=(96, 96, 1))
 
