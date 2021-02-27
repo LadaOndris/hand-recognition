@@ -3,6 +3,7 @@ from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, Glo
 from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
+from src.pose_estimation.loss import CoordinateAndOffsetLoss
 
 
 class ResnetBlock(tf.keras.layers.Layer):
@@ -211,6 +212,7 @@ class JGR_J2O:
 
         x_jgr, weights = self.joint_graph_reasoning_module(x)
         u_offs, v_offs, z_offs = self.pixel_to_offset_module(x_jgr)
+        offsets = tf.stack([u_offs, v_offs, z_offs], axis=-1)
         # offs.shape [-1, 24, 24, 21]
         # u_im, v_im, z_im
 
@@ -234,10 +236,14 @@ class JGR_J2O:
         z = tf.reduce_sum(weights * (z_im + z_offs), axis=[1, 2])
         uvz = tf.stack([u, v, z], axis=-1)
 
-        model = Model(input, uvz)
-        return model
+        outputs = {'coords': uvz, 'offsets': offsets}
+        return Model(input, outputs=[outputs])
 
 
 network = JGR_J2O()
 model = network.graph()
 print(model.summary())
+
+adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.96)
+loss = CoordinateAndOffsetLoss()
+model.compile(optimizer=adam, loss=loss)
