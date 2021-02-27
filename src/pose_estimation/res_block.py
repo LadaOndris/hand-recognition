@@ -191,7 +191,6 @@ class JGR_J2O:
         z_offsets = Conv2D(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
         return u_offsets, v_offsets, z_offsets
 
-
     def graph(self):
         self.input_size = 96
         self.out_size = self.input_size // 4
@@ -212,17 +211,30 @@ class JGR_J2O:
 
         x_jgr, weights = self.joint_graph_reasoning_module(x)
         u_offs, v_offs, z_offs = self.pixel_to_offset_module(x_jgr)
-        # offs: [-1, 24, 24, 21]
+        # offs.shape [-1, 24, 24, 21]
         # u_im, v_im, z_im
 
         weights = tf.transpose(weights, [0, 2, 3, 1])  # [-1, 24, 24, 21]
+
+        # u_im.shape [-1, 24, 24, 21]
+        x = tf.range(self.out_size)
+        y = tf.range(self.out_size)
+        x, y = tf.meshgrid(x, y)
+        # expand_dims, cast, and normalize to [0, 1]
+        u_im = tf.cast(x[:, :, tf.newaxis], tf.float32) / self.out_size
+        v_im = tf.cast(y[:, :, tf.newaxis], tf.float32) / self.out_size
+        # Z coordinate is retrieved from the image directly
+        # (values should be already normalized to [-1, 1]:
+        z_im = tf.image.resize(input, [self.out_size, self.out_size],
+                               method=tf.image.ResizeMethod.BILINEAR)
+
         # u, v, z: [-1, 21]
         u = tf.reduce_sum(weights * (u_im + u_offs), axis=[1, 2])
         v = tf.reduce_sum(weights * (v_im + v_offs), axis=[1, 2])
         z = tf.reduce_sum(weights * (z_im + z_offs), axis=[1, 2])
+        uvz = tf.stack([u, v, z], axis=-1)
 
-
-        model = Model(input, x_jgr)
+        model = Model(input, uvz)
         return model
 
 
