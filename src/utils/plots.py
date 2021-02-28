@@ -182,6 +182,10 @@ def project_onto_2d_plane(points_3d, focal_length=241.42, principal_point=(160, 
     return coefficient * xy_moved_to_middle + principal_point
 
 
+def convert_UVZ_to_3D(points, focal_length=241.42, principal_point=(160, 120)):
+    pass
+
+
 def plot_joints_2d(image, bbox, joints, show_norm=False):
     left, top, right, bottom = bbox
     width = right - left

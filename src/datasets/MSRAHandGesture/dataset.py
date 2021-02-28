@@ -82,8 +82,9 @@ if __name__ == '__main__':
     # errs = rds_errors(np.expand_dims(joints[0], axis=0), np.expand_dims(joints[1], axis=0))
 
     idx = 8
-    # plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
+    plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
     # plot_joints_2d(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
-    hand1 = (images[idx], bbox_coords[idx], joints[idx])
-    hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])
-    plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
+    # hand1 = (images[idx], bbox_coords[idx], joints[idx])
+    # hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])
+    # plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
+    pass

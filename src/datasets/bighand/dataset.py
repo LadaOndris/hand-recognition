@@ -4,7 +4,7 @@ import glob
 import matplotlib.pyplot as plt
 from src.utils.paths import BIGHAND_DATASET_DIR
 from src.utils import plots
-
+import cv2
 
 class BighandDataset:
 
@@ -79,7 +79,7 @@ class BighandDataset:
 
         """ Read and decode image (tf doesn't support for more than a single image)"""
         depth_image = tf.io.read_file(image_paths)
-        depth_image = tf.io.decode_image(depth_image, channels=1, dtype=tf.float64)
+        depth_image = tf.io.decode_image(depth_image, channels=1, dtype=tf.uint16)
         depth_image.set_shape([480, 640, 1])
 
         return depth_image, labels

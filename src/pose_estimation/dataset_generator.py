@@ -9,9 +9,11 @@ class DatasetGenerator:
     to match the expected output of JGR-J2O network.
     """
 
-    def __init__(self, dataset_iterator, image_out_size):
+    def __init__(self, dataset_iterator, image_in_size, image_out_size, return_xyz=False):
         self.iterator = dataset_iterator
+        self.image_in_size = image_in_size
         self.image_out_size = image_out_size
+        self.return_xyz = return_xyz
 
     def __iter__(self):
         return self
@@ -21,16 +23,35 @@ class DatasetGenerator:
         # which is defined as a parameter to the JGR-J2O network.
         # The depth image should be already normalized to [-1, 1],
         # as well as the UV coords to [0, 1], and Z coord to [-1, 1].
-        batch_images, batch_joints = self.iterator.get_next()
-        offsets = self.compute_offsets(batch_joints)
-        y_true = {'coords': batch_joints, 'offsets': offsets}
-        return batch_images, y_true
+        images, joints, bboxes = self.iterator.get_next()
+        # crop image, resize to fixed size
+
+        invert_resize_coeffs = []
+        for i, bbox in enumerate(bboxes):
+            cropped_image = images[i, bboxes[i, 0]:bboxes[i, 2], bboxes[i, 1]:bboxes[i, 3]]
+            resized_image = tf.image.resize(cropped_image, [self.image_in_size, self.image_in_size])
+            # save the resize coeffs to revert the resizing
+            invert_resize_coeffs.append(cropped_image.shape / self.image_in_size)
+            # should i resize the coords???
+        # normalize image values to range [0, 1]
+
+        # normalize coordinates
+
+        uvz_joints = self.preprocess_joints()
+        offsets = self.compute_offsets(joints)
+        y_true = {'coords': joints, 'offsets': offsets}
+        return images, y_true
+
+    def preprocess_joints(self, joints):
+        """
+        Converts XYZ joints to UVZ coordinates.
+        """
 
     def compute_offsets(self, joints):
         """
             Computes offsets for each joint coordinate.
-            Offsets are normalized to [-1, 1] if the UVZ coords are
-            normalized to [0, 1].
+            Offsets are normalized to [-1, 1] if the given
+            UVZ coords are normalized to [0, 1].
         Parameters
         ----------
         joints  tf.Tensor of shape [None, n_joints, 3]
