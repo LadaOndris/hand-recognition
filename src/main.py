@@ -17,7 +17,7 @@ from src.detection.yolov3 import utils
 from src.detection.yolov3 import model as yolov3_model
 from src.utils.paths import LOGS_DIR, SRC_DIR
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD
-from src.utils.camera import generate_live_images
+from src.utils.live import generate_live_images
 
 
 def load_detection_model():

@@ -1,9 +1,8 @@
-from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, GlobalAveragePooling2D, Dense, \
+from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, Dense, \
     MaxPooling2D, UpSampling2D
 from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
-from src.pose_estimation.loss import CoordinateAndOffsetLoss
 
 
 class ResnetBlock(tf.keras.layers.Layer):
@@ -46,11 +45,12 @@ class ResnetBlock(tf.keras.layers.Layer):
 
 class JGR_J2O:
 
-    def __init__(self):
-        self.n_joints = 21
-        self.n_features = 128
+    def __init__(self, input_size = 96, n_joints = 21, n_features = 128):
+        self.input_size = input_size
+        self.out_size = input_size // 4
+        self.n_joints = n_joints
+        self.n_features = n_features
         self.A_e = self.connection_weight_matrix()
-        pass
 
     def connection_weight_matrix(self):
         # This is A + I:
@@ -193,8 +193,6 @@ class JGR_J2O:
         return u_offsets, v_offsets, z_offsets
 
     def graph(self):
-        self.input_size = 96
-        self.out_size = self.input_size // 4
         input = Input(shape=(self.input_size, self.input_size, 1))
 
         # The following layers precede the hourglass module
@@ -237,32 +235,4 @@ class JGR_J2O:
         uvz = tf.stack([u, v, z], axis=-1)
 
         outputs = {'coords': uvz, 'offsets': offsets}
-        return Model(input, outputs=[outputs])
-
-def train():
-    network = JGR_J2O()
-    model = network.graph()
-    print(model.summary())
-
-    adam = tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.96)
-    loss = CoordinateAndOffsetLoss()
-    model.compile(optimizer=adam, loss=loss)
-
-from src.datasets.bighand.dataset import BighandDataset
-from src.pose_estimation.dataset_generator import DatasetGenerator
-from src.utils.paths import BIGHAND_DATASET_DIR
-
-def evaluate():
-    # load model!
-    network = JGR_J2O()
-    model = network.graph()
-
-    # initialize dataset
-    im_out_size = 24
-    bighand_ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=1, shuffle=False)
-    gen = DatasetGenerator(iter(bighand_ds.test_dataset), im_out_size)
-
-    for batch in gen:
-        images, y_true = batch
-        model.predict()
-
+        return Model(input, outputs=[uvz, offsets])

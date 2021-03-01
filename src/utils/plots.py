@@ -8,6 +8,7 @@ from typing import Tuple
 import numpy as np
 import matplotlib.colors as colors
 import matplotlib.ticker as tick
+from src.utils.camera import Camera
 
 depth_image_cmap = 'gist_yarg'
 
@@ -170,29 +171,11 @@ def plot_joints_only(joints):
     plt.show()
 
 
-def project_onto_2d_plane(points_3d, focal_length=241.42, principal_point=(160, 120)):
-    """
-    Projects the given points through pinhole camera on a plane at a distance of focal_length.
-    Returns
-    -------
-        2-D coordinates
-    """
-    coefficient = -focal_length / points_3d[..., 2:3]
-    xy_moved_to_middle = points_3d[..., 0:2] - principal_point
-    return coefficient * xy_moved_to_middle + principal_point
-
-
-def convert_UVZ_to_3D(points, focal_length=241.42, principal_point=(160, 120)):
-    pass
-
-
-def plot_joints_2d(image, bbox, joints, show_norm=False):
+def plot_joints_2d(image, bbox, joints, cam: Camera, show_norm=False):
     left, top, right, bottom = bbox
-    width = right - left
-    height = bottom - top
 
     # project joint coords through pinhole camera
-    joints2d = project_onto_2d_plane(joints)
+    joints2d = cam.project_onto_2d_plane(joints)
     # correct the points coordinates to match the image indices starting at 0.
     joints2d -= [left, top]
 
@@ -212,7 +195,7 @@ def plot_joints_2d(image, bbox, joints, show_norm=False):
         norm, mean = best_fitting_hyperplane(palm_joints)
 
         # norm += np.std(joints)
-        norm_2d, mean_2d = project_onto_2d_plane(np.stack([mean + norm, mean])) - [left, top]
+        norm_2d, mean_2d = cam.project_onto_2d_plane(np.stack([mean + norm, mean])) - [left, top]
 
         ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
 

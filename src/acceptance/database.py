@@ -1,6 +1,6 @@
 from src.utils.logs import make_timestamped_dir
 from src.utils.paths import USECASE_DATASET_DIR, USECASE_DATASET_JOINTS_PATH
-from src.utils.camera import generate_live_images
+from src.utils.live import generate_live_images
 import numpy as np
 
 

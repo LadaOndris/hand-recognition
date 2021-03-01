@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from src.utils.paths import BIGHAND_DATASET_DIR
 from src.utils import plots
 import cv2
+from src.utils.camera import Camera
 
 class BighandDataset:
 
@@ -66,6 +67,8 @@ class BighandDataset:
         """ If the function processes a single line """
         splits = tf.strings.split(annotation_line, sep='\t', maxsplit=63)  # Split by whitespaces
         filename, labels = tf.split(splits, [1, 63], 0)
+        joints = tf.strings.to_number(labels, tf.float32)
+        joints = tf.reshape(joints, [21, 3])
         """
         # If the function processes a batch
         splits = splits.to_tensor()
@@ -82,14 +85,20 @@ class BighandDataset:
         depth_image = tf.io.decode_image(depth_image, channels=1, dtype=tf.uint16)
         depth_image.set_shape([480, 640, 1])
 
-        return depth_image, labels
+        return depth_image, joints
 
 
 if __name__ == '__main__':
     ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=4)
     iterator = iter(ds.train_dataset)
     batch_images, batch_labels = next(iterator)
+    cam = Camera('bighand')
 
-    for image, labels in zip(batch_images, batch_labels):
+    for image, joints in zip(batch_images, batch_labels):
         image = tf.squeeze(image)
         plots.plot_depth_image(image)
+        pp = cam.principal_point
+        # joints += [pp[0], pp[1], 0]
+        joints2d = cam.project_onto_2d_plane(joints)
+        plots.plot_joints_2d(image, [0, 0, None, None], joints, cam)
+        pass
