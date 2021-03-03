@@ -67,7 +67,7 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
 
     fig = plt.figure(1)
     ax = fig.add_subplot(111, projection='3d')
-    _plot_skeleton(fig, ax, joints1, joint_errors=errors, color='blue')
+    _plot_skeleton_3d(fig, ax, joints1, joint_errors=errors, color='blue')
 
     ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
     fig.tight_layout()
@@ -81,7 +81,7 @@ def cmap_subset(cmap, min, max):
         cmap(np.linspace(min, max, 256)))
 
 
-def _plot_skeleton(fig, ax, joints, joint_errors=None, color='r'):
+def _plot_skeleton_3d(fig, ax, joints, joint_errors=None, color='r'):
     if joint_errors is None:
         ax.scatter(joints[..., 0], joints[..., 1], joints[..., 2], marker='o', s=20, c=color, alpha=1)
     else:
@@ -98,18 +98,27 @@ def _plot_skeleton(fig, ax, joints, joint_errors=None, color='r'):
         colorbar_tick_labels = np.linspace(min_err, max_err, 5, dtype=float)
         cbar.set_ticks(np.linspace(0, 1, 5))
         cbar.set_ticklabels(colorbar_tick_labels, )
-    _plot_hand(ax, joints, wrist_index=0)
+    _plot_hand_skeleton(ax, joints, wrist_index=0)
 
 
-def _plot_hand(ax, kp_coord_xyz, wrist_index):
+def _plot_hand_skeleton(ax, joints, wrist_index=0, s=20, alpha=1, marker='o'):
+    joints = np.squeeze(joints)  # get rid of surplus dimensions
+    if joints.ndim != 2:
+        raise ValueError(F"joints.ndim should be 2, but is {joints.ndim}")
     fingers_bases = np.arange(wrist_index + 1, wrist_index + 20, 4)
-    wrist_joint = kp_coord_xyz[wrist_index]
-    for finger_base in fingers_bases:
-        finger_joints = kp_coord_xyz[finger_base:finger_base + 4]
+    wrist_joint = joints[wrist_index]
+    finger_colors = ['r', 'm', 'c', 'g', 'b']
+    ax.scatter(wrist_joint[..., 0], wrist_joint[..., 1], c=finger_colors[-1], marker=marker, s=s, alpha=alpha)
+    for i, finger_base in enumerate(fingers_bases):
+        finger_joints = joints[finger_base:finger_base + 4]
+        ax.scatter(finger_joints[..., 0], finger_joints[..., 1], c=finger_colors[i], marker=marker, s=s, alpha=alpha)
         xs = np.concatenate([wrist_joint[0:1], finger_joints[:, 0]])
         ys = np.concatenate([wrist_joint[1:2], finger_joints[:, 1]])
-        zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
-        ax.plot(xs, ys, zs=zs)
+        if joints.shape[-1] == 3:
+            zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
+            ax.plot(xs, ys, zs=zs, c=finger_colors[i])
+        else:
+            ax.plot(xs, ys, c=finger_colors[i])
 
 
 def plot_joints(image, bbox, joints, show_norm=False):
@@ -132,7 +141,7 @@ def plot_joints(image, bbox, joints, show_norm=False):
 
     for i in range(len(ax.collections)):
         ax.collections[i].__class__ = FixZorderCollection
-    _plot_skeleton(fig, ax, joints)
+    _plot_skeleton_3d(fig, ax, joints)
 
     if show_norm:
         # 0: wrist,
@@ -175,13 +184,13 @@ def plot_joints_2d(image, bbox, joints, cam: Camera, show_norm=False):
     left, top, right, bottom = bbox
 
     # project joint coords through pinhole camera
-    joints2d = cam.project_onto_2d_plane(joints)
+    joints2d = cam.world_to_pixel(joints)
     # correct the points coordinates to match the image indices starting at 0.
     joints2d -= [left, top]
 
     fig, ax = plt.subplots(1)
     ax.imshow(image, cmap=depth_image_cmap)
-    ax.scatter(joints2d[..., 0], joints2d[..., 1])
+    _plot_hand_skeleton(ax, joints2d)
 
     if show_norm:
         # 0: wrist,
@@ -195,7 +204,7 @@ def plot_joints_2d(image, bbox, joints, cam: Camera, show_norm=False):
         norm, mean = best_fitting_hyperplane(palm_joints)
 
         # norm += np.std(joints)
-        norm_2d, mean_2d = cam.project_onto_2d_plane(np.stack([mean + norm, mean])) - [left, top]
+        norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + norm, mean])) - [left, top]
 
         ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
 

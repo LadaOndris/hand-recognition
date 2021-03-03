@@ -1,7 +1,7 @@
 """
-The annotations files of the bighand dataset contain
+The annotation files of the bighand dataset contain
 only relative indexing of images. This script adds a folder
-to which the index refers to so it can be easily loaded
+to each line in the annotation files, so it can be easily loaded
 in the tf.data pipeline.
 """
 

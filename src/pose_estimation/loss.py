@@ -31,7 +31,7 @@ class CoordinateLoss(tf.keras.losses.Loss):
         self.huber_loss = tf.keras.losses.Huber()
 
     def call(self, y_true, y_pred):
-        tf.print('coords:', tf.shape(y_pred))
+        # tf.print('coords:', tf.shape(y_pred))
         return self.huber_loss(y_true, y_pred)
 
 
@@ -43,5 +43,5 @@ class OffsetLoss(tf.keras.losses.Loss):
         self.balance = balance
 
     def call(self, y_true, y_pred):
-        tf.print('offsets:', tf.shape(y_pred))
+        # tf.print('offsets:', tf.shape(y_pred))
         return self.balance * self.huber_loss(y_true, y_pred)

@@ -10,12 +10,25 @@ class DatasetGenerator:
     to match the expected output of JGR-J2O network.
     """
 
-    def __init__(self, dataset_iterator, image_in_size, image_out_size, camera: Camera, return_xyz=False):
+    def __init__(self, dataset_iterator, image_in_size, image_out_size, camera: Camera, return_xyz=False,
+                 dataset_includes_bboxes=False):
+        """
+        Parameters
+        ----------
+        dataset_iterator
+        image_in_size
+        image_out_size
+        camera
+        return_xyz
+        dataset_includes_bboxes
+            If dataset returns bboxes, then the images are expected to be already cropped.
+        """
         self.iterator = dataset_iterator
         self.image_in_size = image_in_size
         self.image_out_size = image_out_size
         self.camera = camera
         self.return_xyz = return_xyz
+        self.dataset_includes_bboxes = dataset_includes_bboxes
         self.max_depth = 2048
 
     def __iter__(self):
@@ -26,12 +39,16 @@ class DatasetGenerator:
         # which is defined as a parameter to the JGR-J2O network.
         # The depth image should be already normalized to [-1, 1],
         # as well as the UV coords to [0, 1], and Z coord to [-1, 1].
-        images, xyz_global = self.iterator.get_next()
-        uv_global = self.camera.project_onto_2d_plane(xyz_global)
-        self.bboxes = self.extract_bboxes(uv_global)
-        cropped_imgs = self.crop_images(images, self.bboxes)
-        uv_local = uv_global - tf.cast(self.bboxes[..., :2], dtype=tf.float32)
+        if self.dataset_includes_bboxes:
+            cropped_imgs, self.bboxes, xyz_global = self.iterator.get_next()
+            uv_global = self.camera.world_to_pixel(xyz_global)
+        else:
+            images, xyz_global = self.iterator.get_next()
+            uv_global = self.camera.world_to_pixel(xyz_global)
+            self.bboxes = self.extract_bboxes(uv_global)
+            cropped_imgs = self.crop_images(images, self.bboxes)
 
+        uv_local = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
         resize_new_size = [self.image_in_size, self.image_in_size]
         resize = lambda img: tf.image.resize(img.to_tensor(), resize_new_size)
         resized_imgs = tf.map_fn(resize, cropped_imgs,
@@ -42,15 +59,14 @@ class DatasetGenerator:
         cropped_imgs_sizes_v = self.bboxes[..., 3] - self.bboxes[..., 1]  # bottom - top
         cropped_imgs_sizes = tf.stack([cropped_imgs_sizes_u, cropped_imgs_sizes_v], axis=-1)
         self.resize_coeffs = tf.cast(resize_new_size / cropped_imgs_sizes, dtype=tf.float32)
-        resized_uv = self.resize_coeffs * uv_local
+        resized_uv = self.resize_coeffs[:, tf.newaxis, :] * uv_local
 
         resized_uvz = tf.concat([resized_uv, xyz_global[..., 2:3]], axis=-1)
         normalized_uvz = resized_uvz / [self.image_in_size, self.image_in_size, self.max_depth]
 
         # !!!! offsets should be computed from UVZ_cropped_resized_normalized
         offsets = self.compute_offsets(normalized_uvz)
-        y_true = {'coords': resized_uvz, 'offsets': offsets}
-        return resized_imgs, [resized_uvz, offsets]  # y_true
+        return resized_imgs, [resized_uvz, offsets]
 
     def extract_bboxes(self, uv_global):
         """

@@ -1,9 +1,12 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
 from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d
 from src.acceptance.base import rds_errors
+from src.utils.camera import Camera
 import numpy as np
 import glob
 import struct
+import os
+import tensorflow as tf
 
 
 def read_image(file_path: str):
@@ -17,7 +20,7 @@ def read_image(file_path: str):
         values = len(image_data) // 4
         image = struct.unpack(F"{values}f", image_data)
         image = np.array(image)
-        image = image.reshape([height, width])
+        image = image.reshape([height, width, 1])
         return image, np.array([left, top, right, bottom])
 
 
@@ -26,19 +29,13 @@ def read_images(path: str):
     images_and_bboxes = np.array([read_image(file_path) for file_path in image_file_paths], dtype=np.object)
     images = images_and_bboxes[..., 0]
     bbox_coords = np.stack(images_and_bboxes[..., 1])
-    centered_joints, labels = load_joints(path.joinpath('joint.txt'), gesture=-1)
-    global_joints = transform_joints_to_global(centered_joints)
-    return images, bbox_coords, global_joints
+    centered_joints = load_joints(path.joinpath('joint.txt'))
+    centered_joints[..., 2] *= -1
+    centered_joints[..., 1] *= -1
+    return images, bbox_coords, centered_joints
 
 
-def transform_joints_to_global(joints):
-    image_center = (160, 120)
-    joints[..., 0] += image_center[0]
-    joints[..., 1] = image_center[1] - joints[..., 1]
-    return joints
-
-
-def load_joints(joints_file: str, gesture: str) -> np.ndarray:
+def load_joints(joints_file: str) -> np.ndarray:
     """
     Parameters
     ----------
@@ -51,10 +48,10 @@ def load_joints(joints_file: str, gesture: str) -> np.ndarray:
     -------
     Joint annotations and corresponding labels.
     """
-    joints = np.genfromtxt(joints_file, skip_header=1, dtype=np.float64)
+    joints = np.genfromtxt(joints_file, skip_header=1, dtype=np.float32)
     joints = np.reshape(joints, (-1, 21, 3))
-    labels = np.full(shape=(joints.shape[0]), fill_value=gesture)
-    return joints, labels
+    # labels = np.full(shape=(joints.shape[0]), fill_value=gesture)
+    return joints  # , labels
 
 
 def load_dataset() -> np.ndarray:
@@ -75,16 +72,92 @@ def load_dataset() -> np.ndarray:
     return np.unique(gesture_names), joints, labels
 
 
-if __name__ == '__main__':
-    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/1'))
+class MSRADataset:
+
+    def __init__(self, dataset_path, batch_size, shuffle=True):
+        self.dataset_path = dataset_path
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+
+        subject_folders = self._get_subject_folders()
+        self.train_subjects = subject_folders[:-1]
+        self.test_subjects = subject_folders[-1:]
+
+        train_images, train_joints = self.get_records(self.train_subjects)
+        test_images, test_joints = self.get_records(self.test_subjects)
+        self.train_size = len(train_joints)
+        self.test_size = len(test_joints)
+
+        self.num_train_batches = int(self.train_size // self.batch_size)
+        self.num_test_batches = int(self.test_size // self.batch_size)
+
+        self.train_dataset = self._build_dataset(train_images, train_joints)
+        self.test_dataset = self._build_dataset(test_images, test_joints)
+        self.records = None
+
+    def _get_subject_folders(self):
+        all_files = self.dataset_path.iterdir()
+        return [file for file in all_files if file.is_dir()]
+
+    def _build_dataset(self, images, joints):
+        ds = tf.data.Dataset.from_tensor_slices((images, joints))
+        if self.shuffle:
+            ds = ds.shuffle(buffer_size=len(joints), reshuffle_each_iteration=True)
+        ds = ds.repeat()
+        ds = ds.map(self._read_image)
+        ds = ds.batch(self.batch_size)
+        ds = ds.prefetch(buffer_size=1)
+        ds = ds.map(self._squeeze_image_dimension)
+        return ds
+
+    def get_records(self, subject_folders):
+        gesture_folders = []
+        for f in subject_folders:
+            folders = f.iterdir()
+            gesture_folders += folders
+        images = []  # of shape [n_subjects * n_gestures * 500, 2]
+        joints = None
+        for folder in gesture_folders:
+            folder_images, folder_joints = self._records_from_gesture_folder(folder)
+            images += folder_images
+            if joints is None:
+                joints = folder_joints
+            else:
+                joints = np.concatenate([joints, folder_joints])
+        return images, joints
+
+    def _records_from_gesture_folder(self, path):
+        image_file_paths = sorted(glob.glob(os.path.join(str(path), '*.bin')))
+        joints = load_joints(path.joinpath('joint.txt'))
+        return image_file_paths, joints
+
+    def _read_image(self, image_file, joints):
+        image, bbox = tf.numpy_function(read_image, [image_file], Tout=(tf.float64, tf.int64))
+        image = tf.expand_dims(image, 0)
+        image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+        return image, bbox, joints
+
+    def _squeeze_image_dimension(self, images, bboxes, joints):
+        return tf.squeeze(images, axis=1), bboxes, joints
+
+
+def plot_hands():
+    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/5'))
     images2, bbox_coords2, joints2 = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/2'))
 
     # errs = rds_errors(np.expand_dims(joints[0], axis=0), np.expand_dims(joints[1], axis=0))
-
+    cam = Camera('MSRA')
     idx = 8
-    plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
-    plot_joints_2d(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
+    for image, bbox, jnts in zip(images, bbox_coords, joints):
+        plot_joints_2d(image, bbox, jnts, cam=cam, show_norm=False)
+    # plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
     # hand1 = (images[idx], bbox_coords[idx], joints[idx])
     # hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])
     # plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
-    pass
+
+
+if __name__ == '__main__':
+    msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8)
+    it = iter(msra.train_dataset)
+    for images, bboxes, joints in it:
+        print(images.shape, joints.shape)
