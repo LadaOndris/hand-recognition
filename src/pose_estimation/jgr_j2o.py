@@ -210,7 +210,7 @@ class JGR_J2O:
 
         x_jgr, weights = self.joint_graph_reasoning_module(x)
         u_offs, v_offs, z_offs = self.pixel_to_offset_module(x_jgr)
-        offsets = tf.stack([u_offs, v_offs, z_offs], axis=-1)
+        offsets = tf.stack([u_offs, v_offs, z_offs], axis=-1, name='offsets')
         # offs.shape [-1, 24, 24, 21]
         # u_im, v_im, z_im
 
@@ -232,7 +232,7 @@ class JGR_J2O:
         u = tf.reduce_sum(weights * (u_im + u_offs), axis=[1, 2])
         v = tf.reduce_sum(weights * (v_im + v_offs), axis=[1, 2])
         z = tf.reduce_sum(weights * (z_im + z_offs), axis=[1, 2])
-        uvz = tf.stack([u, v, z], axis=-1)
+        uvz = tf.stack([u, v, z], axis=-1, name='joints')
 
         outputs = {'coords': uvz, 'offsets': offsets}
         return Model(input, outputs=[uvz, offsets])

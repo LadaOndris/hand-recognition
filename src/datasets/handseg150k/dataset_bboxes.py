@@ -8,7 +8,7 @@ class HandsegDatasetBboxes:
         if train_size < 0 or train_size > 1:
             raise ValueError("Train_size expected to be in range [0, 1], but got {train_size}.")
 
-        self.dataset_path = dataset_path
+        self.dataset_path = str(dataset_path)
         self.train_size = train_size
         self.batch_size = batch_size
         self.shuffle = shuffle

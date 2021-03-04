@@ -1,6 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input
-from src.core.cfg.cfg_parser import CfgParser
 
 
 class YoloLayer(tf.keras.layers.Layer):
@@ -66,19 +64,3 @@ class YoloLayer(tf.keras.layers.Layer):
         pred_conf = tf.sigmoid(confidence)  # confidence is objectness
 
         return tf.concat([pred_xywh, pred_conf, confidence], axis=-1)
-
-
-class Model:
-
-    def __init__(self):
-        self.yolo_output_shapes = None
-        self.tf_model = None
-        self.learning_rate = 1e-3
-        self.anchors = []
-        self.yolo_out_preds = []
-        self.yolo_output_shapes = []
-
-    @classmethod
-    def from_cfg(cls, file):
-        parser = CfgParser()
-        return parser.parse(file)

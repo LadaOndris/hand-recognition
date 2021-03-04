@@ -1,6 +1,6 @@
 import os
 from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.model import Model
+from src.core.cfg.cfg_parser import Model
 from src.detection.yolov3 import utils
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR

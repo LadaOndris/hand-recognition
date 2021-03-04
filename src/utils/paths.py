@@ -8,6 +8,7 @@ ROOT_DIR = _ROOT_PATH
 LOGS_DIR = _ROOT_PATH.joinpath('logs')
 SAVED_MODELS_DIR = _ROOT_PATH.joinpath('saved_models')
 SRC_DIR = _ROOT_PATH.joinpath('src')
+DOCS_DIR = _ROOT_PATH.joinpath('documentation')
 
 HANDSEG_DATASET_DIR = _ROOT_PATH.joinpath("datasets/handseg150k")
 MSRAHANDGESTURE_DATASET_DIR = _ROOT_PATH.joinpath("datasets/cvpr15_MSRAHandGestureDB")
@@ -15,6 +16,4 @@ BIGHAND_DATASET_DIR = _ROOT_PATH.joinpath("datasets/bighand")
 CUSTOM_DATASET_DIR = _ROOT_PATH.joinpath("datasets/custom")
 USECASE_DATASET_DIR = _ROOT_PATH.joinpath("datasets/usecase")
 
-
 USECASE_DATASET_JOINTS_PATH = USECASE_DATASET_DIR.joinpath('joints.txt')
-

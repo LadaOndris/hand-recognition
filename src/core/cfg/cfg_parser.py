@@ -4,9 +4,24 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Input, ZeroPadding2D, BatchNormalization, Conv2D, LeakyReLU, \
     UpSampling2D, MaxPool2D
 from typing import Tuple, Dict, List
-from src.detection.yolov3.model import Model
 from src.utils.config import YOLO_CONFIG_FILE
 from src.detection.yolov3.model import YoloLayer
+
+
+class Model:
+
+    def __init__(self):
+        self.yolo_output_shapes = None
+        self.tf_model = None
+        self.learning_rate = 1e-3
+        self.anchors = []
+        self.yolo_out_preds = []
+        self.yolo_output_shapes = []
+
+    @classmethod
+    def from_cfg(cls, file):
+        parser = CfgParser()
+        return parser.parse(file)
 
 
 class CfgParser:

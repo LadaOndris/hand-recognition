@@ -4,7 +4,7 @@ from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3.dataset_generator import DatasetGenerator
 from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
 from src.detection.yolov3.yolo_loss import YoloLoss
-from src.detection.yolov3.model import Model
+from src.core.cfg.cfg_parser import Model
 from src.utils.config import YOLO_CONFIG_FILE
 from src.utils.paths import HANDSEG_DATASET_DIR
 import src.utils.logs as logs_utils
