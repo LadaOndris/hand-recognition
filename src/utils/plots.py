@@ -180,18 +180,20 @@ def plot_joints_only(joints):
     plt.show()
 
 
-def plot_joints_2d(image, bbox, joints, cam: Camera, show_norm=False):
-    left, top, right, bottom = bbox
-
-    # project joint coords through pinhole camera
-    joints2d = cam.world_to_pixel(joints)
-    # correct the points coordinates to match the image indices starting at 0.
-    joints2d -= [left, top]
-
+def plot_joints_2d(image, joints2d):
     fig, ax = plt.subplots(1)
     ax.imshow(image, cmap=depth_image_cmap)
     _plot_hand_skeleton(ax, joints2d)
+    fig.tight_layout()
+    plt.show()
 
+
+def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
+    fig, ax = plt.subplots(1)
+    ax.imshow(image, cmap=depth_image_cmap)
+    # project joint coords through pinhole camera
+    joints2d = cam.world_to_pixel(joints3d)
+    _plot_hand_skeleton(ax, joints2d)
     if show_norm:
         # 0: wrist,
         # 1-4: index_mcp, index_pip, index_dip, index_tip,
@@ -199,14 +201,9 @@ def plot_joints_2d(image, bbox, joints, cam: Camera, show_norm=False):
         # 9-12: ring_mcp, ring_pip, ring_dip, ring_tip,
         # 13-16: little_mcp, little_pip, little_dip, little_tip,
         # 17-20: thumb_mcp, thumb_pip, thumb_dip, thumb_tip
-
-        palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=0)
+        palm_joints = np.take(joints3d, [0, 1, 5, 9, 13], axis=0)
         norm, mean = best_fitting_hyperplane(palm_joints)
-
-        # norm += np.std(joints)
-        norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + norm, mean])) - [left, top]
-
+        norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + norm, mean]))
         ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
-
     fig.tight_layout()
     plt.show()

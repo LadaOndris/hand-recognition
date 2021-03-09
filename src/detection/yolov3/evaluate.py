@@ -62,8 +62,8 @@ if __name__ == '__main__':
     # np.save('eval_y_pred.pkl', y_pred)
     # np.save('eval_y_true.pkl', y_true)
 
-    y_pred = np.load('eval_y_pred.pkl.npy')
-    y_true = np.load('eval_y_true.pkl.npy')
+    y_pred = np.load('../../../other/eval_y_pred.pkl.npy')
+    y_true = np.load('../../../other/eval_y_true.pkl.npy')
 
     num_thresholds = 50
     thresholds = np.linspace(0, 1, num_thresholds)

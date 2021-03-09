@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 class MeanJointErrorMetric(tf.keras.metrics.Metric):
 
     def __init__(self, name='mean_joint_error', **kwargs):
@@ -7,8 +8,8 @@ class MeanJointErrorMetric(tf.keras.metrics.Metric):
         self._total = self.add_weight(name='total', initializer='zeros')
         self._count = self.add_weight(name='count', initializer='zeros')
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        mje = self.mean_joint_error(y_true, y_pred)
+    def update_state(self, xyz_true, xyz_pred, sample_weight=None):
+        mje = self.mean_joint_error(xyz_true, xyz_pred)
         self._total.assign_add(tf.cast(mje, dtype=tf.float32))
         self._count.assign_add(1)
 

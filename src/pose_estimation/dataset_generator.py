@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from src.utils.camera import Camera
+from src.utils.plots import plot_joints_2d
 
 
 class DatasetGenerator:
@@ -10,7 +11,8 @@ class DatasetGenerator:
     to match the expected output of JGR-J2O network.
     """
 
-    def __init__(self, dataset_iterator, image_in_size, image_out_size, camera: Camera, return_xyz=False,
+    def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
+                 return_xyz=False,
                  dataset_includes_bboxes=False):
         """
         Parameters
@@ -24,49 +26,85 @@ class DatasetGenerator:
             If dataset returns bboxes, then the images are expected to be already cropped.
         """
         self.iterator = dataset_iterator
+        self.depth_image_size = depth_image_size
         self.image_in_size = image_in_size
         self.image_out_size = image_out_size
         self.camera = camera
         self.return_xyz = return_xyz
         self.dataset_includes_bboxes = dataset_includes_bboxes
         self.max_depth = 2048
+        self.bboxes = None  # These are used to position the cropped coordinates into global picture
+        self.resize_coeffs = None  # These are used to invert image resizing
+        self.cropped_images = None
 
     def __iter__(self):
         return self
 
+    def postprocess(self, y_pred):
+        """
+        Denormalizes predicted coordinates.
+        Applies inverted resizing.
+        Puts the coordinates in the global picture by
+        adding bounding box offsets.
+
+        Returns
+        -------
+            Global UVZ coordinates.
+        """
+        normalized_uvz = y_pred[0]
+        resized_uvz = normalized_uvz * [self.image_in_size, self.image_in_size, self.max_depth]
+        uv_local = 1.0 / self.resize_coeffs[:, tf.newaxis, :] * resized_uvz[..., :2]
+        uv_global = uv_local + tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+        uvz_global = tf.concat([uv_global, resized_uvz[..., 2:3]], axis=-1)
+        return uvz_global
+
     def __next__(self):
-        # The dataset iterator should return images of size (96, 96),
-        # which is defined as a parameter to the JGR-J2O network.
-        # The depth image should be already normalized to [-1, 1],
-        # as well as the UV coords to [0, 1], and Z coord to [-1, 1].
+        """
+        The dataset iterator returns images of arbitrary size -
+        either original size, e.g. 640x480 (BigHand dataset), or cropped images using
+        the returned bounding boxes (MSRA dataset).
+        These images are cropped if no bounding boxes are returned from
+        the iterator.
+        Then, they are resized to shape (96, 96), which is the
+        input shape of the JGR-J20 network.
+        The dataset iterator should return joint coordinates in global
+        coordinate system (XYZ). They are also cropped, resized.
+        Both, images and coordinates are normalized to range [0, 1].
+        Also, offsets are computed from the normalized coordinates.
+        """
         if self.dataset_includes_bboxes:
-            cropped_imgs, self.bboxes, xyz_global = self.iterator.get_next()
+            images, self.bboxes, xyz_global = self.iterator.get_next()
+            # self.bboxes = self.square_bboxes(self.bboxes)
             uv_global = self.camera.world_to_pixel(xyz_global)
         else:
             images, xyz_global = self.iterator.get_next()
             uv_global = self.camera.world_to_pixel(xyz_global)
             self.bboxes = self.extract_bboxes(uv_global)
-            cropped_imgs = self.crop_images(images, self.bboxes)
 
+        self.bboxes = self.square_bboxes(self.bboxes)
+        cropped_imgs = self.crop_images(images, self.bboxes)
+        self.xyz_global = xyz_global
+        self.cropped_images = cropped_imgs
         uv_local = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+        # plot_joints_2d(cropped_imgs[0].to_tensor(), uv_local[0])
         resize_new_size = [self.image_in_size, self.image_in_size]
         resize = lambda img: tf.image.resize(img.to_tensor(), resize_new_size)
         resized_imgs = tf.map_fn(resize, cropped_imgs,
                                  fn_output_signature=tf.TensorSpec(shape=(self.image_in_size, self.image_in_size, 1),
                                                                    dtype=tf.float32))
-
         cropped_imgs_sizes_u = self.bboxes[..., 2] - self.bboxes[..., 0]  # right - left
         cropped_imgs_sizes_v = self.bboxes[..., 3] - self.bboxes[..., 1]  # bottom - top
         cropped_imgs_sizes = tf.stack([cropped_imgs_sizes_u, cropped_imgs_sizes_v], axis=-1)
         self.resize_coeffs = tf.cast(resize_new_size / cropped_imgs_sizes, dtype=tf.float32)
         resized_uv = self.resize_coeffs[:, tf.newaxis, :] * uv_local
+        # plot_joints_2d(resized_imgs[0], resized_uv[0])
 
         resized_uvz = tf.concat([resized_uv, xyz_global[..., 2:3]], axis=-1)
         normalized_uvz = resized_uvz / [self.image_in_size, self.image_in_size, self.max_depth]
-
+        normalized_imgs = resized_imgs / self.max_depth
         # !!!! offsets should be computed from UVZ_cropped_resized_normalized
-        offsets = self.compute_offsets(normalized_uvz)
-        return resized_imgs, [resized_uvz, offsets]
+        offsets = self.compute_offsets(normalized_imgs, normalized_uvz)
+        return normalized_imgs, [normalized_uvz, offsets]
 
     def extract_bboxes(self, uv_global):
         """
@@ -93,11 +131,35 @@ class DatasetGenerator:
         bboxes = tf.cast(bboxes, dtype=tf.int32)
         return bboxes
 
-    def compute_offsets(self, joints):
+    def square_bboxes(self, bboxes):
+        u_min, v_min, u_max, v_max = tf.unstack(bboxes, axis=-1)
+        width = u_max - u_min
+        height = v_max - v_min
+
+        # Make bbox square in the U axis
+        u_min_new = u_min + tf.cast(width / 2 - height / 2, dtype=tf.int64)
+        u_max_new = u_min + tf.cast(width / 2 + height / 2, dtype=tf.int64)
+        u_min_raw = tf.where(width < height, u_min_new, u_min)
+        u_max_raw = tf.where(width < height, u_max_new, u_max)
+        u_min = tf.math.maximum(u_min_raw, 0)
+        u_max = tf.math.minimum(u_max_raw, self.depth_image_size[0])
+
+        # Make bbox square in the V axis
+        v_min_new = v_min + tf.cast(height / 2 - width / 2, dtype=tf.int64)
+        v_max_new = v_min + tf.cast(height / 2 + width / 2, dtype=tf.int64)
+        v_min_raw = tf.where(height < width, v_min_new, v_min)
+        v_max_raw = tf.where(height < width, v_max_new, v_max)
+        v_min = tf.math.maximum(v_min_raw, 0)
+        v_max = tf.math.minimum(v_max_raw, self.depth_image_size[1])
+
+        return tf.stack([u_min, v_min, u_max, v_max], axis=-1)
+
+    def compute_offsets(self, images, joints):
         """
             Computes offsets for each joint coordinate.
-            Offsets are normalized to [-1, 1] if the given
-            UVZ coords are normalized to [0, 1].
+            All offsets are normalized to [-1, 1] if the given
+            UVZ coords are normalized to [0, 1], and if the
+            input images are also normalized to range [0, 1].
         Parameters
         ----------
         joints  tf.Tensor of shape [None, n_joints, 3]
@@ -116,9 +178,11 @@ class DatasetGenerator:
         v_offsets = y[:, :, tf.newaxis, :]
         v_offsets = tf.tile(v_offsets, [1, 1, self.image_out_size, 1])
 
+        z_im = tf.image.resize(images, [self.image_out_size, self.image_out_size],
+                               method=tf.image.ResizeMethod.BILINEAR)
         z_coords = joints[..., 2]
         z_coords = z_coords[:, tf.newaxis, tf.newaxis, :]
-        z_offsets = tf.tile(z_coords, [1, self.image_out_size, self.image_out_size, 1])
+        z_offsets = z_coords - z_im
         return tf.stack([u_offsets, v_offsets, z_offsets], axis=-1)
 
     def offset_coord(self, joints_single_coord, n_joints):

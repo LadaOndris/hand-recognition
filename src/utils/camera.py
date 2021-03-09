@@ -73,6 +73,12 @@ class Camera:
         if tf.rank(points_uvz) == 2:
             points_uvz = points_uvz[tf.newaxis, ...]
 
+        multiplied_uv = points_uvz[..., 0:2] * points_uvz[..., 2:3]
+        multiplied_uvz = tf.concat([multiplied_uv, points_uvz[..., 2:3]], axis=-1)
+        tranposed_xyz = tf.matmul(self.invr_intrinsic_matrix, multiplied_uvz, transpose_b=True)
+        xyz = tf.transpose(tranposed_xyz, [0, 2, 1])
+        return xyz
+
         xyz = tf.matmul(self.invr_intrinsic_matrix, points_uvz, transpose_b=True)
         xyz = tf.transpose(xyz, [0, 2, 1])
         xyz = xyz * points_uvz[..., 2:3]

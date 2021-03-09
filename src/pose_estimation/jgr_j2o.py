@@ -3,6 +3,12 @@ from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, Den
 from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
+from src.utils.config import JGRJ2O_WEIGHT_DECAY
+from packaging import version
+
+
+# major_ver, minor_ver, _ = version.parse(tf.__version__).release
+# if major_ver >= 2 and minor_ver >= 3:
 
 
 class ResnetBlock(tf.keras.layers.Layer):
@@ -11,17 +17,14 @@ class ResnetBlock(tf.keras.layers.Layer):
         self.filters = filters
         half_filters = int(filters // 2)
 
-        self.conv2d_1 = tf.keras.layers.Conv2D(half_filters, (1, 1))
-        self.bn_1 = tf.keras.layers.BatchNormalization()
-
-        self.conv2d_2 = tf.keras.layers.Conv2D(half_filters, kernel_size, padding='same')
-        self.bn_2 = tf.keras.layers.BatchNormalization()
-
-        self.conv2d_3 = tf.keras.layers.Conv2D(filters, (1, 1))
-        self.bn_3 = tf.keras.layers.BatchNormalization()
-
-        self.conv2d_4 = tf.keras.layers.Conv2D(filters, (1, 1))
-        self.bn_4 = tf.keras.layers.BatchNormalization()
+        self.conv2d_1 = conv(half_filters, (1, 1))
+        self.bn_1 = bn()
+        self.conv2d_2 = conv(half_filters, kernel_size, padding='same')
+        self.bn_2 = bn()
+        self.conv2d_3 = conv(filters, (1, 1))
+        self.bn_3 = bn()
+        self.conv2d_4 = conv(filters, (1, 1))
+        self.bn_4 = bn()
 
     def call(self, input, training=False):
         x = self.conv2d_1(input)
@@ -43,9 +46,34 @@ class ResnetBlock(tf.keras.layers.Layer):
         return tf.nn.relu(x)
 
 
+def conv(filters, kernel_size, strides=(1, 1), padding='valid', use_bias=True):
+    initializer = tf.keras.initializers.TruncatedNormal(0.0, 0.01)
+    regularizer = tf.keras.regularizers.L1L2(l2=JGRJ2O_WEIGHT_DECAY)
+    return Conv2D(filters, kernel_size, strides=strides, padding=padding, kernel_initializer=initializer,
+                  kernel_regularizer=regularizer, use_bias=use_bias)
+
+
+def bn():
+    initializer = tf.keras.initializers.TruncatedNormal(1.0, 0.01)
+    regularizer = tf.keras.regularizers.L1L2(l2=JGRJ2O_WEIGHT_DECAY)
+    return BatchNormalization(gamma_initializer=initializer, gamma_regularizer=regularizer)
+
+
+def conv_bn(x, filters, kernel_size, strides=(1, 1), padding='valid'):
+    x = conv(filters, kernel_size, strides=strides, padding=padding)(x)
+    x = bn()(x)
+    return x
+
+
+def conv_bn_relu(x, filters, kernel_size, strides=(1, 1), padding='valid'):
+    x = conv(filters, kernel_size, strides=strides, padding=padding)(x)
+    x = bn()(x)
+    return ReLU()(x)
+
+
 class JGR_J2O:
 
-    def __init__(self, input_size = 96, n_joints = 21, n_features = 128):
+    def __init__(self, input_size=96, n_joints=21, n_features=128):
         self.input_size = input_size
         self.out_size = input_size // 4
         self.n_joints = n_joints
@@ -102,19 +130,14 @@ class JGR_J2O:
 
         # local feature enhancement
         x_ = tf.concat([newFe, x], axis=-1)
-        x_ = self.conv_bn_relu(x_, self.n_features, (1, 1))
+        x_ = conv_bn_relu(x_, self.n_features, (1, 1))
         return x_, w
 
-    def conv_bn_relu(self, x, filters, kernel_size):
-        x = Conv2D(filters, kernel_size)(x)
-        x = BatchNormalization()(x)
-        return ReLU()(x)
-
     def pixel_to_joint_voting(self, x):
-        weights = Conv2D(self.n_joints, (1, 1))(x)
+        weights = conv(self.n_joints, (1, 1))(x)
         weights = self.spatial_softmax(weights)  # [-1, W, dim * dim]
 
-        x = self.conv_bn_relu(x, x.shape[-1], (1, 1))
+        x = conv_bn_relu(x, x.shape[-1], (1, 1))
         x = tf.reshape(x, [-1, x.shape[1] * x.shape[2], x.shape[3]])  # [-1, features, dim * dim]
         F = tf.matmul(weights, x)
         w_reshaped = tf.reshape(weights, [-1, self.n_joints, self.out_size, self.out_size])
@@ -166,7 +189,7 @@ class JGR_J2O:
         # (-1, 21, 24, 24, 128) -> (-1, 24, 24, 128)
         newFe = newFe * w[..., tf.newaxis]  # (-1, 21, 24, 24, 128)
         newFe = tf.reduce_mean(newFe, axis=1)  # finally (-1, 24, 24, 128)
-        newFe = self.conv_bn_relu(newFe, self.n_features, kernel_size=(1, 1))
+        newFe = conv_bn_relu(newFe, self.n_features, kernel_size=(1, 1))
         return newFe
 
     def spatial_softmax(self, features):
@@ -187,9 +210,9 @@ class JGR_J2O:
         return softmax
 
     def pixel_to_offset_module(self, x):
-        u_offsets = Conv2D(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
-        v_offsets = Conv2D(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
-        z_offsets = Conv2D(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
+        u_offsets = conv(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
+        v_offsets = conv(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
+        z_offsets = conv(self.n_joints, kernel_size=(1, 1), strides=(1, 1), use_bias=False)(x)
         return u_offsets, v_offsets, z_offsets
 
     def graph(self):
@@ -197,8 +220,7 @@ class JGR_J2O:
 
         # The following layers precede the hourglass module
         # according to Hourglass and JGR-P2O papers
-        x = Conv2D(filters=32, kernel_size=(7, 7), strides=(2, 2), padding='same',
-                   kernel_initializer='normal')(input)  # 48, 48, 32
+        x = conv_bn_relu(input, filters=32, kernel_size=(7, 7), strides=(2, 2), padding='same')  # 48, 48, 32
         x = ResnetBlock(kernel_size=(3, 3), filters=64)(x)
         x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
         x = ResnetBlock(kernel_size=(3, 3), filters=x.shape[-1])(x)

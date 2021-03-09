@@ -50,6 +50,9 @@ def load_joints(joints_file: str) -> np.ndarray:
     """
     joints = np.genfromtxt(joints_file, skip_header=1, dtype=np.float32)
     joints = np.reshape(joints, (-1, 21, 3))
+
+    joints[..., 2] *= -1  # Make Z axis positive
+    joints[..., 1] *= -1  # Reverse pinhole's camera inverted image (invert around center)
     # labels = np.full(shape=(joints.shape[0]), fill_value=gesture)
     return joints  # , labels
 
@@ -107,7 +110,7 @@ class MSRADataset:
         ds = ds.map(self._read_image)
         ds = ds.batch(self.batch_size)
         ds = ds.prefetch(buffer_size=1)
-        ds = ds.map(self._squeeze_image_dimension)
+        # ds = ds.map(self._squeeze_image_dimension)
         return ds
 
     def get_records(self, subject_folders):
@@ -133,8 +136,11 @@ class MSRADataset:
 
     def _read_image(self, image_file, joints):
         image, bbox = tf.numpy_function(read_image, [image_file], Tout=(tf.float64, tf.int64))
-        image = tf.expand_dims(image, 0)
-        image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+        left, top, right, bottom = bbox[0], bbox[1], bbox[2], bbox[3] # tf.unstack(bbox[0], axis=-1)
+        image = tf.pad(image, [[top, 240 - bottom], [left, 320 - right], [0, 0]])
+        image = tf.cast(image, dtype=tf.uint16)
+        # image = tf.expand_dims(image, 0)
+        # image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
         return image, bbox, joints
 
     def _squeeze_image_dimension(self, images, bboxes, joints):
@@ -149,7 +155,8 @@ def plot_hands():
     cam = Camera('MSRA')
     idx = 8
     for image, bbox, jnts in zip(images, bbox_coords, joints):
-        plot_joints_2d(image, bbox, jnts, cam=cam, show_norm=False)
+        joints2d = cam.world_to_pixel(jnts)
+        plot_joints_2d(image, joints2d - bbox[..., :2])
     # plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
     # hand1 = (images[idx], bbox_coords[idx], joints[idx])
     # hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])

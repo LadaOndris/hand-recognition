@@ -127,5 +127,5 @@ if __name__ == '__main__':
         image = tf.squeeze(image)
         # plots.plot_depth_image(image)
         joints2d = cam.world_to_pixel(joints)
-        plots.plot_joints_2d(image, [0, 0, None, None], joints, cam)
+        plots.plot_joints_2d(image, joints2d)
         pass
