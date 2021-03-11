@@ -4,11 +4,6 @@ from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
 from src.utils.config import JGRJ2O_WEIGHT_DECAY
-from packaging import version
-
-
-# major_ver, minor_ver, _ = version.parse(tf.__version__).release
-# if major_ver >= 2 and minor_ver >= 3:
 
 
 class ResnetBlock(tf.keras.layers.Layer):

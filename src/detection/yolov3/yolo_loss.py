@@ -135,6 +135,10 @@ class YoloLoss(tf.keras.losses.Loss):
         # Multiplied by true_conf -> the iou loss is calculated only for
         # true boxes.
         iou_loss = true_conf * bbox_loss_scale * (1 - iou)
+        # Loss for each sample in the batch
+        # iou_loss = tf.reduce_sum(iou_loss, axis=[1, 2, 3, 4])
+        # Loss for the batch as a whole
+        # iou_loss = tf.reduce_mean(iou_loss)
         return iou_loss
 
     def confidence_loss(self, raw_conf, true_conf, pred_xywh, true_xywh):
@@ -159,10 +163,19 @@ class YoloLoss(tf.keras.losses.Loss):
         From YOLOv3 paper:
         'If the bounding box prior is not the best but does overlap a ground truth object by
         more than some threshold we ignore the prediction.'
+        Meaning: true_conf is 0 if the grid cell is not responsible for that prediction,
+        then the loss for that grid is computed only if the IoU is less than some 
+        threshold. So we don't penalizes confidence of grid cells that does overlap
+        the object by some margin.
         """
 
+        loss_conf_obj = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
+        loss_conf_noobj = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
         ignore_conf = (1.0 - true_conf) * tf.cast(max_iou < self.ignore_thresh, tf.float32)
-        conf_loss = \
-            true_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf) \
-            + ignore_conf * tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
-        return conf_loss
+        loss_conf = true_conf * loss_conf_obj + ignore_conf * loss_conf_noobj
+
+        # loss for each sample in the batch
+        # loss_conf = tf.reduce_sum(loss_conf, axis=[1, 2, 3, 4])
+        # loss for the batch as a whole
+        # loss_conf = tf.reduce_mean(loss_conf)
+        return loss_conf

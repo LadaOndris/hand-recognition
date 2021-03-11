@@ -1,10 +1,8 @@
 import tensorflow as tf
 import os
 import glob
-import matplotlib.pyplot as plt
 from src.utils.paths import BIGHAND_DATASET_DIR
 from src.utils import plots
-import cv2
 from src.utils.camera import Camera
 
 

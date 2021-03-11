@@ -1,5 +1,7 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 import numpy as np
+import math
 from src.utils.camera import Camera
 from src.utils.plots import plot_joints_2d
 
@@ -12,8 +14,7 @@ class DatasetGenerator:
     """
 
     def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
-                 return_xyz=False,
-                 dataset_includes_bboxes=False):
+                 return_xyz=False, dataset_includes_bboxes=False, augment=True):
         """
         Parameters
         ----------
@@ -32,6 +33,7 @@ class DatasetGenerator:
         self.camera = camera
         self.return_xyz = return_xyz
         self.dataset_includes_bboxes = dataset_includes_bboxes
+        self.augment = augment
         self.max_depth = 2048
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
@@ -99,12 +101,36 @@ class DatasetGenerator:
         resized_uv = self.resize_coeffs[:, tf.newaxis, :] * uv_local
         # plot_joints_2d(resized_imgs[0], resized_uv[0])
 
+        if self.augment:
+            resized_imgs, resized_uv = self.augment_batch(resized_imgs, resized_uv)
+
         resized_uvz = tf.concat([resized_uv, xyz_global[..., 2:3]], axis=-1)
         normalized_uvz = resized_uvz / [self.image_in_size, self.image_in_size, self.max_depth]
         normalized_imgs = resized_imgs / self.max_depth
         # !!!! offsets should be computed from UVZ_cropped_resized_normalized
         offsets = self.compute_offsets(normalized_imgs, normalized_uvz)
         return normalized_imgs, [normalized_uvz, offsets]
+
+    def augment_batch(self, images, uv_joints):
+        images, joints = self.rotate(images, uv_joints)
+        return images, joints
+
+    def rotate(self, images, uv_joints):
+        degrees = tf.random.uniform(shape=[tf.shape(images)[0]], minval=-180, maxval=180)
+        radians = np.deg2rad(degrees)
+        rotation_matrix = np.array([[np.cos(radians), -np.sin(radians)],
+                                    [np.sin(radians), np.cos(radians)]])
+
+        new_images = tfa.image.rotate(images, degrees)
+        # def __rotate(elems):
+        #     image, degree = elems
+        #     return tf.keras.preprocessing.image.apply_affine_transform(image, theta=degree)
+        # new_images = tf.map_fn(__rotate, elems=[images, degrees])
+
+        # new_joints = tf.matmul(rotation_matrix, uv_joints)
+        new_joints = tf.matmul(tf.transpose(rotation_matrix, [2, 0, 1]), tf.transpose(uv_joints, [0, 2, 1]))
+        new_joints = tf.transpose(new_joints, [0, 2, 1])
+        return new_images, new_joints
 
     def extract_bboxes(self, uv_global):
         """

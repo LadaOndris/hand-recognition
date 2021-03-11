@@ -63,10 +63,13 @@ def test(dataset: str):
     # model.load_weights(SAVED_MODELS_DIR.joinpath('jgrp2o_msra_20210305-220222.h5'))
     for batch_images, y_true in test_ds_gen:
         y_pred = model.predict(batch_images)
-        y_joints = test_ds_gen.postprocess(y_pred)
-        for image, joints in zip(test_ds_gen.cropped_images, y_joints):
+        y_pred_joints = test_ds_gen.postprocess(y_pred)
+        y_true_joints = test_ds_gen.postprocess(y_true)
+        for image, joints, true_joints in zip(test_ds_gen.cropped_images, y_pred_joints, y_true_joints):
             local_joints_2d = joints[..., :2] - tf.cast(test_ds_gen.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+            true_joints_2d = true_joints[..., :2] - tf.cast(test_ds_gen.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
             plot_joints_2d(image.to_tensor(), local_joints_2d)
+            plot_joints_2d(image.to_tensor(), true_joints_2d)
 
 
 def train(dataset: str):
@@ -76,15 +79,13 @@ def train(dataset: str):
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=False)
         gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size, camera=cam,
-                               dataset_includes_bboxes=False)
+                               dataset_includes_bboxes=False, augment=True)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam,
-                                        dataset_includes_bboxes=True)
+                                        camera=cam, dataset_includes_bboxes=True, augment=True)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam,
-                                       dataset_includes_bboxes=True)
+                                       camera=cam, dataset_includes_bboxes=True)
 
     model = network.graph()
     print(model.summary(line_length=100))
@@ -102,7 +103,7 @@ def train(dataset: str):
         decay_steps=ds.num_train_batches,
         decay_rate=JGRJ2O_LR_DECAY,
         staircase=True)
-    adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.96)
+    adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
     model.fit(train_ds_gen, epochs=70, verbose=1, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
               validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
@@ -127,14 +128,20 @@ def try_dataset_pipeline(dataset: str):
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=False)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                               camera=cam, dataset_includes_bboxes=True)
+                               camera=cam, dataset_includes_bboxes=True, augment=True)
     for images, y_true in gen:
         offsets = y_true[1]
         joints = y_true[0]
-        plt.imshow(images[0])
+        y_true_joints = gen.postprocess(y_true)
+        true_joints_2d = y_true_joints[..., :2] - tf.cast(gen.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+
+        for image, true_joints in zip(gen.cropped_images, true_joints_2d):
+            plot_joints_2d(image.to_tensor(), true_joints)
 
 
 if __name__ == "__main__":
+    try_dataset_pipeline('msra')
+    pass
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', type=str, action='store', default=None)
     parser.add_argument('--evaluate', type=str, action='store', default=None)

@@ -14,7 +14,7 @@ def train():
     model = Model.from_cfg(YOLO_CONFIG_FILE)
     yolo_out_shapes = model.yolo_output_shapes
 
-    handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR,  train_size=0.8, batch_size=model.batch_size)
+    handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.8, batch_size=model.batch_size)
     train_dataset_generator = DatasetGenerator(handseg_dataset.train_batch_iterator,
                                                model.input_shape, yolo_out_shapes, model.anchors)
     test_dataset_generator = DatasetGenerator(handseg_dataset.test_batch_iterator,
@@ -30,10 +30,13 @@ def train():
     checkpoint_path = logs_utils.compose_ckpt_path(log_dir)
     callbacks = [
         tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='batch'),
-        tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_weights_only=True),
+        tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_weights_only=True,
+                                           save_best_only=True),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True),
+        tf.keras.callbacks.TerminateOnNaN()
     ]
 
-    model.tf_model.fit(train_dataset_generator, epochs=10, verbose=1, callbacks=callbacks,
+    model.tf_model.fit(train_dataset_generator, epochs=40, verbose=0, callbacks=callbacks,
                        steps_per_epoch=handseg_dataset.num_train_batches,
                        validation_data=test_dataset_generator,
                        validation_steps=handseg_dataset.num_test_batches)

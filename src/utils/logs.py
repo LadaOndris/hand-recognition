@@ -46,4 +46,5 @@ def compose_model_path(prefix='', suffix=''):
     if not os.path.isdir(SAVED_MODELS_DIR):
         os.makedirs(SAVED_MODELS_DIR)
     timestamp = get_current_timestamp()
-    return SAVED_MODELS_DIR.joinpath(F"{prefix}{timestamp}{suffix}.h5")
+    posixpath = SAVED_MODELS_DIR.joinpath(F"{prefix}{timestamp}{suffix}.h5")
+    return str(posixpath)
