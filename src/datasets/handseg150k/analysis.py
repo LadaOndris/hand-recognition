@@ -8,6 +8,7 @@ import tensorflow as tf
 import os
 from dataset import HandsegDataset
 from dataset_bboxes import HandsegDatasetBboxes
+from src.utils.paths import HANDSEG_DATASET_DIR
 
 dirname = os.path.dirname(__file__)
 
@@ -33,8 +34,8 @@ def foo():
 
 
 def depth_hist():
-    dataset = HandsegDatasetBboxes(batch_size=16, dataset_path=handseg_path, type='train', train_size=0.8, )
-    for batch_images, batch_bboxes in dataset.batch_iterator:
+    dataset = HandsegDatasetBboxes(batch_size=16, dataset_path=HANDSEG_DATASET_DIR, train_size=0.8, )
+    for batch_images, batch_bboxes in dataset.train_batch_iterator:
         plt.hist(batch_images.numpy().flatten(), np.linspace(1, tf.reduce_max(batch_images), 100))
         break
 
@@ -67,7 +68,7 @@ def show_images_from_handseg_dataset(num, dataset_path, save_fig_loc=None):
 
 
 def show_images_with_bboxes(dataset):
-    for batch_images, batch_bboxes in dataset.batch_iterator:
+    for batch_images, batch_bboxes in dataset.train_batch_iterator:
         for image, bboxes in zip(batch_images, batch_bboxes):
             fig, ax = plt.subplots(1)
             ax.imshow(np.squeeze(image, axis=-1))
@@ -146,8 +147,8 @@ def generate_bounding_boxes(print_images=False, save_to_file=False, bboxes_filen
 
 
 def analyse_pixel_distance():
-    dataset = HandsegDatasetBboxes(batch_size=16, dataset_path=handseg_path, type='train', train_size=0.8, )
-    for batch_images, batch_bboxes in dataset.batch_iterator:
+    dataset = HandsegDatasetBboxes(batch_size=16, dataset_path=HANDSEG_DATASET_DIR, train_size=0.8)
+    for batch_images, batch_bboxes in dataset.train_batch_iterator:
         ones = np.ones(batch_images.shape)
         zeros = np.zeros(batch_images.shape)
         mask = np.where(batch_images > 0, ones, zeros)
@@ -157,13 +158,12 @@ def analyse_pixel_distance():
 
 
 if __name__ == '__main__':
-    base_path = '../../../'
-    handseg_path = base_path + "datasets/handseg150k"
     # depth_hist()
     # analyse_pixel_distance()
-    # dataset = HandsegDatasetBboxes(batch_size=5)
-    # show_images_with_bboxes(dataset)
+    dataset = HandsegDatasetBboxes(batch_size=5, dataset_path=HANDSEG_DATASET_DIR, train_size=0.8,
+                                   model_input_shape=[416, 416])
+    show_images_with_bboxes(dataset)
     # generate_bounding_boxes(print_images=False, save_to_file=False,
     #                        bboxes_filename='bounding_boxes.txt')
-    show_images_from_handseg_dataset(num=3, dataset_path=handseg_path,
-                                     save_fig_loc=base_path + 'documentation/images/handseg_samples.png')
+    # show_images_from_handseg_dataset(num=3, dataset_path=handseg_path,
+    #                                 save_fig_loc=base_path + 'documentation/images/handseg_samples.png')

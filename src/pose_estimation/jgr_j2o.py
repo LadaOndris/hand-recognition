@@ -104,7 +104,7 @@ class JGR_J2O:
         return A_e
 
     def hourglass_module(self, inputs, n, features):
-        with tf.name_scope(name='hourglass') as scope:
+        with tf.name_scope(name='hourglass'):
             left = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(inputs)
             left = ResnetBlock(kernel_size=(3, 3), filters=features)(left)
             top = ResnetBlock(kernel_size=(3, 3), filters=features)(inputs)
@@ -251,5 +251,4 @@ class JGR_J2O:
         z = tf.reduce_sum(weights * (z_im + z_offs), axis=[1, 2])
         uvz = tf.stack([u, v, z], axis=-1, name='joints')
 
-        outputs = {'coords': uvz, 'offsets': offsets}
         return Model(input, outputs=[uvz, offsets])

@@ -54,14 +54,7 @@ class YoloLoss(tf.keras.losses.Loss):
             It is used in a YOLO network in object detection.
         """
 
-        # tf.print("Y_true", tf.shape(y_true))
-        # tf.print("Y_pred", tf.shape(y_pred))
-
-        # tf.print("TRUE", y_true[:,6,6,0,...])
-        # tf.print("PRED", y_pred[:,6,6,0,...])
-
-        # Look out for xywh in different units!!! 
-
+        # Look out for xywh in different units!!!
         pred_xywh = y_pred[..., 0:4]
         pred_conf = y_pred[..., 4:5]
         raw_conf = y_pred[..., 5:6]
@@ -69,30 +62,11 @@ class YoloLoss(tf.keras.losses.Loss):
         true_xywh = y_true[..., 0:4]
         true_conf = y_true[..., 4:5]
 
-        # tf.print("shape", tf.shape(true_xywh))
-        # tf.print("pred_xywh, min, max", tf.reduce_min(pred_xywh[...,2:]), tf.reduce_max(pred_xywh[...,2:]))
-        # tf.print("true_xywh, min, max", tf.reduce_min(true_xywh[...,2:]), tf.reduce_max(true_xywh[...,2:]))
-
-        # zeros = tf.cast(tf.zeros_like(pred_xywh),dtype=tf.bool)
-        # ones = tf.cast(tf.ones_like(pred_xywh),dtype=tf.bool)
-        # loc = tf.where(pred_conf > 0.3, ones, zeros)
-        # pred_xywh_masked = tf.boolean_mask(pred_xywh, loc)
-
-        # tf.print("conf > 0.3: shape, wh_min, wh_max", tf.shape(pred_xywh_masked),
-        #         tf.reduce_min(pred_xywh_masked[...,2:]),
-        #         tf.reduce_max(pred_xywh_masked[...,2:]))
-
-        # tf.print("conf max sum true_sum",
-        #         tf.reduce_max(pred_conf),
-        #         tf.reduce_sum(pred_conf),
-        #         tf.reduce_sum(true_conf)) 
-
         bbox_loss = self.iou_loss(true_conf, pred_xywh, true_xywh)
         conf_loss = self.confidence_loss(raw_conf, true_conf, pred_xywh, true_xywh)
 
         # There is no loss for class labels, since there is a single class
         # and confidence score represenets that class
-
         return bbox_loss + conf_loss
 
     def xywh_loss(self, true_conf, pred_xywh, true_xywh):
@@ -112,11 +86,8 @@ class YoloLoss(tf.keras.losses.Loss):
     def giou_loss(self, true_conf, pred_xywh, true_xywh):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)
         bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
-
         giou = tf.expand_dims(self.bbox_giou(pred_xywh, true_xywh), axis=-1)
         input_size = tf.cast(self.model_input_image_size, tf.float32)
-        # tf.print("giou shape", tf.shape(giou))
-        # tf.print("GIOU", tf.reduce_min(giou), tf.reduce_max(giou))
         bbox_loss_scale = 2.0 - 1.0 * true_xywh[:, :, :, :, 2:3] * true_xywh[:, :, :, :, 3:4] / (input_size ** 2)
         giou_loss = true_conf * bbox_loss_scale * (1 - giou)
         return giou_loss
@@ -143,7 +114,6 @@ class YoloLoss(tf.keras.losses.Loss):
 
     def confidence_loss(self, raw_conf, true_conf, pred_xywh, true_xywh):
         bboxes_mask = true_conf
-        # tf.print("bboxes masked", tf.shape(bboxes_mask))
         bboxes_mask = tf.cast(bboxes_mask, dtype=tf.bool)
         bboxes = tf.boolean_mask(true_xywh, bboxes_mask[..., 0])
 
@@ -169,10 +139,9 @@ class YoloLoss(tf.keras.losses.Loss):
         the object by some margin.
         """
 
-        loss_conf_obj = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
-        loss_conf_noobj = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
+        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
         ignore_conf = (1.0 - true_conf) * tf.cast(max_iou < self.ignore_thresh, tf.float32)
-        loss_conf = true_conf * loss_conf_obj + ignore_conf * loss_conf_noobj
+        loss_conf = true_conf * loss_conf + ignore_conf * loss_conf
 
         # loss for each sample in the batch
         # loss_conf = tf.reduce_sum(loss_conf, axis=[1, 2, 3, 4])

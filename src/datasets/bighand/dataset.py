@@ -4,6 +4,7 @@ import glob
 from src.utils.paths import BIGHAND_DATASET_DIR
 from src.utils import plots
 from src.utils.camera import Camera
+import matplotlib.pyplot as plt
 
 
 class BighandDataset:
@@ -48,7 +49,8 @@ class BighandDataset:
 
         """ Convert to Tensor and shuffle the files """
         annotation_files = tf.constant(annotation_files, dtype=tf.string)
-        annotation_files = tf.random.shuffle(annotation_files)
+        if self.shuffle:
+            annotation_files = tf.random.shuffle(annotation_files)
 
         dataset = tf.data.TextLineDataset(annotation_files)
         """ Reshuffle the dataset each iteration """
@@ -88,25 +90,15 @@ class BighandDataset:
             0, 1, 6, 7, 8, 2, 9, 10, 11, 3, 12, 13, 14, 4, 15, 16, 17, 5, 18, 19, 20
         ], dtype=tf.int32)
         joints = tf.gather(joints, reorder_idx)
-        tf.print("annot", annotation_line)
-        tf.print("joint", joints)
+        # tf.print("annot", annotation_line)
+        # tf.print("joint", joints)
         return depth_image, joints
 
 
 if __name__ == '__main__':
-    """
-    annot "Subject_1/ego/image_D00000956.png\t57.3375\t12.5278\t358.6355\t67.0202\t13.6015\t368.7855\t24.5080\t-20.8626\t416.0751\t10.6481\t-23.4054\t396.6474\t6.0920\t-20.5528\t378.4237\t0.3275\t-18.8273\t361.4121\t61.1928\t-40.3427\t382.2544\t64.2384\t-63.7942\t405.4462\t64.5719\t-86.9980\t420.0651\t13.1114\t-66.1421\t400.7969\t5.9757\t-94.4926\t391.2309\t1.2620\t-113.8722\t387.9937\t-1.1292\t-70.6526\t385.2515\t-8.5380\t-100.3752\t378.0826\t-12.0724\t-121.9319\t375.7346\t-22.9689\t-58.4097\t380.0795\t-41.8077\t-82.9507\t381.1528\t-48.1331\t-103.0207\t383.8523\t-29.3093\t-48.2683\t362.1296\t-45.1400\t-63.9945\t362.5128\t-56.7198\t-80.5820\t369.2659"
-    joint [[57.3375 12.5278 358.635498]
-     [67.0202 13.6015 368.785492]
-     [61.1928 -40.3427 382.254395]
-     ...
-     [-29.3093 -48.2683 362.129608]
-     [-45.14 -63.9945 362.512787]
-     [-56.7198 -80.582 369.2659]]
-    """
     cam = Camera('bighand')
     from PIL import Image
-    #
+
     # img = Image.open(os.path.join(BIGHAND_DATASET_DIR, 'Subject_1/ego/image_D00004312.png'))
     # plt.imshow(img)
     # str = "52.6535\t17.4918\t244.7902\t53.4700\t10.5999\t232.5524\t-7.5528\t-25.6909\t246.3567\t-7.9223\t-11.1448\t265.4427\t-0.7686\t2.2768\t276.8307\t4.5669\t14.8456\t288.6272\t-0.5667\t11.4204\t213.3530\t-34.0246\t11.9284\t201.4653\t-54.3765\t6.6205\t183.8623\t-53.0614\t-32.1009\t256.1785\t-79.4255\t-35.8143\t261.8684\t-98.8141\t-40.6814\t264.8109\t-53.3633\t-16.1438\t287.2915\t-82.5084\t-19.3500\t301.3050\t-102.7916\t-23.0986\t308.8707\t-32.0517\t32.4398\t292.7742\t-9.4679\t34.0019\t275.2228\t4.7097\t42.8654\t262.1639\t-18.2654\t11.7553\t325.9233\t-31.7898\t9.9248\t348.0151\t-46.1367\t5.7294\t363.2272"
@@ -117,13 +109,12 @@ if __name__ == '__main__':
     # plt.scatter(jnts2d[..., 0], jnts2d[..., 1], c='r', marker='o', s=20)
     # plt.show()
 
-    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=10)
+    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=10, shuffle=True)
     iterator = iter(ds.train_dataset)
     batch_images, batch_labels = next(iterator)
 
     for image, joints in zip(batch_images, batch_labels):
         image = tf.squeeze(image)
-        # plots.plot_depth_image(image)
         joints2d = cam.world_to_pixel(joints)
         plots.plot_joints_2d(image, joints2d)
         pass

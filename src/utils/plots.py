@@ -207,3 +207,22 @@ def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
         ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
     fig.tight_layout()
     plt.show()
+
+
+def plot_proportion_below_threshold(proportions, show_figure=True, fig_location=None):
+    if np.max(proportions) <= 1:
+        proportions *= 100
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(proportions)
+    ax.set_ylim(0, 100)
+    ax.set_ylabel('Proportion of frames within distnace (%)')
+    ax.set_xlabel('Max joint error threshold (mm)')
+    fig.tight_layout()
+    save_show_fig(fig, fig_location, show_figure)
+
+
+def save_show_fig(fig, fig_location, show_figure):
+    if fig_location:
+        fig.savefig(fig_location)
+    if show_figure:
+        fig.show()

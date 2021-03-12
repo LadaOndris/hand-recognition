@@ -5,6 +5,7 @@ import tensorflow as tf
 class Camera:
 
     def __init__(self, dataset: str):
+        self.dataset = dataset
         if dataset == 'bighand':
             self.set_intel_realsense_sr300()
         elif dataset == 'msra':
@@ -60,10 +61,12 @@ class Camera:
         if tf.rank(points_xyz) == 2:
             points_xyz = points_xyz[tf.newaxis, ...]
 
-        # new_shape = [points_xyz.shape[0], points_xyz.shape[1], 1]
-        # points = tf.concat([points_xyz, tf.ones(new_shape, dtype=points_xyz.dtype)], axis=-1)
-        # extr_points = tf.matmul(self.extrinsic_matrix, points, transpose_b=True)
-        # extr_points = tf.transpose(extr_points, [0, 2, 1])[..., :3]
+        if self.dataset == 'bighand':
+            new_shape = [points_xyz.shape[0], points_xyz.shape[1], 1]
+            points = tf.concat([points_xyz, tf.ones(new_shape, dtype=points_xyz.dtype)], axis=-1)
+            extr_points = tf.matmul(self.extrinsic_matrix, points, transpose_b=True)
+            points_xyz = tf.transpose(extr_points, [0, 2, 1])[..., :3]
+
         intr_points = tf.matmul(self.intrinsic_matrix, points_xyz, transpose_b=True)
         intr_points = tf.transpose(intr_points, [0, 2, 1])
         proj_points = intr_points[..., :2] / intr_points[..., 2:3]

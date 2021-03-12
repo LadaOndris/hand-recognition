@@ -6,6 +6,7 @@ import seaborn as sns
 from scipy import stats
 import tensorboard as tb
 from src.utils.paths import DOCS_DIR
+from src.utils.plots import save_show_fig
 
 
 def load_stats(experiment_id: str = "LCXAHo9bQZqEzqXZJ9cAUA"):
@@ -14,17 +15,10 @@ def load_stats(experiment_id: str = "LCXAHo9bQZqEzqXZJ9cAUA"):
     return df
 
 
-def _save_show_fig(fig, fig_location, show_figure):
-    if fig_location:
-        fig.savefig(fig_location)
-    if show_figure:
-        fig.show()
-
-
 def plot_epoch_loss(df: pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
     df_epoch_loss = df[df['tag'] == 'epoch_loss']
-    sns.set_style("whitegrid", {'axes.grid' : False})
+    sns.set_style("whitegrid", {'axes.grid': False})
     fig, ax = plt.subplots(figsize=(5, 3))
     graycolors = sns.mpl_palette('Greys_r', 2)
     g = sns.lineplot(ax=ax, data=df_epoch_loss, x='step', y='value', hue='run')
