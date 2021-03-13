@@ -88,7 +88,7 @@ class DatasetGenerator:
 
         self.bboxes = self.extract_bboxes(uv_global)
         self.bboxes = self.square_bboxes(self.bboxes)
-        cropped_imgs = self.crop_images(images, self.bboxes)
+        cropped_imgs = self.crop_bbox(images, self.bboxes)
         self.xyz_global = xyz_global
         self.cropped_images = cropped_imgs
         uv_local = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
@@ -110,6 +110,161 @@ class DatasetGenerator:
         self.normalized_imgs, normalized_uvz = self.normalize(resized_imgs, resized_uv, xyz_global[..., 2:3])
         offsets = self.compute_offsets(self.normalized_imgs, normalized_uvz)
         return self.normalized_imgs, [normalized_uvz, offsets]
+
+    def refine_and_crop_3d(self, full_image, bbox):
+        """
+        Refines the bounding box of the detected hand
+        by iteratively finding its center of mass and
+        cropping it in all three axes.
+
+        Parameters
+        ----------
+        full_image
+        bbox
+
+        Returns
+        -------
+        Tuple having (cropped_images, bcubes)
+            cropped_images is a tf.RaggedTensor(shape=[batch_size, None, None, 1])
+            bcubes is a tf.Tensor(shape=[batch_size, 6])
+        """
+        cropped = self.crop_bbox(full_image, bbox)
+        coms = self.compute_coms(cropped)
+        coms = self.refine_coms(full_image, coms)
+
+        # Get the cube in UVZ around the center of mass
+        bcube = self.com_to_bcube(coms)
+        # Crop the area defined by bcube from the orig image
+        cropped = self.crop_bcube(full_image, bcube)
+        return cropped, bcube
+
+    def compute_coms(self, images):
+        """
+        Calculates the center of mass of the given image.
+        Does not take into account the actual values of the pixels,
+        but rather treats the pixels as either background, or something.
+
+        Parameters
+        ----------
+        images : tf.RaggedTensor of shape [batch_size, None, None, 1]
+            A batch of images.
+
+        Returns
+        -------
+        center_of_mass : tf.Tensor of shape [batch_size, 3]
+            Represented in UVZ coordinates.
+        """
+        coms = tf.map_fn(self.center_of_mass, images, fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
+        return coms
+
+    def center_of_mass(self, image):
+        """
+        Calculates the center of mass of the given image.
+        Does not take into account the actual values of the pixels,
+        but rather treats the pixels as either background, or something.
+
+        Parameters
+        ----------
+        image : tf.Tensor of shape [width, height, 1]
+
+        Returns
+        -------
+        center_of_mass : tf.Tensor of shape [3]
+            Represented in UVZ coordinates.
+        """
+        if type(image) is tf.RaggedTensor:
+            image = image.to_tensor()
+        # Create all coordinate pairs
+        im_width, im_height = tf.shape(image)[:2]
+        x = tf.range(im_width)
+        y = tf.range(im_height)
+        xx, yy = tf.meshgrid(x, y, indexing='ij')
+        xx = tf.reshape(xx, [-1])
+        yy = tf.reshape(yy, [-1])
+        # Stack along a new axis to create pairs in the last dimension
+        coords = tf.stack(xx, yy, axis=-1)
+        coords = tf.cast(coords, tf.float32)  # [im_width * im_height, 2]
+
+        image_mask = tf.cast(image > 0, dtype=tf.float32)
+        image_mask_flat = tf.reshape(image_mask, [im_width * im_height, 1])
+        # The total mass of the depth
+        total_mass = tf.reduce_sum(image)
+        # Multiply the coords with volumes and reduce to get UV coords
+        com_uv = tf.reduce_sum(image_mask_flat * coords, axis=0)
+        com_z = total_mass / tf.math.count_nonzero(image_mask)
+        return tf.concat([com_uv, com_z], axis=0)
+
+    def refine_coms(self, full_image, com, iters):
+        for i in range(iters):
+            # Get the cube in UVZ around the center of mass
+            bcube = self.com_to_bcube(com)
+            # Crop the area defined by bcube from the orig image
+            cropped = self.crop_bcube(full_image, bcube)
+            # Compute center of mass again from the new cropped image
+            new_com_local = self.compute_coms(cropped)
+            # Adjust the center of mass coordinates to orig image space (add U, V offsets)
+            com_uv_global = new_com_local[..., :2] + bcube[..., :2]
+            com_z = new_com_local[..., 2:3]
+            com = tf.concat([com_uv_global, com_z], axis=-1)
+        return com
+
+    def com_to_bcube(self, com, size=(250, 250, 250)):
+        """
+        For the given center of mass (UVZ),
+        computes a bounding cube in UVZ coordinates.
+
+        Projects COM to the world coordinates,
+        adds size offsets and projects back to image coordinates.
+        """
+        com_xyz = self.camera.pixel_to_world(com)
+        half_size = tf.constant(size, dtype=tf.float32) / 2
+        half_size = half_size[tf.newaxis, :]
+        bcube_start_xyz = com_xyz - half_size
+        bcube_end_xyz = com_xyz + half_size
+        bcube_start_uvz = self.camera.world_to_pixel(bcube_start_xyz)
+        bcube_end_uvz = self.camera.world_to_pixel(bcube_end_xyz)
+        bcube = tf.concat([bcube_start_uvz, bcube_end_uvz])
+        return bcube
+
+    def crop_bcube(self, images, bcubes):
+        """
+        Crops the image using a bounding cube. It is
+        similar to cropping with a bounding box, but
+        a bounding cube also defines the crop in Z axis.
+
+        Parameters
+        ----------
+        image  Image to crop from.
+        bcube  Bounding cube in UVZ coordinates.
+
+        Returns
+        -------
+            Cropped image as defined by the bounding cube.
+        """
+
+        #
+        # Look out for crop out of boundaries!
+        #
+
+        def crop(elems):
+            image, bcube = elems
+            x_start, y_start, z_start, x_end, y_end, z_end = bcube
+            cropped_image = image[x_start:x_end, y_start:y_end]
+            cropped_image = tf.where(cropped_image < z_start, z_start, cropped_image)
+            cropped_image = tf.where(cropped_image > z_end, z_end, 0)
+            return tf.RaggedTensor.from_tensor(cropped_image, ragged_rank=2)
+
+        cropped = tf.map_fn(tf.autograph.experimental.do_not_convert(crop), elems=[images, bcubes],
+                            fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
+
+        # uv_start = bcube[..., :2]
+        # uv_end = bcube[..., 3:5]
+        # bbox = tf.concat([uv_start, uv_end], axis=-1)
+        # cropped = self.crop_bbox(image, bbox)  # shape [None, None, 1]
+        # z_start, z_end = bcube[..., 3], bcube[..., 5]
+        # cropped = tf.where(cropped < z_start, z_start, cropped)
+        # cropped = tf.where(cropped > z_end, z_end, 0)
+        return cropped
 
     def normalize(self, images, joints_uv, joints_z):
         # self.max_depth = tf.math.reduce_max(joints_z, axis=[1, 2])
@@ -243,7 +398,7 @@ class DatasetGenerator:
         x *= -1  # [u, u - 1]
         return x
 
-    def crop_images(self, images, bboxes):
+    def crop_bbox(self, images, bboxes):
         """
         Parameters
         ----------
@@ -267,7 +422,7 @@ def try_dataset_genereator():
     gen = DatasetGenerator(None, image_in_size=96, image_out_size=24, camera=Camera('bighand'))
     images = tf.ones([4, 480, 640])
     bboxes = tf.constant([[100, 120, 200, 230], [20, 50, 60, 80], [0, 0, 200, 200], [200, 200, 630, 470]])
-    images, bboxes = gen.crop_images(images, bboxes)
+    images, bboxes = gen.crop_bbox(images, bboxes)
     return images, bboxes
 
 
