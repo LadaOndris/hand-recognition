@@ -51,15 +51,18 @@ class Camera:
                                              [0, 0, 1]], dtype=tf.float32)
         self.invr_intrinsic_matrix = tf.linalg.inv(self.intrinsic_matrix)
 
-    def world_to_pixel(self, points_xyz):
+    def world_to_pixel(self, coords_xyz):
         """
         Projects the given points through pinhole camera on a plane at a distance of focal_length.
         Returns
         -------
-            2-D coordinates
+        tf.Tensor
+            UVZ coordinates
         """
-        if tf.rank(points_xyz) == 2:
-            points_xyz = points_xyz[tf.newaxis, ...]
+        if tf.rank(coords_xyz) == 2:
+            points_xyz = coords_xyz[tf.newaxis, ...]
+        else:
+            points_xyz = coords_xyz
 
         if self.dataset == 'bighand':
             new_shape = [points_xyz.shape[0], points_xyz.shape[1], 1]
@@ -70,19 +73,21 @@ class Camera:
         intr_points = tf.matmul(self.intrinsic_matrix, points_xyz, transpose_b=True)
         intr_points = tf.transpose(intr_points, [0, 2, 1])
         proj_points = intr_points[..., :2] / intr_points[..., 2:3]
-        return proj_points
+        uvz = tf.concat([proj_points, intr_points[..., 2:3]], axis=-1)
+        if tf.rank(coords_xyz) == 2:
+            uvz = tf.squeeze(uvz, axis=0)
+        return uvz
 
-    def pixel_to_world(self, points_uvz):
-        if tf.rank(points_uvz) == 2:
-            points_uvz = points_uvz[tf.newaxis, ...]
+    def pixel_to_world(self, coords_uvz):
+        if tf.rank(coords_uvz) == 2:
+            points_uvz = coords_uvz[tf.newaxis, ...]
+        else:
+            points_uvz = coords_uvz
 
         multiplied_uv = points_uvz[..., 0:2] * points_uvz[..., 2:3]
         multiplied_uvz = tf.concat([multiplied_uv, points_uvz[..., 2:3]], axis=-1)
         tranposed_xyz = tf.matmul(self.invr_intrinsic_matrix, multiplied_uvz, transpose_b=True)
         xyz = tf.transpose(tranposed_xyz, [0, 2, 1])
-        return xyz
-
-        xyz = tf.matmul(self.invr_intrinsic_matrix, points_uvz, transpose_b=True)
-        xyz = tf.transpose(xyz, [0, 2, 1])
-        xyz = xyz * points_uvz[..., 2:3]
+        if tf.rank(coords_uvz) == 2:
+            xyz = tf.squeeze(xyz, axis=0)
         return xyz

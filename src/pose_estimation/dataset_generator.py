@@ -3,6 +3,8 @@ import tensorflow_addons as tfa
 import numpy as np
 from src.utils.camera import Camera
 from src.utils.plots import plot_joints_2d
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 class DatasetGenerator:
@@ -27,7 +29,7 @@ class DatasetGenerator:
         """
         self.iterator = dataset_iterator
         self.depth_image_size = depth_image_size
-        self.image_in_size = image_in_size
+        self.image_in_size = [image_in_size, image_in_size]
         self.image_out_size = image_out_size
         self.camera = camera
         self.return_xyz = return_xyz
@@ -56,7 +58,7 @@ class DatasetGenerator:
         normalized_uv = normalized_uvz[..., :2]
         normalized_z = normalized_uvz[..., 2:3]
 
-        resized_uv = normalized_uv * [self.image_in_size, self.image_in_size]
+        resized_uv = normalized_uv * self.image_in_size
         global_z = normalized_z * self.max_depth  # [:, tf.newaxis, tf.newaxis] TODO
         uv_local = 1.0 / self.resize_coeffs[:, tf.newaxis, :] * resized_uv
         uv_global = uv_local + tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
@@ -78,40 +80,42 @@ class DatasetGenerator:
         Also, offsets are computed from the normalized coordinates.
         """
         if self.dataset_includes_bboxes:
-            images, ignore_bboxes, xyz_global = self.iterator.get_next()
+            images, ignore_bboxes, self.xyz_global = self.iterator.get_next()
         else:
-            images, xyz_global = self.iterator.get_next()
-        uv_global = self.camera.world_to_pixel(xyz_global)
+            images, self.xyz_global = self.iterator.get_next()
+        uv_global = self.camera.world_to_pixel(self.xyz_global)[..., :2]
 
         if self.augment:
             images, uv_global = self.augment_batch(images, uv_global)
-
         self.bboxes = self.extract_bboxes(uv_global)
         self.bboxes = self.square_bboxes(self.bboxes)
-        cropped_imgs = self.crop_bbox(images, self.bboxes)
-        self.xyz_global = xyz_global
-        self.cropped_images = cropped_imgs
-        uv_local = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+        self.cropped_imgs, bcubes = self.refine_and_crop_3d(images, self.bboxes, cube_size=(180, 180, 180))
+        self.bboxes = tf.concat([bcubes[..., :2], bcubes[..., 3:5]], axis=-1)
 
-        resize_new_size = [self.image_in_size, self.image_in_size]
+        uv_cropped = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
+        z_cropped = self.xyz_global[..., 2:3] - bcubes[..., 2:3]
+        resized_imgs, resized_uv, self.resize_coeffs = self.resize_images_and_coords(
+            self.cropped_imgs, uv_cropped, self.bboxes, target_size=self.image_in_size)
 
-        def _resize(img):
-            return tf.image.resize(img.to_tensor(), resize_new_size)
-
-        resized_imgs = tf.map_fn(_resize, cropped_imgs,
-                                 fn_output_signature=tf.TensorSpec(shape=(self.image_in_size, self.image_in_size, 1),
-                                                                   dtype=tf.float32))
-        cropped_imgs_sizes_u = self.bboxes[..., 2] - self.bboxes[..., 0]  # right - left
-        cropped_imgs_sizes_v = self.bboxes[..., 3] - self.bboxes[..., 1]  # bottom - top
-        cropped_imgs_sizes = tf.stack([cropped_imgs_sizes_u, cropped_imgs_sizes_v], axis=-1)
-        self.resize_coeffs = tf.cast(resize_new_size / cropped_imgs_sizes, dtype=tf.float32)
-        resized_uv = self.resize_coeffs[:, tf.newaxis, :] * uv_local
-
-        self.normalized_imgs, normalized_uvz = self.normalize(resized_imgs, resized_uv, xyz_global[..., 2:3])
+        self.normalized_imgs, normalized_uvz = self.normalize(resized_imgs, resized_uv, self.xyz_global[..., 2:3])
         offsets = self.compute_offsets(self.normalized_imgs, normalized_uvz)
         return self.normalized_imgs, [normalized_uvz, offsets]
 
-    def refine_and_crop_3d(self, full_image, bbox):
+    def resize_images_and_coords(self, cropped_imgs, coords_uv, bboxes, target_size):
+        def _resize(img):
+            return tf.image.resize(img.to_tensor(), target_size)
+
+        resized_imgs = tf.map_fn(_resize, cropped_imgs,
+                                 fn_output_signature=tf.TensorSpec(shape=(target_size[0], target_size[1], 1),
+                                                                   dtype=tf.float32))
+        cropped_imgs_sizes_u = bboxes[..., 2] - bboxes[..., 0]  # right - left
+        cropped_imgs_sizes_v = bboxes[..., 3] - bboxes[..., 1]  # bottom - top
+        cropped_imgs_sizes = tf.stack([cropped_imgs_sizes_u, cropped_imgs_sizes_v], axis=-1)
+        resize_coeffs = tf.cast(target_size / cropped_imgs_sizes, dtype=tf.float32)
+        resized_uv = resize_coeffs[:, tf.newaxis, :] * coords_uv
+        return resized_imgs, resized_uv, resize_coeffs
+
+    def refine_and_crop_3d(self, full_image, bbox, refine_iters=3, cube_size=(250, 250, 250)):
         """
         Refines the bounding box of the detected hand
         by iteratively finding its center of mass and
@@ -121,6 +125,8 @@ class DatasetGenerator:
         ----------
         full_image
         bbox
+        refine_iters
+        cube_size
 
         Returns
         -------
@@ -129,16 +135,16 @@ class DatasetGenerator:
             bcubes is a tf.Tensor(shape=[batch_size, 6])
         """
         cropped = self.crop_bbox(full_image, bbox)
-        coms = self.compute_coms(cropped)
-        coms = self.refine_coms(full_image, coms)
+        coms = self.compute_coms(cropped, offsets=bbox[..., :2])
+        coms = self.refine_coms(full_image, coms, iters=refine_iters, cube_size=cube_size)
 
         # Get the cube in UVZ around the center of mass
-        bcube = self.com_to_bcube(coms)
+        bcube = self.com_to_bcube(coms, size=cube_size)
         # Crop the area defined by bcube from the orig image
         cropped = self.crop_bcube(full_image, bcube)
         return cropped, bcube
 
-    def compute_coms(self, images):
+    def compute_coms(self, images, offsets):
         """
         Calculates the center of mass of the given image.
         Does not take into account the actual values of the pixels,
@@ -154,7 +160,13 @@ class DatasetGenerator:
         center_of_mass : tf.Tensor of shape [batch_size, 3]
             Represented in UVZ coordinates.
         """
-        coms = tf.map_fn(self.center_of_mass, images, fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
+        com_local = tf.map_fn(self.center_of_mass, images,
+                              fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
+
+        # Adjust the center of mass coordinates to orig image space (add U, V offsets)
+        com_uv_global = com_local[..., :2] + tf.cast(offsets, tf.float32)
+        com_z = com_local[..., 2:3]
+        coms = tf.concat([com_uv_global, com_z], axis=-1)
         return coms
 
     def center_of_mass(self, image):
@@ -182,33 +194,38 @@ class DatasetGenerator:
         xx = tf.reshape(xx, [-1])
         yy = tf.reshape(yy, [-1])
         # Stack along a new axis to create pairs in the last dimension
-        coords = tf.stack(xx, yy, axis=-1)
+        coords = tf.stack([xx, yy], axis=-1)
         coords = tf.cast(coords, tf.float32)  # [im_width * im_height, 2]
 
         image_mask = tf.cast(image > 0, dtype=tf.float32)
         image_mask_flat = tf.reshape(image_mask, [im_width * im_height, 1])
         # The total mass of the depth
         total_mass = tf.reduce_sum(image)
+        nonzero_pixels = tf.math.count_nonzero(image_mask, dtype=tf.float32)
         # Multiply the coords with volumes and reduce to get UV coords
-        com_uv = tf.reduce_sum(image_mask_flat * coords, axis=0)
-        com_z = total_mass / tf.math.count_nonzero(image_mask)
-        return tf.concat([com_uv, com_z], axis=0)
+        volumes_vu = tf.reduce_sum(image_mask_flat * coords, axis=0)
+        volumes_uvz = tf.stack([volumes_vu[1], volumes_vu[0], total_mass], axis=0)
+        com_uvz = tf.math.divide_no_nan(volumes_uvz, nonzero_pixels)
+        return com_uvz
 
-    def refine_coms(self, full_image, com, iters):
+    def refine_coms(self, full_image, com, iters, cube_size):
         for i in range(iters):
             # Get the cube in UVZ around the center of mass
-            bcube = self.com_to_bcube(com)
+            bcube = self.com_to_bcube(com, size=cube_size)
+            # fig, ax = plt.subplots()
+            # ax.imshow(full_image[0])
+            # ax.scatter(com[0, 0], com[0, 1])
+            # r = patches.Rectangle(bcube[0, :2], bcube[0, 3] - bcube[0, 0], bcube[0, 4] - bcube[0, 1], facecolor='none',
+            #                       edgecolor='r', linewidth=2)
+            # ax.add_patch(r)
+            # plt.show()
             # Crop the area defined by bcube from the orig image
             cropped = self.crop_bcube(full_image, bcube)
             # Compute center of mass again from the new cropped image
-            new_com_local = self.compute_coms(cropped)
-            # Adjust the center of mass coordinates to orig image space (add U, V offsets)
-            com_uv_global = new_com_local[..., :2] + bcube[..., :2]
-            com_z = new_com_local[..., 2:3]
-            com = tf.concat([com_uv_global, com_z], axis=-1)
+            com = self.compute_coms(cropped, offsets=bcube[..., :2])
         return com
 
-    def com_to_bcube(self, com, size=(250, 250, 250)):
+    def com_to_bcube(self, com, size):
         """
         For the given center of mass (UVZ),
         computes a bounding cube in UVZ coordinates.
@@ -218,13 +235,18 @@ class DatasetGenerator:
         """
         com_xyz = self.camera.pixel_to_world(com)
         half_size = tf.constant(size, dtype=tf.float32) / 2
-        half_size = half_size[tf.newaxis, :]
+        # Do not subtact Z coordinate yet
+        # The Z coordinates must stay the same for both points
+        # in order for the projection to image plane to be correct
+        half_size = tf.stack([half_size[0], half_size[1], 0], axis=0)
         bcube_start_xyz = com_xyz - half_size
         bcube_end_xyz = com_xyz + half_size
-        bcube_start_uvz = self.camera.world_to_pixel(bcube_start_xyz)
-        bcube_end_uvz = self.camera.world_to_pixel(bcube_end_xyz)
-        bcube = tf.concat([bcube_start_uvz, bcube_end_uvz])
-        return bcube
+        bcube_start_uv = self.camera.world_to_pixel(bcube_start_xyz)[..., :2]
+        bcube_end_uv = self.camera.world_to_pixel(bcube_end_xyz)[..., :2]
+        bcube_start_z = com[..., 2:3] - half_size[2]
+        bcube_end_z = com[..., 2:3] + half_size[2]
+        bcube = tf.concat([bcube_start_uv, bcube_start_z, bcube_end_uv, bcube_end_z], axis=-1)
+        return tf.cast(bcube, dtype=tf.int32)
 
     def crop_bcube(self, images, bcubes):
         """
@@ -249,10 +271,22 @@ class DatasetGenerator:
         def crop(elems):
             image, bcube = elems
             x_start, y_start, z_start, x_end, y_end, z_end = bcube
-            cropped_image = image[x_start:x_end, y_start:y_end]
+            # Modify bcube because we its invalid to index with negatives.
+            x_start_bound = tf.maximum(x_start, 0)
+            y_start_bound = tf.maximum(y_start, 0)
+            x_end_bound = tf.minimum(self.depth_image_size[0], x_end)
+            y_end_bound = tf.minimum(self.depth_image_size[1], y_end)
+            cropped_image = image[x_start_bound:x_end_bound, y_start_bound:y_end_bound]
+            z_start = tf.cast(z_start, tf.float32)
+            z_end = tf.cast(z_end, tf.float32)
             cropped_image = tf.where(cropped_image < z_start, z_start, cropped_image)
-            cropped_image = tf.where(cropped_image > z_end, z_end, 0)
-            return tf.RaggedTensor.from_tensor(cropped_image, ragged_rank=2)
+            cropped_image = tf.where(cropped_image > z_end, 0, cropped_image)
+
+            # Pad the cropped image if we were out of bounds
+            padded_image = tf.pad(cropped_image, [[x_start_bound - x_start, x_end - x_end_bound],
+                                                  [y_start_bound - y_start, y_end - y_end_bound],
+                                                  [0, 0]])
+            return tf.RaggedTensor.from_tensor(padded_image, ragged_rank=2)
 
         cropped = tf.map_fn(tf.autograph.experimental.do_not_convert(crop), elems=[images, bcubes],
                             fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
@@ -268,7 +302,7 @@ class DatasetGenerator:
 
     def normalize(self, images, joints_uv, joints_z):
         # self.max_depth = tf.math.reduce_max(joints_z, axis=[1, 2])
-        normalized_uv = joints_uv / [self.image_in_size, self.image_in_size]
+        normalized_uv = joints_uv / self.image_in_size
         normalized_z = joints_z / self.max_depth  # [:, tf.newaxis, tf.newaxis]
         normalized_uvz = tf.concat([normalized_uv, normalized_z], axis=-1)
 
