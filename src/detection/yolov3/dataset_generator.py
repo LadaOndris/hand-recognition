@@ -43,8 +43,11 @@ class DatasetGenerator:
 
             for bbox in bboxes:  # for every true bounding box in the image
                 # bbox is [x1, y1, x2, y2]
-                bbox_center = (bbox[2:] + bbox[:2]) * 0.5
                 bbox_wh = bbox[2:] - bbox[:2]
+                # Skip zero sized boxes (if the width or height is 0)
+                if np.any(np.isclose(bbox_wh, 0.)):
+                    continue
+                bbox_center = (bbox[2:] + bbox[:2]) * 0.5
                 bbox_xywh = np.concatenate([bbox_center, bbox_wh], axis=-1)
                 # transform bbox coordinates into scaled values - for each scale
                 # (ie. 13x13 grid box, instead of 416*416 pixels)

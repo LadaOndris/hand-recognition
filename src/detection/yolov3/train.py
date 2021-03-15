@@ -23,7 +23,7 @@ def train():
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=model.learning_rate,
         decay_steps=handseg_dataset.num_train_batches,
-        decay_rate=0.9,
+        decay_rate=0.94,
         staircase=True)
     optimizer = tf.optimizers.Adam(learning_rate=lr_schedule)
     metrics = [YoloConfPrecisionMetric(), YoloConfRecallMetric(), YoloBoxesIoU()]
