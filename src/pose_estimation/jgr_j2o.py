@@ -9,6 +9,7 @@ from src.utils.config import JGRJ2O_WEIGHT_DECAY
 class ResnetBlock(tf.keras.layers.Layer):
     def __init__(self, kernel_size, filters):
         super(ResnetBlock, self).__init__(name='')
+        self.kernel_size = kernel_size
         self.filters = filters
         half_filters = int(filters // 2)
 
@@ -20,6 +21,14 @@ class ResnetBlock(tf.keras.layers.Layer):
         self.bn_3 = bn()
         self.conv2d_4 = conv(filters, (1, 1))
         self.bn_4 = bn()
+
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'kernel_size': self.kernel_size,
+            'filters': self.filters,
+        })
+        return config
 
     def call(self, input, training=False):
         x = self.conv2d_1(input)

@@ -136,9 +136,9 @@ class MSRADataset:
 
     def _read_image(self, image_file, joints):
         image, bbox = tf.numpy_function(read_image, [image_file], Tout=(tf.float64, tf.int64))
-        left, top, right, bottom = bbox[0], bbox[1], bbox[2], bbox[3] # tf.unstack(bbox[0], axis=-1)
+        left, top, right, bottom = bbox[0], bbox[1], bbox[2], bbox[3]  # tf.unstack(bbox[0], axis=-1)
         image = tf.pad(image, [[top, 240 - bottom], [left, 320 - right], [0, 0]])
-        image = tf.cast(image, dtype=tf.uint16)
+        image = tf.cast(image, dtype=tf.float32)
         # image = tf.expand_dims(image, 0)
         # image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
         return image, bbox, joints
