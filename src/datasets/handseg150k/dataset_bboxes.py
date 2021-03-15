@@ -61,6 +61,7 @@ class HandsegDatasetBboxes:
         bboxes = tf.strings.to_number(bboxes, out_type=tf.float32)
 
         depth_image, bboxes = self.crop(depth_image, bboxes)
+        # depth_image, bboxes = self.pad(depth_image, bboxes)
         return depth_image, bboxes
 
     def crop(self, depth_image, bboxes):
@@ -70,6 +71,12 @@ class HandsegDatasetBboxes:
         depth_image = depth_image[0]
         # crop bboxes
         bboxes = bboxes - tf.constant([80, 0, 80, 0], dtype=tf.float32)[tf.newaxis, :]
+        # crop out of bounds boxes
+        bboxes = tf.where(bboxes < 0., 0., bboxes)
+        bboxes = tf.where(bboxes >= 480., 479., bboxes)
+        # remove too narrow boxes because of the crop
+        bboxes_mask_indices = tf.where(bboxes[..., 2] - bboxes[..., 0] > 5.)
+        bboxes = tf.gather_nd(bboxes, bboxes_mask_indices)
         # resize bboxes
         bboxes *= self.model_input_shape[0] / 480
         return depth_image, bboxes
