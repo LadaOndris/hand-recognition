@@ -30,8 +30,6 @@ def read_images(path: str):
     images = images_and_bboxes[..., 0]
     bbox_coords = np.stack(images_and_bboxes[..., 1])
     centered_joints = load_joints(path.joinpath('joint.txt'))
-    centered_joints[..., 2] *= -1
-    centered_joints[..., 1] *= -1
     return images, bbox_coords, centered_joints
 
 
@@ -53,8 +51,7 @@ def load_joints(joints_file: str) -> np.ndarray:
 
     joints[..., 2] *= -1  # Make Z axis positive
     joints[..., 1] *= -1  # Reverse pinhole's camera inverted image (invert around center)
-    # labels = np.full(shape=(joints.shape[0]), fill_value=gesture)
-    return joints  # , labels
+    return joints
 
 
 def load_dataset() -> np.ndarray:
@@ -151,20 +148,29 @@ def plot_hands():
     images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/5'))
     images2, bbox_coords2, joints2 = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/2'))
 
-    # errs = rds_errors(np.expand_dims(joints[0], axis=0), np.expand_dims(joints[1], axis=0))
-    cam = Camera('MSRA')
+    cam = Camera('msra')
+    # for image, bbox, jnts in zip(images, bbox_coords, joints):
+    #     joints2d = cam.world_to_pixel(jnts)
+    #     plot_joints_2d(image, joints2d[..., :2] - bbox[..., :2])
+    #     break
+
     idx = 8
-    for image, bbox, jnts in zip(images, bbox_coords, joints):
-        joints2d = cam.world_to_pixel(jnts)
-        plot_joints_2d(image, joints2d - bbox[..., :2])
-    # plot_joints(images[idx], bbox_coords[idx], joints[idx], show_norm=True)
-    # hand1 = (images[idx], bbox_coords[idx], joints[idx])
-    # hand2 = (images2[idx + 1], bbox_coords2[idx + 1], joints2[idx + 1])
-    # plot_two_hands_diff(hand1, hand2, show_norm=True, show_joint_errors=True)
+    idx2 = idx + 1
+    joints1_2d = cam.world_to_pixel(joints[idx])
+    plot_joints_2d(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2])
+    joints2_2d = cam.world_to_pixel(joints2[idx])
+    plot_joints_2d(images2[idx], joints2_2d[..., :2] - bbox_coords2[idx, ..., :2])
+
+    hand1 = (images[idx], bbox_coords[idx], joints[idx])
+    hand2 = (images2[idx2], bbox_coords2[idx2], joints2[idx2])
+    plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True)
+    plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True)
 
 
 if __name__ == '__main__':
-    msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8)
-    it = iter(msra.train_dataset)
-    for images, bboxes, joints in it:
-        print(images.shape, joints.shape)
+    plot_hands()
+    # msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4)
+    # it = iter(msra.train_dataset)
+    # for images, bboxes, joints in it:
+    #     print(images.shape, joints.shape)
+    pass

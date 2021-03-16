@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from src.detection.yolov3.utils import draw_centroid
+from mpl_toolkits.mplot3d.art3d import Path3DCollection, Poly3DCollection
 from src.acceptance.base import best_fitting_hyperplane, rds_errors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from typing import Tuple
@@ -15,14 +16,11 @@ depth_image_cmap = 'gist_yarg'
 
 def plot_depth_image(image):
     fig, ax = plt.subplots(1)
-    ax.imshow(image, cmap=depth_image_cmap)
+    _plot_depth_image(ax, image)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     fig.tight_layout()
     plt.show()
-
-
-from mpl_toolkits.mplot3d.art3d import Path3DCollection, Poly3DCollection
 
 
 class FixZorderCollection(Poly3DCollection):
@@ -38,7 +36,9 @@ class FixZorderCollection(Poly3DCollection):
 
 
 def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
-                        hand2: Tuple[np.ndarray, np.ndarray, np.ndarray], show_norm=False, show_joint_errors=False):
+                        hand2: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                        cam: Camera,
+                        show_norm=False, show_joint_errors=False):
     """
     Plots an image with a skeleton of the first hand and
     shows major differences from the second hand.
@@ -63,13 +63,15 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
     else:
         errors = None
 
-    joints1[..., 2] = -joints1[..., 2]  # Convert negative Z axis to positive
-
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-    _plot_skeleton_3d(fig, ax, joints1, joint_errors=errors, color='blue')
-
-    ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
+    fig, ax = plt.subplots()
+    _plot_depth_image(ax, image1)
+    joints1_2d = cam.world_to_pixel(joints1)
+    # The image is cropped. Amend the joint coordinates to match the depth image
+    joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
+    _plot_skeleton_with_errors_2d(fig, ax, joints1_2d, joint_errors=errors, color='blue')
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    ax.set_axis_off()
     fig.tight_layout()
     plt.show()
 
@@ -81,44 +83,45 @@ def cmap_subset(cmap, min, max):
         cmap(np.linspace(min, max, 256)))
 
 
-def _plot_skeleton_3d(fig, ax, joints, joint_errors=None, color='r'):
-    if joint_errors is None:
-        ax.scatter(joints[..., 0], joints[..., 1], joints[..., 2], marker='o', s=20, c=color, alpha=1)
-    else:
-        min_err, max_err = joint_errors.min(), joint_errors.max()
-        min_s, max_s = 20., 120.
-        scaled_errors = joint_errors / (max_err / (max_s - min_s)) + min_s
+def _plot_skeleton_with_errors_2d(fig, ax, joints, joint_errors, color='r'):
+    _plot_hand_skeleton_2d(ax, joints, wrist_index=0, scatter=False)
 
-        cmap = cmap_subset(cm.get_cmap('Reds'), 0.4, 1.0)
-        ax.scatter(joints[..., 0], joints[..., 1], joints[..., 2],
-                   c=joint_errors, cmap=cmap, s=scaled_errors, alpha=0.75)
-        ax_inset = inset_axes(ax, width="100%", height="100%", loc='upper center',
-                              bbox_to_anchor=(0.83, 0.71, 0.04, 0.24), bbox_transform=ax.transAxes)
-        cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=ax_inset, format='%.2f')
-        colorbar_tick_labels = np.linspace(min_err, max_err, 5, dtype=float)
-        cbar.set_ticks(np.linspace(0, 1, 5))
-        cbar.set_ticklabels(colorbar_tick_labels, )
-    _plot_hand_skeleton(ax, joints, wrist_index=0)
+    min_err, max_err = joint_errors.min(), joint_errors.max()
+    min_s, max_s = min_err * 4, max_err * 4  # 20., 200.
+    scaled_errors = joint_errors / (max_err / (max_s - min_s)) + min_s
+
+    cmap = cmap_subset(cm.get_cmap('Reds'), 0.4, 1.0)
+    ax.scatter(joints[..., 0], joints[..., 1],
+               c=joint_errors, cmap=cmap, s=scaled_errors, alpha=1, zorder=100)
+    ax_inset = inset_axes(ax, width="100%", height="100%", loc='upper center',
+                          bbox_to_anchor=(1.05, 0.71, 0.04, 0.24), bbox_transform=ax.transAxes)
+    cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=ax_inset, format='%.2f')
+    colorbar_tick_labels = np.linspace(min_err, max_err, 5, dtype=float)
+    cbar.set_ticks(np.linspace(0, 1, 5))
+    cbar.set_ticklabels(colorbar_tick_labels)
 
 
-def _plot_hand_skeleton(ax, joints, wrist_index=0, s=20, alpha=1, marker='o'):
+def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True):
     joints = np.squeeze(joints)  # get rid of surplus dimensions
     if joints.ndim != 2:
         raise ValueError(F"joints.ndim should be 2, but is {joints.ndim}")
     fingers_bases = np.arange(wrist_index + 1, wrist_index + 20, 4)
     wrist_joint = joints[wrist_index]
     finger_colors = ['r', 'm', 'c', 'g', 'b']
-    ax.scatter(wrist_joint[..., 0], wrist_joint[..., 1], c=finger_colors[-1], marker=marker, s=s, alpha=alpha)
+    if scatter:
+        ax.scatter(wrist_joint[..., 0], wrist_joint[..., 1], c=finger_colors[-1], marker=marker, s=s, alpha=alpha)
     for i, finger_base in enumerate(fingers_bases):
         finger_joints = joints[finger_base:finger_base + 4]
-        ax.scatter(finger_joints[..., 0], finger_joints[..., 1], c=finger_colors[i], marker=marker, s=s, alpha=alpha)
+        if scatter:
+            ax.scatter(finger_joints[..., 0], finger_joints[..., 1], c=finger_colors[i], marker=marker, s=s,
+                       alpha=alpha)
         xs = np.concatenate([wrist_joint[0:1], finger_joints[:, 0]])
         ys = np.concatenate([wrist_joint[1:2], finger_joints[:, 1]])
-        if joints.shape[-1] == 3:
-            zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
-            ax.plot(xs, ys, zs=zs, c=finger_colors[i])
-        else:
-            ax.plot(xs, ys, c=finger_colors[i])
+        # if joints.shape[-1] == 3:
+        #     zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
+        #     ax.plot(xs, ys, zs=zs, c=finger_colors[i])
+        # else:
+        ax.plot(xs, ys, c=finger_colors[i])
 
 
 def plot_joints(image, bbox, joints, show_norm=False):
@@ -135,13 +138,9 @@ def plot_joints(image, bbox, joints, show_norm=False):
     image3d = np.stack([xx, yy, image], axis=2)
     image3d[..., 2] = np.where(image3d[..., 2] == 0, np.max(image), image3d[..., 2])
 
-    joints[..., 2] = -joints[..., 2]  # Convert negative Z axis to positive
-
-    # ax.contourf(image3d[..., 0], image3d[..., 1], image3d[..., 2], levels=64, cmap='gist_gray', linewidths=0)
-
     for i in range(len(ax.collections)):
         ax.collections[i].__class__ = FixZorderCollection
-    _plot_skeleton_3d(fig, ax, joints)
+    _plot_skeleton_with_errors_2d(fig, ax, joints)
 
     if show_norm:
         # 0: wrist,
@@ -180,20 +179,25 @@ def plot_joints_only(joints):
     plt.show()
 
 
+def _plot_depth_image(ax, image):
+    ax.imshow(image, cmap=depth_image_cmap)
+
+
 def plot_joints_2d(image, joints2d):
     fig, ax = plt.subplots(1)
-    ax.imshow(image, cmap=depth_image_cmap)
-    _plot_hand_skeleton(ax, joints2d)
+    _plot_depth_image(ax, image)
+    _plot_hand_skeleton_2d(ax, joints2d)
+    ax.set_axis_off()
     fig.tight_layout()
     plt.show()
 
 
 def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
     fig, ax = plt.subplots(1)
-    ax.imshow(image, cmap=depth_image_cmap)
+    _plot_depth_image(ax, image)
     # project joint coords through pinhole camera
     joints2d = cam.world_to_pixel(joints3d)
-    _plot_hand_skeleton(ax, joints2d)
+    _plot_hand_skeleton_2d(ax, joints2d)
     if show_norm:
         # 0: wrist,
         # 1-4: index_mcp, index_pip, index_dip, index_tip,
