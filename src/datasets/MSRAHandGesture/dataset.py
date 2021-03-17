@@ -1,6 +1,6 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
-from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d
-from src.acceptance.base import rds_errors
+from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
+from src.acceptance.base import rds_errors, hand_rotation, vectors_angle
 from src.utils.camera import Camera
 import numpy as np
 import glob
@@ -149,13 +149,8 @@ def plot_hands():
     images2, bbox_coords2, joints2 = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/2'))
 
     cam = Camera('msra')
-    # for image, bbox, jnts in zip(images, bbox_coords, joints):
-    #     joints2d = cam.world_to_pixel(jnts)
-    #     plot_joints_2d(image, joints2d[..., :2] - bbox[..., :2])
-    #     break
-
     idx = 8
-    idx2 = idx + 1
+    idx2 = idx + 301
     joints1_2d = cam.world_to_pixel(joints[idx])
     plot_joints_2d(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2])
     joints2_2d = cam.world_to_pixel(joints2[idx])
@@ -166,8 +161,19 @@ def plot_hands():
     plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True)
     plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True)
 
+    hand1_orientation, _ = hand_rotation(joints[idx])
+    hand2_orientation, _ = hand_rotation(joints2[idx2])
+    orientation_diff_rad = vectors_angle(hand1_orientation, hand2_orientation)
+    orientation_diff_deg = np.rad2deg(orientation_diff_rad)
+    # print(F"Hand1 orientation: {hand1_orientation:.2f}")
+    # print(F"Hand2 orientation: {hand2_orientation:.2f}")
+    angle = "{:0.2f}".format(orientation_diff_deg)
+    print(F"\nOrientation difference as an angle: {angle} degrees\n")
+    # plot_norm(joints[idx])
+
 
 if __name__ == '__main__':
+    np.set_printoptions(precision=2)
     plot_hands()
     # msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4)
     # it = iter(msra.train_dataset)
