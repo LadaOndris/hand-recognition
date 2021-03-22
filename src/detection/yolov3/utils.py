@@ -151,7 +151,7 @@ def draw_predictions(image, boxes, nums, fig_location):
 
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    #fig.tight_layout()
+    # fig.tight_layout()
     fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.98)
     if fig_location:
         fig.savefig(fig_location)
@@ -194,15 +194,21 @@ def draw_responsible_cell(ax, centroid, stride):
     ax.add_patch(rect)
 
 
-def draw_detected_objects(images, yolo_outputs, model_size, conf_thresh, draw_cells=False,
-                          fig_location=None):
-    batch_size = tf.shape(images)[0]
-
+def boxes_from_yolo_outputs(yolo_outputs, batch_size, model_size, conf_thresh, max_boxes=2, iou_thresh=.5):
     scale1_outputs = tf.reshape(yolo_outputs[0], [batch_size, -1, 6])
     scale2_outputs = tf.reshape(yolo_outputs[1], [batch_size, -1, 6])
     predictions_for_the_image = tf.concat([scale1_outputs, scale2_outputs], axis=1)  # outputs for the whole batch
 
-    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, 5, 2, .5, conf_thresh)
+    boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, max_boxes, max_boxes, iou_thresh,
+                                       conf_thresh)
+    return boxes, scores, nums
+
+
+def draw_detected_objects(images, yolo_outputs, model_size, conf_thresh, max_boxes=2, iou_thresh=.5,
+                          draw_cells=False, fig_location=None):
+    batch_size = tf.shape(images)[0]
+    boxes, scores, nums = boxes_from_yolo_outputs(yolo_outputs, batch_size, model_size, conf_thresh,
+                                                  max_boxes=max_boxes, iou_thresh=iou_thresh)
 
     # Always do like it's the first scale..just for the image.
     outputs = yolo_outputs[0]
@@ -293,7 +299,7 @@ def draw_grid(images, yolo_outputs, model_size):
             break
 
 
-def tf_load_preprocessed_image(image_file_path, shape=[416, 416]):
+def tf_load_image(image_file_path, dtype):
     """
     Loads an image from file and resizes it with pad to target shape.
 
@@ -306,18 +312,25 @@ def tf_load_preprocessed_image(image_file_path, shape=[416, 416]):
     depth_image_file_content = tf.io.read_file(image_file_path)
 
     # loads depth images and converts values to fit in dtype.uint8
-    depth_image = tf.io.decode_image(depth_image_file_content, channels=1)
+    depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
+
     depth_image.set_shape([480, 640, 1])
-    # depth_image /= 255 # normalize to range [0, 1]
-
-    return tf_preprocess_image(depth_image)
+    return depth_image
 
 
-def tf_preprocess_image(depth_image, shape=[416, 416]):
+def tf_resize_image(depth_image, shape, resize_mode: str = 'crop'):
     # convert the values to range 0-255 as tf.io.read_file does
-    depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
+    # depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
     # resize image
-    depth_image = tf.image.resize_with_pad(depth_image, shape[0], shape[1])
-
-    # tf.print("MIN MAX: ", tf.reduce_min(depth_image), tf.reduce_max(depth_image), tf.reduce_mean(depth_image))
+    type = depth_image.dtype
+    if resize_mode == 'pad':
+        depth_image = tf.image.resize_with_pad(depth_image, shape[0], shape[1])
+    elif resize_mode == 'crop':
+        depth_image = depth_image[tf.newaxis, ...]
+        depth_image = tf.image.crop_and_resize(depth_image, [[0, 80 / 640.0, 480 / 480.0, 560 / 640.0]],
+                                               [0], shape)
+        depth_image = depth_image[0]
+    else:
+        raise ValueError(F"Unknown resize mode: {resize_mode}")
+    depth_image = tf.cast(depth_image, dtype=type)
     return depth_image

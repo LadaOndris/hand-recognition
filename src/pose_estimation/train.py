@@ -45,21 +45,22 @@ def evaluate(dataset: str, weights_path: str):
     return threshold_metric.result(), mje_metric.result()
 
 
-def test(dataset: str):
+def test(dataset: str, weights_path: str):
     network = JGR_J2O()
     cam = Camera(dataset)
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=1, shuffle=False)
-        test_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size, camera=cam,
-                               dataset_includes_bboxes=False)
+        test_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                       camera=cam,
+                                       dataset_includes_bboxes=False)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=1, shuffle=True)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
                                        camera=cam, dataset_includes_bboxes=True)
 
     model = network.graph()
-    model.load_weights(LOGS_DIR.joinpath('20210311-202632/train_ckpts/weights.19.h5'))
+    model.load_weights(weights_path)
     # model.load_weights(SAVED_MODELS_DIR.joinpath('jgrp2o_msra_20210305-220222.h5'))
     for batch_images, y_true in test_ds_gen:
         y_pred = model.predict(batch_images)
@@ -87,8 +88,8 @@ def train(dataset: str):
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
-        train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size, camera=cam,
-                               dataset_includes_bboxes=False, augment=True)
+        train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                        camera=cam, dataset_includes_bboxes=False, augment=True)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
@@ -148,7 +149,10 @@ def try_dataset_pipeline(dataset: str):
 
 
 if __name__ == "__main__":
-    # mje = evaluate('msra', LOGS_DIR.joinpath('20210311-202632/train_ckpts/weights.20.h5'))
+    # try_dataset_pipeline('msra')
+    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+    # mje = evaluate('msra', weights)
+    # test('msra', weights)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', type=str, action='store', default=None)

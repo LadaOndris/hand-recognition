@@ -10,6 +10,8 @@ class Camera:
             self.set_intel_realsense_sr300()
         elif dataset == 'msra':
             self.set_intel_creative_interactive()
+        elif dataset == 'custom':
+            self.set_custom()
         else:
             raise NotImplementedError('Unknown dataset')
 
@@ -22,6 +24,13 @@ class Camera:
     def set_intel_realsense_sr300(self):
         self.focal_length = [475.065948, 475.065857]  # [476.0068, 476.0068]  # [588.235, 587.084]
         self.principal_point = [315.944855, 245.287079]
+        self.image_size = [640, 480]
+        self.create_matrices()
+
+    def set_custom(self):
+        # self.focal_length = [588.235, 587.084]
+        self.focal_length = [476.0068, 476.0068]
+        self.principal_point = [313.6830139, 242.7547302]
         self.image_size = [640, 480]
         self.create_matrices()
 

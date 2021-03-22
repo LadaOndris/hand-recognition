@@ -24,7 +24,9 @@ def distance_matrix(a):
     diff = np.empty(shape=(a.shape[0], 21, 21))
 
     for x in range(a.shape[0]):
+        # Subtract x,y,z coordinates
         d = a[x, :, np.newaxis] - a[x, np.newaxis, :]
+        # Compute Euclidean distance using Pythagoras
         diff[x, :, :] = np.sum(np.abs(d ** 2), axis=-1)
     return diff ** 0.5
 
@@ -103,7 +105,16 @@ def hand_rotation(joints: np.ndarray):
     It finds a plane going through six specific points of a hand,
     and returns the normal vector of the plane and a mean value of the six points.
     """
-    norm_vec, mean = best_fitting_hyperplane(joints)
+
+    # 0: wrist,
+    # 1-4: index_mcp, index_pip, index_dip, index_tip,
+    # 5-8: middle_mcp, middle_pip, middle_dip, middle_tip,
+    # 9-12: ring_mcp, ring_pip, ring_dip, ring_tip,
+    # 13-16: little_mcp, little_pip, little_dip, little_tip,
+    # 17-20: thumb_mcp, thumb_pip, thumb_dip, thumb_tip
+
+    palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=0)
+    norm_vec, mean = best_fitting_hyperplane(palm_joints)
     return norm_vec, mean
 
 

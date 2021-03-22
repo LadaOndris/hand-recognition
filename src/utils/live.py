@@ -43,6 +43,8 @@ def intrinsic_parameters():
     """
     fx = fy = 476.0068054199219
     ppx, ppy = 313.6830139, 242.7547302
+    depth_units = 0.00012498664727900177
+    => 1 mm / depth_units = 8.00085466544
     """
     pass
 
