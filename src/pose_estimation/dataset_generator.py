@@ -112,9 +112,9 @@ class DatasetGenerator:
                                                                    cube_size=self.cube_size)
         if self.augment:
             # Translate 3D - move bcubes
-            self.bcubes = self.bcubes_translate3d(self.bcubes)
+            self.bcubes = self.bcubes_translate3d(self.bcubes, stddev=10)
             # Scale 3D - increase or descrease the size of bcubes
-            self.bcubes = self.bcubes_scale3d(self.bcubes)
+            self.bcubes = self.bcubes_scale3d(self.bcubes, stddev=0.15)
 
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
@@ -135,7 +135,7 @@ class DatasetGenerator:
         offsets = self.compute_offsets(self.normalized_imgs, normalized_uvz)
         return self.normalized_imgs, [normalized_uvz, offsets]
 
-    def bcubes_translate3d(self, bcubes, stddev=10):
+    def bcubes_translate3d(self, bcubes, stddev):
         """
         Translates bounding cubes. Moves the XYZ coordinates
         of the bounding cube by a value given by a normal
@@ -151,14 +151,14 @@ class DatasetGenerator:
         -------
 
         """
-        translation_offset = tf.random.normal(shape=[bcubes.shape[0], 3], mean=0,
+        translation_offset = tf.random.truncated_normal(shape=[bcubes.shape[0], 3], mean=0,
                                               stddev=stddev)  # shape [batch_size, 3]
         translation_offset = tf.cast(translation_offset, dtype=tf.int32)
         bcubes_translation = tf.concat([translation_offset, translation_offset], axis=-1)  # shape [batch_size, 6]
         bcubes_translated = bcubes + bcubes_translation
         return bcubes_translated
 
-    def bcubes_scale3d(self, bcubes, stddev=0.15):
+    def bcubes_scale3d(self, bcubes, stddev):
         """
         Scales the size of the bounding cubes.
         The cube is shrinked or enlarged with a normal distribution N(1, stddev).
@@ -174,7 +174,7 @@ class DatasetGenerator:
         scaled_bcubes tf.Tensor of shape [batch_size, 6]
             A scaled tensor of bcubes.
         """
-        scales = tf.random.normal(shape=[bcubes.shape[0], 1], mean=0, stddev=stddev)
+        scales = tf.random.truncated_normal(shape=[bcubes.shape[0], 1], mean=0, stddev=stddev)
         half_cube_size = tf.constant(self.cube_size, dtype=tf.float32) / 2
         shift = half_cube_size * scales  # shape [batch_size, 3]
         shift = tf.cast(shift, dtype=tf.int32)

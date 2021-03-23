@@ -183,7 +183,7 @@ class ComPreprocessor:
                                                   [0, 0]])
             return tf.RaggedTensor.from_tensor(padded_image, ragged_rank=2)
 
-        cropped = tf.map_fn(tf.autograph.experimental.do_not_convert(crop), elems=[images, bcubes],
+        cropped = tf.map_fn(crop, elems=[images, bcubes],
                             fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
         return cropped
 

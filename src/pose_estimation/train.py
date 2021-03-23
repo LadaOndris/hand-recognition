@@ -90,6 +90,8 @@ def train(dataset: str):
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
                                         camera=cam, dataset_includes_bboxes=False, augment=True)
+        test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+                                       camera=cam, dataset_includes_bboxes=False)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
@@ -132,7 +134,7 @@ def try_dataset_pipeline(dataset: str):
     cam = Camera(dataset)
 
     if dataset == 'bighand':
-        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=1, shuffle=True)
+        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=8, shuffle=True)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size,
                                network.out_size, camera=cam, augment=True)
     elif dataset == 'msra':
@@ -149,7 +151,7 @@ def try_dataset_pipeline(dataset: str):
 
 
 if __name__ == "__main__":
-    # try_dataset_pipeline('msra')
+    # try_dataset_pipeline('bighand')
     # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
     # mje = evaluate('msra', weights)
     # test('msra', weights)
