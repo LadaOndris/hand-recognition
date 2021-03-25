@@ -22,9 +22,15 @@ pip install gast==0.3.3
 pip install tensorflow-addons
 conda list
 
-mkdir "$SCRATCHDIR/datasets"
 cp -r "$DATADIR/src" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy srcdir to scratchdir."; exit 2; }
-cp -r "$DATADIR/datasets/cvpr15_MSRAHandGestureDB" "$SCRATCHDIR/datasets/" || { echo >&2 "Couldnt copy datasetdir to scratchdir."; exit 2; }
+
+# Prepare directory
+mkdir "$SCRATCHDIR/datasets"
+# Copy cvpr15_MSRAHandGestureDB.tar
+cp -r "$DATADIR/datasets/cvpr15_MSRAHandGestureDB.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy cvpr15_MSRAHandGestureDB.tar"; exit 2; }
+# Extract it
+tar -xf "$SCRATCHDIR/datasets/cvpr15_MSRAHandGestureDB.tar" -C "$SCRATCHDIR/datasets/" || { echo >&2 "Couldnt extract cvpr15_MSRAHandGestureDB.tar"; exit 2; }
+
 
 export PYTHONPATH=$SCRATCHDIR
 python3 $SCRATCHDIR/src/pose_estimation/train.py --train msra --evaluate msra
