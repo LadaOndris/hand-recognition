@@ -2,6 +2,7 @@ from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
 from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
 from src.acceptance.base import rds_errors, hand_rotation, vectors_angle
 from src.utils.camera import Camera
+import sklearn
 import numpy as np
 import glob
 import struct
@@ -54,21 +55,37 @@ def load_joints(joints_file: str) -> np.ndarray:
     return joints
 
 
-def load_dataset() -> np.ndarray:
-    path = MSRAHANDGESTURE_DATASET_DIR.joinpath(F"P0/")
-    files = path.iterdir()
+def get_subject_dirs():
+    all_files = MSRAHANDGESTURE_DATASET_DIR.iterdir()
+    return [file for file in all_files if file.is_dir()]
+
+
+def get_gesture_files(subject_dirs):
+    files = []
+    for path in subject_dirs:
+        files += path.iterdir()
+    return files
+
+
+def load_dataset(shuffle=False) -> np.ndarray:
+    subject_dirs = get_subject_dirs()
+    gesture_files = get_gesture_files(subject_dirs)
     gesture_names = []
     joints, labels = None, None
 
-    for file in files:
+    for file in gesture_files:
         gesture_name = file.stem
-        j, l = load_joints(file.joinpath('joint.txt'), gesture_name)
+        j = load_joints(file.joinpath('joint.txt'))
+        l = np.full(shape=(j.shape[0]), fill_value=gesture_name, dtype='<U3')
         if joints is None:
             joints, labels = j, l
         else:
             joints = np.concatenate((joints, j))
             labels = np.concatenate((labels, l))
         gesture_names.append(gesture_name)
+
+    if shuffle:
+        joints, labels = sklearn.utils.shuffle(joints, labels)
     return np.unique(gesture_names), joints, labels
 
 

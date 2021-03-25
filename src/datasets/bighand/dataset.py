@@ -21,12 +21,24 @@ class BighandDataset:
         self.shuffle = shuffle
         self.batch_index = 0
 
-        self.train_annotations, self.test_annotations = self._load_annotations()
-        self.num_train_batches = int(len(self.train_annotations) // self.batch_size)
-        self.num_test_batches = int(len(self.test_annotations) // self.batch_size)
+        self.train_annotation_files, self.test_annotation_files = self._load_annotations()
+        self.train_annotations = self._count_annotations(self.train_annotation_files)
+        self.test_annotations = self._count_annotations(self.test_annotation_files)
+        self.num_train_batches = int(self.train_annotations // self.batch_size)
+        self.num_test_batches = int(self.test_annotations // self.batch_size)
 
-        self.train_dataset = self._build_dataset(self.train_annotations)
-        self.test_dataset = self._build_dataset(self.test_annotations)
+        self.train_dataset = self._build_dataset(self.train_annotation_files)
+        self.test_dataset = self._build_dataset(self.test_annotation_files)
+
+    def _count_annotations(self, annotation_files):
+        def file_lines(filename):
+            with open(filename) as f:
+                for i, l in enumerate(f):
+                    pass
+            return i + 1
+
+        counts = [file_lines(filename) for filename in annotation_files]
+        return sum(counts)
 
     def _load_annotations(self):
         subject_dirs = [f.stem for f in self.dataset_path.iterdir() if f.is_dir()]
