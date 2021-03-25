@@ -89,15 +89,15 @@ def train(dataset: str):
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam, dataset_includes_bboxes=False, augment=True)
+                                        camera=cam, dataset_includes_bboxes=False, augment=True, cube_size=250)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=False)
+                                       camera=cam, dataset_includes_bboxes=False, cube_size=250)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam, dataset_includes_bboxes=True, augment=True)
+                                        camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=True)
+                                       camera=cam, dataset_includes_bboxes=True, cube_size=180)
 
     model = network.graph()
     print(model.summary(line_length=120))
@@ -107,7 +107,7 @@ def train(dataset: str):
     callbacks = [
         tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='epoch'),
         tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_weights_only=True, save_best_only=True),
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=4, restore_best_weights=True),
+        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
         tf.keras.callbacks.TerminateOnNaN()
     ]
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -117,7 +117,7 @@ def train(dataset: str):
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
-    model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
+    model.fit(train_ds_gen, epochs=70, verbose=1, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
               validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
 
     # probably won't come to this, but just to be sure.
@@ -136,11 +136,11 @@ def try_dataset_pipeline(dataset: str):
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=8, shuffle=True)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size,
-                               network.out_size, camera=cam, augment=True)
+                               network.out_size, camera=cam, augment=True, cube_size=250)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=True)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                               camera=cam, dataset_includes_bboxes=True, augment=True)
+                               camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
     for images, y_true in gen:
         joints = y_true[0]
         # y_true_joints = gen.postprocess(y_true)
@@ -153,6 +153,7 @@ def try_dataset_pipeline(dataset: str):
 if __name__ == "__main__":
     # try_dataset_pipeline('bighand')
     # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+    # weights = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
     # mje = evaluate('msra', weights)
     # test('msra', weights)
 

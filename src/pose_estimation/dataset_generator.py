@@ -16,7 +16,7 @@ class DatasetGenerator:
     """
 
     def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
-                 return_xyz=False, dataset_includes_bboxes=False, augment=False):
+                 return_xyz=False, dataset_includes_bboxes=False, augment=False, cube_size=200):
         """
         Parameters
         ----------
@@ -37,7 +37,7 @@ class DatasetGenerator:
         self.return_xyz = return_xyz
         self.dataset_includes_bboxes = dataset_includes_bboxes
         self.augment = augment
-        self.cube_size = (180, 180, 180)
+        self.cube_size = (cube_size, cube_size, cube_size)
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
         self.cropped_images = None
@@ -112,9 +112,9 @@ class DatasetGenerator:
                                                                    cube_size=self.cube_size)
         if self.augment:
             # Translate 3D - move bcubes
-            self.bcubes = self.bcubes_translate3d(self.bcubes, stddev=10)
+            self.bcubes = self.bcubes_translate3d(self.bcubes, stddev=8)
             # Scale 3D - increase or descrease the size of bcubes
-            self.bcubes = self.bcubes_scale3d(self.bcubes, stddev=0.15)
+            self.bcubes = self.bcubes_scale3d(self.bcubes, stddev=0.08)
 
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)

@@ -139,10 +139,10 @@ class JGR_J2O:
 
     def pixel_to_joint_voting(self, x):
         weights = conv(self.n_joints, (1, 1))(x)
-        weights = self.spatial_softmax(weights)  # [-1, W, dim * dim]
+        weights = self.spatial_softmax(weights)  # [-1, N, W * H]
 
         x = conv_bn_relu(x, x.shape[-1], (1, 1))
-        x = tf.reshape(x, [-1, x.shape[1] * x.shape[2], x.shape[3]])  # [-1, features, dim * dim]
+        x = tf.reshape(x, [-1, x.shape[1] * x.shape[2], x.shape[3]])  # [-1, W * H, features (C)]
         F = tf.matmul(weights, x)
         w_reshaped = tf.reshape(weights, [-1, self.n_joints, self.out_size, self.out_size])
         return w_reshaped, F
