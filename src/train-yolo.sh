@@ -11,9 +11,9 @@ mkdir $SCRATCHDIR
 
 echo "$PBS_JOBID is running on node `hostname -f` in a scratch directory $SCRATCHDIR" >> $DATADIR/jobs_info.txt
 
-mkdir "$DATADIR/datasets"
-cp -r "$DATADIR/src" "$SCRATCHDIR/src" || { echo >&2 "Couldnt copy srcdir to scratchdir."; exit 2; }
-cp -r "$DATADIR/datasets/handseg150k" "$SCRATCHDIR/datasets/handseg150k" || { echo >&2 "Couldnt copy datasetdir to scratchdir."; exit 2; }
+mkdir "$SCRATCHDIR/datasets"
+cp -r "$DATADIR/src" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy srcdir to scratchdir."; exit 2; }
+cp -r "$DATADIR/datasets/handseg150k" "$SCRATCHDIR/datasets/" || { echo >&2 "Couldnt copy datasetdir to scratchdir."; exit 2; }
 
 module add python-3.6.2-gcc
 module add python36-modules-gcc
@@ -22,6 +22,6 @@ module add tensorflow-2.0.0-gpu-python3
 
 python3 $SCRATCHDIR/src/detection/yolov3/train.py
 
-cp -r $SCRATCHDIR/logs $DATADIR/logs || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }
-cp -r $SCRATCHDIR/saved_models $DATADIR/saved_models || { echo >&2 "Couldnt copy saved_models to datadir."; exit 3; }
+cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }
+cp -r $SCRATCHDIR/saved_models $DATADIR/ || { echo >&2 "Couldnt copy saved_models to datadir."; exit 3; }
 clean_scratch
