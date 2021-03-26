@@ -28,16 +28,17 @@ cp -r "$DATADIR/src" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy srcdir to scratc
 # Prepare datasets folder
 mkdir "$SCRATCHDIR/datasets"
 mkdir "$SCRATCHDIR/datasets/bighand"
-# Copy full_annotations.tar.gz
-cp -r "$DATADIR/datasets/bighand/full_annotation.tar.gz" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy full_annotations.tar.gz"; exit 2; }
+# Copy full_annotations.tar
+cp -r "$DATADIR/datasets/bighand/full_annotation.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy full_annotations.tar"; exit 2; }
 # Extract it
-tar -xzf "$SCRATCHDIR/datasets/full_annotation.tar.gz" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract full_annotations.tar.gz"; exit 2; }
+tar -xf "$SCRATCHDIR/datasets/full_annotation.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract full_annotations.tar"; exit 2; }
 
 # Copy Subject_1.tar
 cp -r "$DATADIR/datasets/bighand/Subject_1.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy Subject_1.tar"; exit 2; }
 # Extract it
 tar -xf "$SCRATCHDIR/datasets/Subject_1.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract Subject_1.tar"; exit 2; }
 
+export PYTHONPATH=$SCRATCHDIR
 python3 $SCRATCHDIR/src/pose_estimation/train.py --train bighand
 
 cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }

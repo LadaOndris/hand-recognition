@@ -20,6 +20,7 @@ module add python36-modules-gcc
 module add opencv-3.4.5-py36
 module add tensorflow-2.0.0-gpu-python3
 
+export PYTHONPATH=$SCRATCHDIR
 python3 $SCRATCHDIR/src/detection/yolov3/train.py
 
 cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }

@@ -29,7 +29,7 @@ mkdir "$SCRATCHDIR/datasets"
 # Copy cvpr15_MSRAHandGestureDB.tar
 cp -r "$DATADIR/datasets/cvpr15_MSRAHandGestureDB.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy cvpr15_MSRAHandGestureDB.tar"; exit 2; }
 # Extract it
-tar -xf "$SCRATCHDIR/datasets/cvpr15_MSRAHandGestureDB.tar" -C "$SCRATCHDIR/datasets/" || { echo >&2 "Couldnt extract cvpr15_MSRAHandGestureDB.tar"; exit 2; }
+tar -xf "$SCRATCHDIR/datasets/cvpr15_MSRAHandGestureDB.tar" -C "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt extract cvpr15_MSRAHandGestureDB.tar"; exit 2; }
 
 
 export PYTHONPATH=$SCRATCHDIR
