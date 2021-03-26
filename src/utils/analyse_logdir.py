@@ -30,7 +30,7 @@ def plot_epoch_loss(df: pd.DataFrame, fig_location: str = None,
     g.set(yscale='log')
     fig.tight_layout()
     ax.legend(title='')
-    _save_show_fig(fig, fig_location, show_figure)
+    save_show_fig(fig, fig_location, show_figure)
 
 
 if __name__ == "__main__":

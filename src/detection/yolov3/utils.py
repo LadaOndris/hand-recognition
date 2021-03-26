@@ -299,7 +299,7 @@ def draw_grid(images, yolo_outputs, model_size):
             break
 
 
-def tf_load_image(image_file_path, dtype):
+def tf_load_image(image_file_path, dtype, shape=[480, 640]):
     """
     Loads an image from file and resizes it with pad to target shape.
 
@@ -314,7 +314,7 @@ def tf_load_image(image_file_path, dtype):
     # loads depth images and converts values to fit in dtype.uint8
     depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
 
-    depth_image.set_shape([480, 640, 1])
+    depth_image.set_shape([shape[0], shape[1], 1])
     return depth_image
 
 
@@ -332,5 +332,6 @@ def tf_resize_image(depth_image, shape, resize_mode: str = 'crop'):
         depth_image = depth_image[0]
     else:
         raise ValueError(F"Unknown resize mode: {resize_mode}")
+    # depth_image = tf.where(depth_image > 2000, 0, depth_image)
     depth_image = tf.cast(depth_image, dtype=type)
     return depth_image

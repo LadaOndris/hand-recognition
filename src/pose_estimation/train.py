@@ -4,6 +4,7 @@ from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.MSRAHandGesture.dataset import MSRADataset
 from src.pose_estimation.dataset_generator import DatasetGenerator
 from src.pose_estimation.jgr_j2o import JGR_J2O
+from src.pose_estimation.evaluate import evaluate
 from src.pose_estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
 from src.utils.paths import BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR, SAVED_MODELS_DIR, LOGS_DIR
 from src.utils.camera import Camera
@@ -14,35 +15,6 @@ import src.utils.logs as logs_utils
 import os
 import glob
 import argparse
-
-
-def evaluate(dataset: str, weights_path: str):
-    if dataset != 'msra':
-        raise ValueError("Invalid dataset")
-
-    network = JGR_J2O()
-    cam = Camera(dataset)
-
-    ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=False)
-    test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                   camera=cam, dataset_includes_bboxes=True)
-
-    model = network.graph()
-    model.load_weights(weights_path)
-    mje_metric = MeanJointErrorMetric()
-    threshold_metric = DistancesBelowThreshold(max_thres=200)
-
-    for batch_idx in range(ds.num_test_batches):
-        normalized_images, y_true = next(test_ds_gen)
-        y_pred = model.predict(normalized_images)
-        # y_pred and y_true are normalized values from/for the model
-        uvz_true = test_ds_gen.postprocess(y_true)
-        uvz_pred = test_ds_gen.postprocess(y_pred)
-        xyz_pred = cam.pixel_to_world(uvz_pred)
-        xyz_true = cam.pixel_to_world(uvz_true)
-        threshold_metric.update_state(xyz_true, xyz_pred)
-        mje_metric.update_state(xyz_true, xyz_pred)
-    return threshold_metric.result(), mje_metric.result()
 
 
 def test(dataset: str, weights_path: str):
@@ -117,7 +89,7 @@ def train(dataset: str):
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
-    model.fit(train_ds_gen, epochs=70, verbose=1, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
+    model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
               validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
 
     # probably won't come to this, but just to be sure.
@@ -152,9 +124,6 @@ def try_dataset_pipeline(dataset: str):
 
 if __name__ == "__main__":
     # try_dataset_pipeline('bighand')
-    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
-    # weights = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
-    # mje = evaluate('msra', weights)
     # test('msra', weights)
 
     parser = argparse.ArgumentParser()

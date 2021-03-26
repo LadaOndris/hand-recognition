@@ -15,7 +15,7 @@ import os
 from PIL import Image
 from src.detection.yolov3 import utils
 from src.core.cfg.cfg_parser import Model
-from src.utils.paths import LOGS_DIR, SRC_DIR
+from src.utils.paths import LOGS_DIR, SRC_DIR, CUSTOM_DATASET_DIR
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.live import generate_live_images
 from src.utils.paths import OTHER_DIR
@@ -31,8 +31,8 @@ def load_detection_model():
 
     # Also change resize mode down below
     # because the model was trained with different preprocessing mode
-    weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
-    # weights_file = "20210315-143811/train_ckpts/weights.12.h5" # mode crop
+    # weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
+    weights_file = "20210315-143811/train_ckpts/weights.12.h5" # mode crop
     weights_path = LOGS_DIR.joinpath(weights_file)
     model.tf_model.load_weights(str(weights_path))
     return model
@@ -64,7 +64,7 @@ def detect_live():
         utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD)
 
 
-def detect_from_file(file_path: str):
+def detect_from_file(file_path: str, shape):
     """
     Detect a hand from a single image.
     """
@@ -72,12 +72,12 @@ def detect_from_file(file_path: str):
 
     preprocess_image_size = [416, 416, 1]
     # load image
-    depth_image = utils.tf_load_image(file_path, dtype=tf.uint16)
-    depth_image = utils.tf_resize_image(depth_image, shape=preprocess_image_size[:2], resize_mode='pad')
-
+    depth_image = utils.tf_load_image(file_path, dtype=tf.uint16, shape=shape)
+    depth_image = utils.tf_resize_image(depth_image, shape=preprocess_image_size[:2], resize_mode='crop')
     # create a batch with a single image
     batch_images = tf.expand_dims(depth_image, axis=0)
 
+    # batch_images *= 8
     detection_batch_images = tf.image.convert_image_dtype(batch_images, dtype=tf.uint8)
 
     # ------ Pass to detection stage ------
@@ -94,14 +94,15 @@ def detect_from_file(file_path: str):
     #                            max_boxes=1)
 
     boxes, scores, nums = utils.boxes_from_yolo_outputs(yolo_outputs, model.batch_size, preprocess_image_size,
-                                                        TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7, max_boxes=1)
+                                                        0.5, iou_thresh=.7, max_boxes=1)
 
     # utils.draw_predictions(detection_batch_images[0], boxes[0], nums[0], fig_location=None)
     # Convert values to milimeters - what the actual fuck???
     # The custom SR305 camera returns pixels in 0.12498664727900177 mm per value
     # To correct the values and to be in mm, divide by 8.00085466544
-    pose_images = tf.cast(batch_images, dtype=tf.float32) / 8.00085466544
-    # utils.draw_predictions(pose_images[0], boxes[0], nums[0], fig_location=None)
+    # pose_images = tf.cast(batch_images, dtype=tf.float32) / 8.00085466544
+    pose_images = batch_images
+    utils.draw_predictions(batch_images[0], boxes[0], nums[0], fig_location=None)
 
     boxes = tf.cast(boxes, dtype=tf.int32)
     # utils.draw_predictions(pose_images[0], boxes[0, tf.newaxis, :], nums[0], fig_location=None)
@@ -110,6 +111,7 @@ def detect_from_file(file_path: str):
 
     # Load HPE model and weights
     weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+    # weights_path = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
     network = JGR_J2O()
     model = network.graph()
     model.load_weights(str(weights_path))
@@ -134,6 +136,8 @@ def detect_from_file(file_path: str):
 
 
 if __name__ == '__main__':
-    detect_from_file(str(OTHER_DIR.joinpath('me2.png')))
+    # detect_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-153934/35.png')), [720, 1280])
+    detect_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230610/200.png')), [480, 640])
+    # detect_from_file(str(OTHER_DIR.joinpath('me.png')))
     # detect_live()
     pass
