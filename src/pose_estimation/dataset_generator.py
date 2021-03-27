@@ -68,9 +68,10 @@ class DatasetGenerator:
         uvz_global = tf.concat([uv_global, global_z], axis=-1)
         return uvz_global
 
-    def preprocess(self, images, bboxes, cube_size):
+    def preprocess(self, images, bboxes):
+        images = tf.cast(images, tf.float32)
         self.bcubes = self.com_preprocessor.refine_bcube_using_com(images, bboxes,
-                                                                   cube_size=cube_size,
+                                                                   cube_size=self.cube_size,
                                                                    refine_iters=4)
         # Crop the area defined by bcube from the orig image
         cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
@@ -152,7 +153,7 @@ class DatasetGenerator:
 
         """
         translation_offset = tf.random.truncated_normal(shape=[bcubes.shape[0], 3], mean=0,
-                                              stddev=stddev)  # shape [batch_size, 3]
+                                                        stddev=stddev)  # shape [batch_size, 3]
         translation_offset = tf.cast(translation_offset, dtype=tf.int32)
         bcubes_translation = tf.concat([translation_offset, translation_offset], axis=-1)  # shape [batch_size, 6]
         bcubes_translated = bcubes + bcubes_translation

@@ -299,22 +299,29 @@ def draw_grid(images, yolo_outputs, model_size):
             break
 
 
-def tf_load_image(image_file_path, dtype, shape=[480, 640]):
+def tf_load_image(image_file_path, dtype, shape):
     """
     Loads an image from file and resizes it with pad to target shape.
+
+    Parameters
+    -------
+    image_file_path
+    dtype
+    shape
+        An array-like of two values [width, height].
+
 
     Returns
     -------
     depth_image
-        A 3-D Tensor of shape [shape[0], shape[1], 1].
-
+        A 3-D Tensor of shape [height, width, 1].
     """
     depth_image_file_content = tf.io.read_file(image_file_path)
 
     # loads depth images and converts values to fit in dtype.uint8
     depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
 
-    depth_image.set_shape([shape[0], shape[1], 1])
+    depth_image.set_shape([shape[1], shape[0], 1])
     return depth_image
 
 

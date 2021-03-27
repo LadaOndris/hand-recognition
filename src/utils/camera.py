@@ -4,25 +4,35 @@ import tensorflow as tf
 
 class Camera:
 
-    def __init__(self, dataset: str):
-        self.dataset = dataset
+    def __init__(self, cam_type: str):
+        self.dataset = cam_type
         self.extrinsic_matrix = tf.eye(4)
-        if dataset == 'bighand':
-            self.set_intel_realsense_sr300()
-        elif dataset == 'msra':
-            self.set_intel_creative_interactive()
-        elif dataset == 'custom':
-            self.set_custom()
+        self.focal_length = None
+        self.principal_point = None
+        self.image_size = None
+        self.intrinsic_matrix = None
+        self.projection_matrix = None
+        self.invr_projection_matrix = None
+        self.depth_unit = None
+
+        if cam_type == 'bighand':
+            self.set_bighand_sr300()
+        elif cam_type == 'msra':
+            self.set_msra_creative_interactive()
+        elif cam_type == 'custom' or cam_type == 'sr305':
+            self.set_sr305()
+        elif cam_type == 'd415':
+            self.set_d415()
         else:
             raise NotImplementedError('Unknown dataset')
         self.create_projection_matrices()
 
-    def set_intel_creative_interactive(self):
+    def set_msra_creative_interactive(self):
         self.focal_length = [241.42, 241.42]
         self.principal_point = [160, 120]
         self.image_size = [320, 240]
 
-    def set_intel_realsense_sr300(self):
+    def set_bighand_sr300(self):
         self.focal_length = [475.065948, 475.065857]  # [476.0068, 476.0068]  # [588.235, 587.084]
         self.principal_point = [315.944855, 245.287079]
         self.image_size = [640, 480]
@@ -32,11 +42,18 @@ class Camera:
              [-0.000969709653873, 0.00274303671904, 0.99999576807, 0],
              [0, 0, 0, 1]], dtype=tf.float32)
 
-    def set_custom(self):
+    def set_sr305(self):
         # self.focal_length = [588.235, 587.084]
         self.focal_length = [476.0068, 476.0068]
         self.principal_point = [313.6830139, 242.7547302]
         self.image_size = [640, 480]
+        self.depth_unit = 0.00012498664727900177  # 0.125 mm
+
+    def set_d415(self):
+        # self.focal_length = [476.0068, 476.0068]
+        # self.principal_point = [313.6830139, 242.7547302]
+        self.image_size = [1280, 720]
+        self.depth_unit = 0.001  # 1 mm
 
     def create_projection_matrices(self):
         # More information on intrinsic and extrinsic parameters

@@ -17,6 +17,7 @@ class Model:
         self.anchors = []
         self.yolo_out_preds = []
         self.yolo_output_shapes = []
+        self.input_shape = None
 
     @classmethod
     def from_cfg(cls, file):
