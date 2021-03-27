@@ -78,6 +78,8 @@ class ComPreprocessor:
         -------
         center_of_mass : tf.Tensor of shape [3]
             Represented in UVZ coordinates.
+            Returns [0,0,0] for zero-sized image, which happens for cropped images .
+
         """
         if type(image) is tf.RaggedTensor:
             image = image.to_tensor()
@@ -111,8 +113,9 @@ class ComPreprocessor:
             # fig, ax = plt.subplots()
             # ax.imshow(full_image[0])
             # ax.scatter(com[0, 0], com[0, 1])
-            # r = patches.Rectangle(bcube[0, :2], bcube[0, 3] - bcube[0, 0], bcube[0, 4] - bcube[0, 1], facecolor='none',
-            #                       edgecolor='r', linewidth=2)
+            # r = patches.Rectangle(bcube[0, :2], bcube[0, 3] - bcube[0, 0], bcube[0, 4] - bcube[0, 1],
+            # facecolor='none', edgecolor='r', linewidth=2)
+            #
             # ax.add_patch(r)
             # plt.show()
             # Crop the area defined by bcube from the orig image
@@ -130,6 +133,12 @@ class ComPreprocessor:
 
         Projects COM to the world coordinates,
         adds size offsets and projects back to image coordinates.
+
+        Parameters
+        ----------
+        com : Center of mass
+            Z coordinate cannot be zero, otherwise projection fails.
+        size : Size of the bounding cube
         """
         com_xyz = self.camera.pixel_to_world(com)
         half_size = tf.constant(size, dtype=tf.float32) / 2
@@ -151,11 +160,14 @@ class ComPreprocessor:
         Crops the image using a bounding cube. It is
         similar to cropping with a bounding box, but
         a bounding cube also defines the crop in Z axis.
+        Pads the cropped area on out of bounds.
+
 
         Parameters
         ----------
         image  Image to crop from.
         bcube  Bounding cube in UVZ coordinates.
+             Zero sized bcubes produce errors.
 
         Returns
         -------
@@ -189,18 +201,36 @@ class ComPreprocessor:
 
     def crop_bbox(self, images, bboxes):
         """
+        Crop images using bounding boxes.
+        Pads the cropped area on out of bounds.
+
         Parameters
         ----------
         images  tf.Tensor shape=[None, 480, 640]
         bboxes  tf.Tensor shape=[None, 4]
             The last dim contains [left, top, right, bottom].
+
+        Returns
+        -------
+        Cropped image
+            The cropped image is of the same shape as the bbox.
         """
 
         def crop(elems):
             image, bbox = elems
-            left, top, right, bottom = bbox
-            cropped_image = image[top:bottom, left:right]
-            return tf.RaggedTensor.from_tensor(cropped_image, ragged_rank=2)
+            x_start, y_start, x_end, y_end = bbox
+            cropped_image = image[y_start:y_end, x_start:x_end]
+
+            # Pad the cropped image if we were out of bounds
+            x_start_bound = tf.maximum(x_start, 0)
+            y_start_bound = tf.maximum(y_start, 0)
+            x_end_bound = tf.minimum(image.shape[1], x_end)
+            y_end_bound = tf.minimum(image.shape[0], y_end)
+
+            padded_image = tf.pad(cropped_image, [[y_start_bound - y_start, y_end - y_end_bound],
+                                                  [x_start_bound - x_start, x_end - x_end_bound]])
+
+            return tf.RaggedTensor.from_tensor(padded_image, ragged_rank=2)
 
         cropped = tf.map_fn(tf.autograph.experimental.do_not_convert(crop), elems=[images, bboxes],
                             fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
