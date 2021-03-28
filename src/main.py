@@ -1,99 +1,162 @@
-"""
-1. detection
-2. pose estimation
-3. gesture fulfillment
-"""
 
-# from detection.rdf import load_model
-import detection
-import pose_estimation
 import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
-import sys
-import os
-from PIL import Image
 from src.detection.yolov3 import utils
 from src.core.cfg.cfg_parser import Model
-from src.utils.paths import LOGS_DIR, SRC_DIR, CUSTOM_DATASET_DIR
+from src.utils.paths import LOGS_DIR, CUSTOM_DATASET_DIR
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.live import generate_live_images
-from src.utils.paths import OTHER_DIR
-from src.pose_estimation.preprocessing import ComPreprocessor
 from src.pose_estimation.dataset_generator import DatasetGenerator
 from src.utils.camera import Camera
 import src.utils.plots as plots
 from src.pose_estimation.jgr_j2o import JGR_J2O
 
 
-def load_detector():
-    model = Model.from_cfg(YOLO_CONFIG_FILE)
-
-    # Also change resize mode down below
-    # because the model was trained with different preprocessing mode
-    # weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
-    weights_file = "20210315-143811/train_ckpts/weights.12.h5"  # mode crop
-    weights_path = LOGS_DIR.joinpath(weights_file)
-    model.tf_model.load_weights(str(weights_path))
-    return model
-
-
-def load_estimator(network):
-    # Load HPE model and weights
-    weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
-    # weights_path = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
-    model = network.graph()
-    model.load_weights(str(weights_path))
-    return model
-
-
-def detect_live():
+class HandPositionEstimator:
     """
-    Reads live images from RealSense depth camera, and
-    detects hands for each frame.
+    Loads a hand detector and hand pose estimator.
+    Then, it uses them to estimate the precision position of hands
+    either from files, live images, or from given images.
     """
-    # create live image generator
-    live_image_generator = generate_live_images()
-    # load detection model
-    model = load_detector()
 
-    while True:
+    def __init__(self, camera: Camera, plot_detection=False, plot_estimation=False):
+        self.camera = camera
+        self.plot_detection = plot_detection
+        self.plot_estimation = plot_estimation
+        self.resize_mode = 'crop'
+        self.detector = self.load_detector(self.resize_mode)
+        self.network = JGR_J2O()
+        self.estimator = self.load_estimator()
+        self.estimation_preprocessor = DatasetGenerator(None, self.detector.input_shape, self.network.input_size,
+                                                        self.network.out_size,
+                                                        camera=self.camera, augment=False, cube_size=180)
+
+    def load_detector(self, resize_mode):
+        # Load model based on the preference resize mode
+        # because the models were trained with different preprocessing.
+        if resize_mode == 'pad':
+            weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
+        elif resize_mode == 'crop':
+            weights_file = "20210315-143811/train_ckpts/weights.12.h5"  # mode crop
+        weights_path = LOGS_DIR.joinpath(weights_file)
+        model = Model.from_cfg(YOLO_CONFIG_FILE)
+        model.tf_model.load_weights(str(weights_path))
+        return model
+
+    def load_estimator(self):
+        # Load HPE model and weights
+        weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+        # weights_path = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
+        model = self.network.graph()
+        model.load_weights(str(weights_path))
+        return model
+
+    def inference_from_file(self, file_path: str):
+        """
+        Detect a hand from a single image.
+        """
+        image = self.read_image(file_path)
+        image = self.resize_image_and_depth(image)
+        return self.inference_from_image(image)
+
+    def inference_live(self):
+        live_image_generator = generate_live_images()
+
+        for depth_image in live_image_generator:
+            depth_image = self.resize_image_and_depth(depth_image)
+            joints = self.inference_from_image(depth_image)
+
+    def inference_from_image(self, image):
+        """
+        Performs hand detection and pose estimation on the given image.
+
+        Parameters
+        ----------
+        image
+            Image pixels should be in milimeters as they are preprocessed
+            accordingly for the detector.
+
+        Returns
+        -------
+
+        """
+        batch_images = tf.expand_dims(image, axis=0)
+        boxes = self.detect(batch_images)
+
+        # If detection failed
+        if tf.experimental.numpy.allclose(boxes, 0):
+            return None
+        joints_uvz = self.estimate(batch_images, boxes)
+        return joints_uvz
+
+    def detect_live(self):
+        """
+        Reads live images from RealSense depth camera, and
+        detects hands for each frame.
+        """
+        # create live image generator
+        live_image_generator = generate_live_images()
+
+        for depth_image in live_image_generator:
+            depth_image = self.resize_image_and_depth(depth_image)
+            batch_images = tf.expand_dims(depth_image, axis=0)
+            self.detect(batch_images)
+
+    def detect(self, images):
+        """
+
+        Parameters
+        ----------
+        images
+
+        Returns
+        -------
+        boxes : shape [batch_size, 4]
+            Returns all zeros if non-max suppression did not find any valid boxes.
+        """
+        detection_batch_images = preprocess_image_for_detection(images)
+        yolo_outputs = self.detector.tf_model.predict(detection_batch_images)
+
+        boxes, scores, nums = utils.boxes_from_yolo_outputs(yolo_outputs, self.detector.batch_size,
+                                                            self.detector.input_shape,
+                                                            TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7, max_boxes=1)
+        if self.plot_detection:
+            utils.draw_predictions(images[0], boxes[0], nums[0], fig_location=None)
+        return boxes
+
+    def estimate(self, images, boxes):
+        boxes = tf.cast(boxes, dtype=tf.int32)
+        normalized_images = self.estimation_preprocessor.preprocess(images, boxes[:, 0, :])
+        y_pred = self.estimator.predict(normalized_images)
+        uvz_pred = self.estimation_preprocessor.postprocess(y_pred)
+
+        # Plot the inferenced pose
+        if self.plot_estimation:
+            joints2d = uvz_pred[..., :2] - self.estimation_preprocessor.bboxes[..., tf.newaxis, :2]
+            plots.plot_joints_2d(normalized_images[0], joints2d[0])
+        return uvz_pred
+
+    def read_image(self, file_path: str):
+        """
+        Reads image from file.
+
+        Returns
+        -------
+        Depth image
+        """
         # load image
-        depth_image = next(live_image_generator)
-        depth_image = utils.tf_resize_image(depth_image)
+        depth_image = utils.tf_load_image(file_path, dtype=tf.uint16, shape=self.camera.image_size)
+        return depth_image
 
-        # create a batch with a single image
-        batch_images = tf.expand_dims(depth_image, axis=0)
-
-        # predict
-        yolo_outputs = model.tf_model.predict(batch_images)
-
-        # show result
-        # utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD)
-        utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD)
-
-
-def read_image_to_batch(file_path: str, camera: Camera):
-    """
-
-    Parameters
-    ----------
-    file_path
-    camera
-
-    Returns
-    -------
-        Reads image from file, and resizes to size [416, 416, 1].
-        Expands dims along the first axis to create a batch.
-    """
-    preprocess_image_size = [416, 416, 1]
-    # load image
-    depth_image = utils.tf_load_image(file_path, dtype=tf.uint16, shape=camera.image_size)
-    depth_image = utils.tf_resize_image(depth_image, shape=preprocess_image_size[:2], resize_mode='crop')
-    depth_image = set_depth_unit(depth_image, 0.001, camera.depth_unit)
-    # create a batch with a single image
-    batch_images = tf.expand_dims(depth_image, axis=0)
-    return batch_images
+    def resize_image_and_depth(self, image):
+        """
+        Resizes to size matching the detector's input shape.
+        The unit of image pixels are set as milimeters.
+        """
+        image = utils.tf_resize_image(image, shape=self.detector.input_shape[:2],
+                                      resize_mode=self.resize_mode)
+        image = set_depth_unit(image, 0.001, self.camera.depth_unit)
+        return image
 
 
 def set_depth_unit(images, target_depth_unit, previous_depth_unit):
@@ -126,55 +189,9 @@ def preprocess_image_for_detection(images):
     return images
 
 
-def detect_from_file(file_path: str, camera: Camera):
-    """
-    Detect a hand from a single image.
-    """
-    # ------ Read image ------
-    batch_images = read_image_to_batch(file_path, camera)
-
-    # ------ Pass to detection stage ------
-    detection_batch_images = preprocess_image_for_detection(batch_images)
-    detector = load_detector()
-    yolo_outputs = detector.tf_model.predict(detection_batch_images)
-
-    # utils.draw_grid_detection(batch_images, yolo_outputs, preprocess_image_size, TEST_YOLO_CONF_THRESHOLD)
-    # utils.draw_detected_objects(batch_images, yolo_outputs, preprocess_image_size, TEST_YOLO_CONF_THRESHOLD,
-    #                            max_boxes=1)
-
-    boxes, scores, nums = utils.boxes_from_yolo_outputs(yolo_outputs, detector.batch_size, detector.input_shape,
-                                                        TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7, max_boxes=1)
-    utils.draw_predictions(batch_images[0], boxes[0], nums[0], fig_location=None)
-
-    # ------ Pass to hand pose estimation stage ------
-    # Prepare HPE model
-    network = JGR_J2O()
-    estimator = load_estimator(network)
-
-    # Preprocess the image
-    camera = Camera('custom')
-    dataset_generator = DatasetGenerator(None, detector.input_shape, network.input_size, network.out_size,
-                                         camera=camera, augment=False, cube_size=180)
-    boxes = tf.cast(boxes, dtype=tf.int32)
-    normalized_images = dataset_generator.preprocess(batch_images, boxes[:, 0, :])
-
-    # Inference
-    y_pred = estimator.predict(normalized_images)
-
-    # Postprocess inferenced pose
-    uvz_pred = dataset_generator.postprocess(y_pred)
-    joints2d = uvz_pred[..., :2] - dataset_generator.bboxes[..., tf.newaxis, :2]
-
-    # Plot the inferenced pose
-    plots.plot_joints_2d(normalized_images[0], joints2d[0])
-
-    pass
-
-
 if __name__ == '__main__':
-    cam = Camera('sr305')
-    # detect_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-153934/35.png')), Camera('d415'))
-    detect_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/47.png')), Camera('sr305'))
-    # detect_from_file(str(OTHER_DIR.joinpath('me.png')))
-    # detect_live()
+    estimator = HandPositionEstimator(Camera('sr305'), plot_detection=True, plot_estimation=True)
+    # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/47.png')))
+    estimator.detect_live()
+
     pass

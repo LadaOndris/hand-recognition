@@ -228,7 +228,8 @@ class ComPreprocessor:
             y_end_bound = tf.minimum(image.shape[0], y_end)
 
             padded_image = tf.pad(cropped_image, [[y_start_bound - y_start, y_end - y_end_bound],
-                                                  [x_start_bound - x_start, x_end - x_end_bound]])
+                                                  [x_start_bound - x_start, x_end - x_end_bound],
+                                                  [0, 0]])
 
             return tf.RaggedTensor.from_tensor(padded_image, ragged_rank=2)
 

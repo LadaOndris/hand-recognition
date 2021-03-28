@@ -50,9 +50,9 @@ class Camera:
         self.depth_unit = 0.00012498664727900177  # 0.125 mm
 
     def set_d415(self):
-        # self.focal_length = [476.0068, 476.0068]
-        # self.principal_point = [313.6830139, 242.7547302]
-        self.image_size = [1280, 720]
+        self.focal_length = [592.138, 592.138]
+        self.principal_point = [313.79, 238.076]
+        self.image_size = [640, 480]
         self.depth_unit = 0.001  # 1 mm
 
     def create_projection_matrices(self):

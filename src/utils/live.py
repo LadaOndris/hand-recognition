@@ -36,7 +36,7 @@ def print_live_images(num=None):
         depth_image = next(generator)
         _plot_depth_image(ax, depth_image)
         plt.draw()
-        plt.pause(0.005)
+        plt.pause(0.05)
         plt.cla()
     plt.ioff()
     plt.show()
@@ -57,6 +57,10 @@ def intrinsic_parameters():
     ppx, ppy = 313.6830139, 242.7547302
     depth_units = 0.00012498664727900177
     => 1 mm / depth_units = 8.00085466544
+    
+    D415
+    [ 640x480  p[313.79 238.076]  f[592.138 592.138]  Brown Conrady [0 0 0 0 0] ]
+    
     """
     pipe.stop()
     pass

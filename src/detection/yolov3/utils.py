@@ -325,7 +325,7 @@ def tf_load_image(image_file_path, dtype, shape):
     return depth_image
 
 
-def tf_resize_image(depth_image, shape, resize_mode: str = 'crop'):
+def tf_resize_image(depth_image, shape, resize_mode: str):
     # convert the values to range 0-255 as tf.io.read_file does
     # depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
     # resize image
