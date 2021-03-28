@@ -9,6 +9,7 @@ from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR, DOCS_DIR
 from src.detection.yolov3.metrics import get_positives_and_negatives
 from src.utils.plots import save_show_fig
+from sklearn.metrics import precision_recall_curve
 
 
 def evaluate(weights_path):
@@ -77,14 +78,8 @@ def generate_precision_recall_curves(y_pred_pkl, y_true_pkl, fig_scores_location
     y_pred = np.load(y_pred_pkl)
     y_true = np.load(y_true_pkl)
 
-    num_thresholds = 50
-    thresholds = np.linspace(0, 1, num_thresholds)
-    precision = np.empty([num_thresholds])
-    recall = np.empty([num_thresholds])
-    for i in range(num_thresholds):
-        tp, tn, fp, fn = get_positives_and_negatives(y_true, y_pred, thresholds[i])
-        precision[i] = tf.math.divide_no_nan(tp, (tp + fp)).numpy()
-        recall[i] = tf.math.divide_no_nan(tp, (tp + fn)).numpy()
+    precision, recall, thresholds = precision_recall_curve(y_true[..., 4:5].flatten(), y_pred[..., 4:5].flatten())
+    thresholds = np.concatenate([[0], thresholds])
     f1 = tf.math.divide_no_nan(2 * precision * recall, (precision + recall)).numpy()
 
     figsize = (8, 6)
@@ -109,7 +104,6 @@ def generate_precision_recall_curves(y_pred_pkl, y_true_pkl, fig_scores_location
     # plt.title("Precision-recall curve of a trained Tiny YOLOv3 model")
     plt.xlabel('Recall', labelpad=20)
     plt.ylabel('Precision', labelpad=20)
-    plt.ylim(top=0.8, bottom=0.0)
     plt.margins(x=0, y=0)
     plt.tick_params(axis='x', pad=15)
     plt.tick_params(axis='y', pad=15)
@@ -123,8 +117,8 @@ if __name__ == '__main__':
 
     pred_path = '../../../other/eval_y_pred_03-15.pkl.npy'
     true_path = '../../../other/eval_y_true_03-15.pkl.npy'
-    # weights_path = LOGS_DIR.joinpath("20210112-220731/train_ckpts/ckpt_9") # Previous model
-    weights_path = LOGS_DIR.joinpath("20210315-143811/train_ckpts/weights.12.h5")
+    # weights_path = LOGS_DIR.joinpath("20210112-220731/train_ckpts/ckpt_9") # Previous model that uses padding
+    weights_path = LOGS_DIR.joinpath("20210315-143811/train_ckpts/weights.12.h5")  # Model that uses crop
 
     # y_pred, y_true = evaluate(weights_path)
     # np.save(pred_path, y_pred)

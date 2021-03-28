@@ -106,6 +106,7 @@ class DatasetGenerator:
         # Rotate in plane
         if self.augment:
             images, uv_global = self.augment_batch(images, uv_global)
+        images = tf.cast(images, tf.float32)
 
         self.bboxes = self.extract_bboxes(uv_global)
         self.bboxes = self.square_bboxes(self.bboxes)

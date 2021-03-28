@@ -27,6 +27,7 @@ class ComPreprocessor:
             cropped_images is a tf.RaggedTensor(shape=[batch_size, None, None, 1])
             bcubes is a tf.Tensor(shape=[batch_size, 6])
         """
+        full_image = tf.cast(full_image, tf.float32)
         cropped = self.crop_bbox(full_image, bbox)
         coms = self.compute_coms(cropped, offsets=bbox[..., :2])
         # plt.imshow(full_image[0])
@@ -78,9 +79,11 @@ class ComPreprocessor:
         -------
         center_of_mass : tf.Tensor of shape [3]
             Represented in UVZ coordinates.
-            Returns [0,0,0] for zero-sized image, which happens for cropped images .
-
+            Returns [0,0,0] for zero-sized image, which can happen after a crop
+            of zero-sized bounding box.
         """
+        if tf.size(image) == 0:
+            return tf.constant([0, 0, 0], dtype=tf.float32)
         if type(image) is tf.RaggedTensor:
             image = image.to_tensor()
         # Create all coordinate pairs
@@ -94,7 +97,7 @@ class ComPreprocessor:
         coords = tf.stack([xx, yy], axis=-1)
         coords = tf.cast(coords, tf.float32)  # [im_width * im_height, 2]
 
-        image_mask = tf.cast(image > 0, dtype=tf.float32)
+        image_mask = tf.cast(image > 0., dtype=tf.float32)
         image_mask_flat = tf.reshape(image_mask, [im_width * im_height, 1])
         # The total mass of the depth
         total_mass = tf.reduce_sum(image)
