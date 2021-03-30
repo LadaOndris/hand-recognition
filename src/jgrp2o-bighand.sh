@@ -38,10 +38,12 @@ cp -r "$DATADIR/datasets/bighand/Subject_1.tar" "$SCRATCHDIR/datasets" || { echo
 # Extract it
 tar -xf "$SCRATCHDIR/datasets/Subject_1.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract Subject_1.tar"; exit 2; }
 
-# Copy Subject_2.tar
 cp -r "$DATADIR/datasets/bighand/Subject_2.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy Subject_2.tar"; exit 2; }
-# Extract it
 tar -xf "$SCRATCHDIR/datasets/Subject_2.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract Subject_2.tar"; exit 2; }
+
+cp -r "$DATADIR/datasets/bighand/Subject_3.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy Subject_3.tar"; exit 2; }
+tar -xf "$SCRATCHDIR/datasets/Subject_3.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract Subject_3.tar"; exit 2; }
+
 
 
 export PYTHONPATH=$SCRATCHDIR

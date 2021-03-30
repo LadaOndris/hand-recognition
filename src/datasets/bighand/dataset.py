@@ -67,7 +67,7 @@ class BighandDataset:
         dataset = tf.data.TextLineDataset(annotation_files)
         """ Reshuffle the dataset each iteration """
         if self.shuffle:
-            dataset = dataset.shuffle(buffer_size=16384, reshuffle_each_iteration=True)
+            dataset = dataset.shuffle(buffer_size=131072, reshuffle_each_iteration=True)
         dataset = dataset.repeat()
         dataset = dataset.map(self._prepare_sample)
         dataset = dataset.batch(self.batch_size)

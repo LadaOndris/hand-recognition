@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from src.detection.yolov3 import utils
@@ -45,7 +44,9 @@ class HandPositionEstimator:
 
     def load_estimator(self):
         # Load HPE model and weights
-        weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+
+        weights_path = LOGS_DIR.joinpath('20210329-032745/train_ckpts/weights.03.h5')  # bighand
+        # weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
         # weights_path = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -191,7 +192,7 @@ def preprocess_image_for_detection(images):
 
 if __name__ == '__main__':
     estimator = HandPositionEstimator(Camera('sr305'), plot_detection=True, plot_estimation=True)
-    # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/47.png')))
-    estimator.detect_live()
+    estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/47.png')))
+    # estimator.detect_live()
 
     pass

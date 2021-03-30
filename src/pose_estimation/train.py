@@ -57,9 +57,11 @@ def test(dataset: str, weights_path: str):
 def train(dataset: str):
     network = JGR_J2O()
     cam = Camera(dataset)
+    bighand_test_size = 1.0
 
     if dataset == 'bighand':
-        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
+        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=bighand_test_size, batch_size=JGRJ2O_TRAIN_BATCH_SIZE,
+                            shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
                                         camera=cam, dataset_includes_bboxes=False, augment=True, cube_size=250)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
@@ -74,12 +76,17 @@ def train(dataset: str):
     model = network.graph()
     print(model.summary(line_length=120))
 
+    monitor_loss = 'val_loss'
+    if ds.num_test_batches == 0:
+        test_ds_gen = None
+        monitor_loss = 'loss'
+
     log_dir = logs_utils.make_log_dir()
     checkpoint_path = logs_utils.compose_ckpt_path(log_dir)
     callbacks = [
         tf.keras.callbacks.TensorBoard(log_dir=log_dir, update_freq='epoch'),
-        tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_weights_only=True, save_best_only=True),
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
+        tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, monitor=monitor_loss, save_weights_only=True),
+        tf.keras.callbacks.EarlyStopping(monitor=monitor_loss, patience=10, restore_best_weights=True),
         tf.keras.callbacks.TerminateOnNaN()
     ]
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -89,7 +96,8 @@ def train(dataset: str):
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
-    model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
+
+    model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=512,
               validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
 
     # probably won't come to this, but just to be sure.
