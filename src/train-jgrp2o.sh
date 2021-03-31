@@ -18,6 +18,8 @@ conda activate ibt
 conda install matplotlib
 conda install tensorflow
 conda install scikit-learn
+pip install opencv-python
+pip install scikit-image
 pip install gast==0.3.3
 pip install tensorflow-addons
 conda list

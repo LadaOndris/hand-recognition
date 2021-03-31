@@ -4,6 +4,7 @@ from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
 from src.utils.config import JGRJ2O_WEIGHT_DECAY
+from src.utils.images import resize_bilinear_nearest_batch
 
 
 class ResnetBlock(tf.keras.layers.Layer):
@@ -251,8 +252,9 @@ class JGR_J2O:
         v_im = tf.cast(y[:, :, tf.newaxis], tf.float32) / self.out_size
         # Z coordinate is retrieved from the image directly
         # (values should be already normalized to [-1, 1]:
-        z_im = tf.image.resize(input, [self.out_size, self.out_size],
-                               method=tf.image.ResizeMethod.BILINEAR)
+        # z_im = tf.image.resize(input, [self.out_size, self.out_size],
+        #                        method=tf.image.ResizeMethod.BILINEAR)
+        z_im = resize_bilinear_nearest_batch(input, [self.out_size, self.out_size])
 
         # u, v, z: [-1, 21]
         u = tf.reduce_sum(weights * (u_im + u_offs), axis=[1, 2])

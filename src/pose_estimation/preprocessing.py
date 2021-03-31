@@ -1,6 +1,8 @@
 import tensorflow as tf
 from src.utils.camera import Camera
 import matplotlib.pyplot as plt
+from skimage import filters
+from skimage import exposure
 
 
 class ComPreprocessor:
@@ -55,6 +57,7 @@ class ComPreprocessor:
         center_of_mass : tf.Tensor of shape [batch_size, 3]
             Represented in UVZ coordinates.
         """
+
         com_local = tf.map_fn(self.center_of_mass, images,
                               fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
 
@@ -86,6 +89,22 @@ class ComPreprocessor:
             return tf.constant([0, 0, 0], dtype=tf.float32)
         if type(image) is tf.RaggedTensor:
             image = image.to_tensor()
+
+        # Apply otsu thresholding to remove background and leave closest object only
+        # However if there is another object in similar distance as a hand,
+        # then it fails to remove it. Then it is probably best to
+        # find the biggest countour.
+        image_min = tf.reduce_min(image)
+        image_np = image.numpy()
+        image_above_zero = image_np[image_np > image_min]
+        val = filters.threshold_otsu(image_above_zero)
+        image_np[image_np > val] = 0
+        image = tf.convert_to_tensor(image_np)
+        # print(val)
+        # hist, bins_center = exposure.histogram(image_above_zero)
+        # plt.plot(bins_center, hist)
+        # plt.show()
+
         # Create all coordinate pairs
         im_width, im_height = tf.shape(image)[:2]
         x = tf.range(im_width)

@@ -27,19 +27,24 @@ def test(dataset: str, weights_path: str):
                                        camera=cam,
                                        dataset_includes_bboxes=False)
     elif dataset == 'msra':
-        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=1, shuffle=True)
+        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
                                        camera=cam, dataset_includes_bboxes=True)
 
     model = network.graph()
     model.load_weights(weights_path)
-    # model.load_weights(SAVED_MODELS_DIR.joinpath('jgrp2o_msra_20210305-220222.h5'))
+
     for batch_images, y_true in test_ds_gen:
         y_pred = model.predict(batch_images)
+        uvz_pred = test_ds_gen.postprocess(y_pred)
+        joints2d = uvz_pred[..., :2] - test_ds_gen.bboxes[..., tf.newaxis, :2]
 
-        for image, true, pred in zip(batch_images, y_true[0], y_pred[0]):
-            plot_joints_2d(image, true[..., :2] * 96)
-            plot_joints_2d(image, pred[..., :2] * 96)
+        for image, joints in zip(test_ds_gen.cropped_imgs, joints2d):
+            plot_joints_2d(image.to_tensor(), joints)
+
+        # for image, true, pred in zip(batch_images, y_true[0], y_pred[0]):
+        #     plot_joints_2d(image, true[..., :2] * 96)
+        #     plot_joints_2d(image, pred[..., :2] * 96)
 
         """
         y_pred_joints = test_ds_gen.postprocess(y_pred)
@@ -54,7 +59,7 @@ def test(dataset: str, weights_path: str):
         """
 
 
-def train(dataset: str):
+def train(dataset: str, weights_path: str):
     network = JGR_J2O()
     cam = Camera(dataset)
     bighand_test_size = 1.0
@@ -63,9 +68,9 @@ def train(dataset: str):
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=bighand_test_size, batch_size=JGRJ2O_TRAIN_BATCH_SIZE,
                             shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam, dataset_includes_bboxes=False, augment=True, cube_size=250)
+                               camera=cam, augment=False, cube_size=230, refine_iters=0)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=False, cube_size=250)
+                               camera=cam, augment=False, cube_size=230, refine_iters=0)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
@@ -75,6 +80,8 @@ def train(dataset: str):
 
     model = network.graph()
     print(model.summary(line_length=120))
+    if weights_path is not None:
+        model.load_weights(weights_path)
 
     monitor_loss = 'val_loss'
     if ds.num_test_batches == 0:
@@ -96,9 +103,13 @@ def train(dataset: str):
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
-
-    model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=512,
-              validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
+    
+    if dataset == "bighand":
+        model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=512,
+                  validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
+    else:
+        model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
+                  validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
 
     # probably won't come to this, but just to be sure.
     # (the best checkpoint is being saved after each epoch)
@@ -114,11 +125,12 @@ def try_dataset_pipeline(dataset: str):
     cam = Camera(dataset)
 
     if dataset == 'bighand':
-        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=8, shuffle=True)
+        ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=4, shuffle=True)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size,
-                               network.out_size, camera=cam, augment=True, cube_size=250)
+                               network.out_size, camera=cam, augment=False, cube_size=230,
+                               refine_iters=0)
     elif dataset == 'msra':
-        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=True)
+        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
         gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
                                camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
     for images, y_true in gen:
@@ -131,16 +143,20 @@ def try_dataset_pipeline(dataset: str):
 
 
 if __name__ == "__main__":
-    # try_dataset_pipeline('bighand')
+
+    # weights = LOGS_DIR.joinpath("20210330-024055/train_ckpts/weights.31.h5") # bighand
+    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5') # msra
+    # try_dataset_pipeline('msra')
     # test('msra', weights)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', type=str, action='store', default=None)
     parser.add_argument('--evaluate', type=str, action='store', default=None)
+    parser.add_argument('--model', type=str, action='store', default=None)
     args = parser.parse_args()
 
     if args.train is not None:
-        log_dir, model_filepath = train(args.train)
+        log_dir, model_filepath = train(args.train, args.model)
 
     if args.evaluate is not None and args.train is not None:
         if model_filepath is not None and os.path.isfile(model_filepath):

@@ -325,20 +325,3 @@ def tf_load_image(image_file_path, dtype, shape):
     return depth_image
 
 
-def tf_resize_image(depth_image, shape, resize_mode: str):
-    # convert the values to range 0-255 as tf.io.read_file does
-    # depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
-    # resize image
-    type = depth_image.dtype
-    if resize_mode == 'pad':
-        depth_image = tf.image.resize_with_pad(depth_image, shape[0], shape[1])
-    elif resize_mode == 'crop':
-        depth_image = depth_image[tf.newaxis, ...]
-        depth_image = tf.image.crop_and_resize(depth_image, [[0, 80 / 640.0, 480 / 480.0, 560 / 640.0]],
-                                               [0], shape)
-        depth_image = depth_image[0]
-    else:
-        raise ValueError(F"Unknown resize mode: {resize_mode}")
-    # depth_image = tf.where(depth_image > 2000, 0, depth_image)
-    depth_image = tf.cast(depth_image, dtype=type)
-    return depth_image

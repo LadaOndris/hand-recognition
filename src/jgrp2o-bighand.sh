@@ -18,6 +18,8 @@ conda activate ibt
 conda install matplotlib
 conda install tensorflow
 conda install scikit-learn
+pip install opencv-python
+pip install scikit-image
 pip install gast==0.3.3
 pip install tensorflow-addons
 conda list
@@ -44,10 +46,10 @@ tar -xf "$SCRATCHDIR/datasets/Subject_2.tar" -C "$SCRATCHDIR/datasets/bighand" |
 cp -r "$DATADIR/datasets/bighand/Subject_3.tar" "$SCRATCHDIR/datasets" || { echo >&2 "Couldnt copy Subject_3.tar"; exit 2; }
 tar -xf "$SCRATCHDIR/datasets/Subject_3.tar" -C "$SCRATCHDIR/datasets/bighand" || { echo >&2 "Couldnt extract Subject_3.tar"; exit 2; }
 
-
+cp -r "$DATADIR/saved_models" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy saved models"; exit 2; }
 
 export PYTHONPATH=$SCRATCHDIR
-python3 $SCRATCHDIR/src/pose_estimation/train.py --train bighand
+python3 $SCRATCHDIR/src/pose_estimation/train.py --train bighand --model "$SCRATCHDIR/saved_models/210330-024055/weights.52.h5"
 
 cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }
 cp -r $SCRATCHDIR/saved_models $DATADIR/ || { echo >&2 "Couldnt copy saved_models to datadir."; exit 3; }

@@ -1,6 +1,8 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 import numpy as np
+import cv2
+from src.utils.images import resize_images, resize_bilinear_nearest_batch
 from src.utils.camera import Camera
 from src.utils.plots import plot_joints_2d
 from src.pose_estimation.preprocessing import ComPreprocessor
@@ -16,7 +18,8 @@ class DatasetGenerator:
     """
 
     def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
-                 return_xyz=False, dataset_includes_bboxes=False, augment=False, cube_size=200):
+                 return_xyz=False, dataset_includes_bboxes=False, augment=False, cube_size=200,
+                 refine_iters=4):
         """
         Parameters
         ----------
@@ -38,9 +41,10 @@ class DatasetGenerator:
         self.dataset_includes_bboxes = dataset_includes_bboxes
         self.augment = augment
         self.cube_size = (cube_size, cube_size, cube_size)
+        self.refine_iters = refine_iters
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
-        self.cropped_images = None
+        self.cropped_imgs = None
         self.com_preprocessor = ComPreprocessor(self.camera)
 
     def __iter__(self):
@@ -72,12 +76,13 @@ class DatasetGenerator:
         images = tf.cast(images, tf.float32)
         self.bcubes = self.com_preprocessor.refine_bcube_using_com(images, bboxes,
                                                                    cube_size=self.cube_size,
-                                                                   refine_iters=4)
+                                                                   refine_iters=self.refine_iters)
         # Crop the area defined by bcube from the orig image
-        cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
+        self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
+        self.cropped_imgs = self.clear_hand(self.cropped_imgs)  # find countours
         self.bcubes = tf.cast(self.bcubes, tf.float32)
         self.bboxes = tf.concat([self.bcubes[..., 0:2], self.bcubes[..., 3:5]], axis=-1)
-        resized_imgs = self.resize_images(cropped_imgs, target_size=self.image_in_size)
+        resized_imgs = resize_images(self.cropped_imgs, target_size=self.image_in_size)
         resized_imgs = tf.where(resized_imgs < self.bcubes[..., tf.newaxis, tf.newaxis, 2:3], 0, resized_imgs)
         self.resize_coeffs = self.get_resize_coeffs(self.bboxes, target_size=self.image_in_size)
         self.normalized_imgs = self.normalize_imgs(resized_imgs, self.bcubes)
@@ -124,7 +129,7 @@ class DatasetGenerator:
         self.bboxes = tf.concat([self.bcubes[..., :2], self.bcubes[..., 3:5]], axis=-1)
 
         # Resize images and remove values out of bcubes caused by billinear resizing
-        resized_imgs = self.resize_images(self.cropped_imgs, target_size=self.image_in_size)
+        resized_imgs = resize_images(self.cropped_imgs, target_size=self.image_in_size)
         resized_imgs = tf.where(resized_imgs < self.bcubes[..., tf.newaxis, tf.newaxis, 2:3], 0, resized_imgs)
 
         uv_cropped = uv_global - tf.cast(self.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
@@ -136,6 +141,36 @@ class DatasetGenerator:
         normalized_uvz = self.normalize_coords(resized_uv, z, self.bcubes)
         offsets = self.compute_offsets(self.normalized_imgs, normalized_uvz)
         return self.normalized_imgs, [normalized_uvz, offsets]
+
+    def clear_hand(self, images):
+
+        cleared = tf.map_fn(self.find_largest_countour, elems=images,
+                            fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
+        return cleared
+
+    def find_largest_countour(self, image):
+        image_tensor = image.to_tensor()
+        image_casted = tf.cast(image_tensor, dtype=tf.uint16)
+        image_casted = tf.image.convert_image_dtype(image_casted, dtype=tf.uint8).numpy()
+
+        # Generate intermediate image; use morphological closing to keep parts of the brain together
+        inter = cv2.morphologyEx(image_casted, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+
+        # Find largest contour in intermediate image
+        cnts, _ = cv2.findContours(inter, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        cnt = max(cnts, key=cv2.contourArea)
+
+        # Output
+        out = np.zeros(image_casted.shape, np.uint8)
+        cv2.drawContours(out, [cnt], -1, 255, cv2.FILLED)
+        # cleared_img = cv2.bitwise_and(image_casted, out)
+        out_tensor = tf.convert_to_tensor(out)
+        mask = out_tensor > 0
+        cleared_img = tf.where(mask, image_tensor, 0)
+        # cleared_img = tf.convert_to_tensor(cleared_img[..., np.newaxis])
+        # cleared_img = tf.image.convert_image_dtype(cleared_img, tf.uint16)
+        # cleared_img = tf.cast(cleared_img, tf.float32)
+        return tf.RaggedTensor.from_tensor(cleared_img, ragged_rank=2)
 
     def bcubes_translate3d(self, bcubes, stddev):
         """
@@ -183,14 +218,6 @@ class DatasetGenerator:
         shift_both_directions = tf.concat([shift, -shift], axis=-1)  # shape [batch_size, 6]
         bcubes_scaled = bcubes + shift_both_directions
         return bcubes_scaled
-
-    def resize_images(self, cropped_imgs, target_size):
-        def _resize(img):
-            return tf.image.resize(img.to_tensor(), target_size, method=tf.image.ResizeMethod.BILINEAR)
-
-        return tf.map_fn(_resize, cropped_imgs,
-                         fn_output_signature=tf.TensorSpec(shape=(target_size[0], target_size[1], 1),
-                                                           dtype=tf.float32))
 
     def get_resize_coeffs(self, bboxes, target_size):
         cropped_imgs_sizes_u = bboxes[..., 2] - bboxes[..., 0]  # right - left
@@ -325,8 +352,10 @@ class DatasetGenerator:
         v_offsets = y[:, :, tf.newaxis, :]
         v_offsets = tf.tile(v_offsets, [1, 1, self.image_out_size, 1])
 
-        z_im = tf.image.resize(images, [self.image_out_size, self.image_out_size],
-                               method=tf.image.ResizeMethod.BILINEAR)
+        # z_im = tf.image.resize(images, [self.image_out_size, self.image_out_size],
+        #                        method=tf.image.ResizeMethod.BILINEAR)
+        z_im = resize_bilinear_nearest_batch(images, [self.image_out_size, self.image_out_size])
+
         z_coords = joints[..., 2]
         z_coords = z_coords[:, tf.newaxis, tf.newaxis, :]
         z_offsets = z_coords - z_im
