@@ -79,7 +79,11 @@ class DatasetGenerator:
                                                                    refine_iters=self.refine_iters)
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
-        self.cropped_imgs = self.clear_hand(self.cropped_imgs)  # find countours
+        self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(self.cropped_imgs,
+                                                                           plot_image_after_thresholding=False,
+                                                                           plot_image_before_thresholding=False,
+                                                                           plot_histogram=True)
+        # self.cropped_imgs = self.clear_hand(self.cropped_imgs)  # find countours
         self.bcubes = tf.cast(self.bcubes, tf.float32)
         self.bboxes = tf.concat([self.bcubes[..., 0:2], self.bcubes[..., 3:5]], axis=-1)
         resized_imgs = resize_images(self.cropped_imgs, target_size=self.image_in_size)
@@ -125,6 +129,11 @@ class DatasetGenerator:
 
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
+        # self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(self.cropped_imgs,
+        #                                                                    plot_image_after_thresholding=False,
+        #                                                                    plot_image_before_thresholding=False,
+        #                                                                    plot_histogram=False)
+
         self.bcubes = tf.cast(self.bcubes, tf.float32)
         self.bboxes = tf.concat([self.bcubes[..., :2], self.bcubes[..., 3:5]], axis=-1)
 

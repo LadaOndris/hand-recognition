@@ -141,7 +141,7 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
 
 
 def draw_predictions(image, boxes, nums, fig_location):
-    fig, ax = plt.subplots(1, figsize=(2, 2))
+    fig, ax = plt.subplots(1, figsize=(3, 3))
     ax.imshow(image, cmap=depth_image_cmap)
 
     for i in range(nums):

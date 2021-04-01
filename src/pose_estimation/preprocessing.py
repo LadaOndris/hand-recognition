@@ -1,8 +1,12 @@
 import tensorflow as tf
 from src.utils.camera import Camera
+from src.utils.plots import plot_depth_image, plot_depth_image_histogram
 import matplotlib.pyplot as plt
 from skimage import filters
 from skimage import exposure
+from scipy import stats
+import numpy as np
+from src.utils.paths import DOCS_DIR
 
 
 class ComPreprocessor:
@@ -31,8 +35,9 @@ class ComPreprocessor:
         """
         full_image = tf.cast(full_image, tf.float32)
         cropped = self.crop_bbox(full_image, bbox)
+        # plot_depth_image(cropped[0].to_tensor())
         coms = self.compute_coms(cropped, offsets=bbox[..., :2])
-        # plt.imshow(full_image[0])
+        # plt.imshow(cropped[0].to_tensor())
         # plt.scatter(coms[0, 0], coms[0, 1])
         # plt.show()
         coms = self.refine_coms(full_image, coms, iters=refine_iters, cube_size=cube_size)
@@ -57,6 +62,7 @@ class ComPreprocessor:
         center_of_mass : tf.Tensor of shape [batch_size, 3]
             Represented in UVZ coordinates.
         """
+        images = self.apply_otsus_thresholding(images)
 
         com_local = tf.map_fn(self.center_of_mass, images,
                               fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
@@ -90,21 +96,6 @@ class ComPreprocessor:
         if type(image) is tf.RaggedTensor:
             image = image.to_tensor()
 
-        # Apply otsu thresholding to remove background and leave closest object only
-        # However if there is another object in similar distance as a hand,
-        # then it fails to remove it. Then it is probably best to
-        # find the biggest countour.
-        image_min = tf.reduce_min(image)
-        image_np = image.numpy()
-        image_above_zero = image_np[image_np > image_min]
-        val = filters.threshold_otsu(image_above_zero)
-        image_np[image_np > val] = 0
-        image = tf.convert_to_tensor(image_np)
-        # print(val)
-        # hist, bins_center = exposure.histogram(image_above_zero)
-        # plt.plot(bins_center, hist)
-        # plt.show()
-
         # Create all coordinate pairs
         im_width, im_height = tf.shape(image)[:2]
         x = tf.range(im_width)
@@ -127,6 +118,44 @@ class ComPreprocessor:
         volumes_uvz = tf.stack([volumes_vu[1], volumes_vu[0], total_mass], axis=0)
         com_uvz = tf.math.divide_no_nan(volumes_uvz, nonzero_pixels)
         return com_uvz
+
+    def apply_otsus_thresholding(self, images, plot_image_before_thresholding=False,
+                                 plot_image_after_thresholding=False, plot_histogram=False):
+        def apply_treshold(image):
+            if type(image) is tf.RaggedTensor:
+                image = image.to_tensor()
+
+            if plot_image_before_thresholding:
+                plot_depth_image(image)
+            # Apply otsu thresholding to remove background and leave closest object only
+            # However if there is another object in similar distance as a hand,
+            # then it fails to remove it. Then it is probably best to
+            # find the biggest countour.
+            image_min = tf.reduce_min(image)
+            image_np = image.numpy()
+            image_above_zero = image_np[image_np > image_min]
+            threshold_depth = filters.threshold_otsu(image_above_zero)
+
+            # Apply thresholding only if the threshold_frequency
+            # is significantly low
+            peak_depth, peak_frequency = stats.mode(image_above_zero)
+            unique, counts = np.unique(image_above_zero, return_counts=True)
+            threshold_frequency = counts[unique == np.round(threshold_depth)]
+            if np.size(threshold_frequency) == 0:
+                threshold_frequency = 0
+            if plot_histogram:
+                print('Threshold:', threshold_depth)
+                plot_depth_image_histogram(image_above_zero, True)
+                print(F"{threshold_frequency}/{peak_frequency}={float(threshold_frequency) / peak_frequency}")
+            if float(threshold_frequency) / peak_frequency < 0.01:
+                image_np[image_np > threshold_depth] = 0
+                image = tf.convert_to_tensor(image_np)
+            if plot_image_after_thresholding:
+                plot_depth_image(image)
+            return tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+
+        return tf.map_fn(apply_treshold, images,
+                         fn_output_signature=tf.RaggedTensorSpec(shape=[None, None, 1], dtype=images.dtype))
 
     def refine_coms(self, full_image, com, iters, cube_size):
         for i in range(iters):
@@ -234,6 +263,7 @@ class ComPreprocessor:
 
         Returns
         -------
+        plot_depth_image(cropped[0].to_tensor())
         Cropped image
             The cropped image is of the same shape as the bbox.
         """
@@ -241,14 +271,15 @@ class ComPreprocessor:
         def crop(elems):
             image, bbox = elems
             x_start, y_start, x_end, y_end = bbox
-            cropped_image = image[y_start:y_end, x_start:x_end]
 
-            # Pad the cropped image if we were out of bounds
             x_start_bound = tf.maximum(x_start, 0)
             y_start_bound = tf.maximum(y_start, 0)
             x_end_bound = tf.minimum(image.shape[1], x_end)
             y_end_bound = tf.minimum(image.shape[0], y_end)
 
+            cropped_image = image[y_start_bound:y_end_bound, x_start_bound:x_end_bound]
+
+            # Pad the cropped image if we were out of bounds
             padded_image = tf.pad(cropped_image, [[y_start_bound - y_start, y_end - y_end_bound],
                                                   [x_start_bound - x_start, x_end - x_end_bound],
                                                   [0, 0]])

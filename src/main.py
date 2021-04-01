@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from src.detection.yolov3 import utils
 from src.core.cfg.cfg_parser import Model
-from src.utils.paths import LOGS_DIR, CUSTOM_DATASET_DIR, BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR
+from src.utils.paths import LOGS_DIR, CUSTOM_DATASET_DIR, BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR, \
+    DOCS_DIR
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.live import generate_live_images
 from src.pose_estimation.dataset_generator import DatasetGenerator
@@ -19,10 +20,11 @@ class HandPositionEstimator:
     either from files, live images, or from given images.
     """
 
-    def __init__(self, camera: Camera, cube_size, plot_detection=False, plot_estimation=False):
+    def __init__(self, camera: Camera, cube_size, plot_detection=False, plot_estimation=False, plot_skeleton=True):
         self.camera = camera
         self.plot_detection = plot_detection
         self.plot_estimation = plot_estimation
+        self.plot_skeleton = plot_skeleton
         self.resize_mode = 'crop'
         self.detector = self.load_detector(self.resize_mode)
         self.network = JGR_J2O()
@@ -30,7 +32,7 @@ class HandPositionEstimator:
         self.estimation_preprocessor = DatasetGenerator(None, self.detector.input_shape, self.network.input_size,
                                                         self.network.out_size,
                                                         camera=self.camera, augment=False, cube_size=cube_size,
-                                                        refine_iters=1)
+                                                        refine_iters=0)
 
     def load_detector(self, resize_mode):
         # Load model based on the preference resize mode
@@ -126,7 +128,8 @@ class HandPositionEstimator:
                                                             self.detector.input_shape,
                                                             TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7, max_boxes=1)
         if self.plot_detection:
-            utils.draw_predictions(images[0], boxes[0], nums[0], fig_location=None)
+            utils.draw_predictions(images[0], boxes[0], nums[0],
+                                   fig_location=DOCS_DIR.joinpath('images/deteceted_hand_for_hpe.png'))
         return boxes
 
     def estimate(self, images, boxes):
@@ -138,7 +141,11 @@ class HandPositionEstimator:
         # Plot the inferenced pose
         if self.plot_estimation:
             joints2d = uvz_pred[..., :2] - self.estimation_preprocessor.bboxes[..., tf.newaxis, :2]
-            plots.plot_joints_2d(self.estimation_preprocessor.cropped_imgs[0].to_tensor(), joints2d[0])
+            image = self.estimation_preprocessor.cropped_imgs[0].to_tensor()
+            if self.plot_skeleton:
+                plots.plot_joints_2d(image, joints2d[0])
+            else:
+                plots.plot_depth_image(image)  # , fig_location=str(DOCS_DIR.joinpath('images/with_otsus.png')))
         return uvz_pred
 
     def read_image(self, file_path: str):
@@ -196,16 +203,20 @@ def preprocess_image_for_detection(images):
 
 if __name__ == '__main__':
     dataset = 'custom'
-    estimator = HandPositionEstimator(Camera(dataset), cube_size=200, plot_detection=False, plot_estimation=True)
+    estimator = HandPositionEstimator(Camera(dataset), cube_size=200, plot_detection=False,
+                                      plot_estimation=True, plot_skeleton=True)
 
     if dataset == 'bighand':
         for i in range(3):
             for j in range(3):
                 estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(
-                    F"Subject_2/1 75/image_D000{i}{j}000.png")))
+                    F"Subject_1/1 75/image_D000{i}{j}000.png")))
     else:
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/85.png')))
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/42.png')))
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/85.png')))
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/42.png')))
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/72.png')))
+        # Fails in otsus method for empty array
+        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-233307/22.png")))
         # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232751/420.png')))
 
         # for j in range(9):

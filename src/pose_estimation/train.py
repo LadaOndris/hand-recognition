@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     # weights = LOGS_DIR.joinpath("20210330-024055/train_ckpts/weights.31.h5") # bighand
     # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5') # msra
-    # try_dataset_pipeline('msra')
+    try_dataset_pipeline('bighand')
     # test('msra', weights)
 
     parser = argparse.ArgumentParser()

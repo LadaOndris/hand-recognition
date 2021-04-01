@@ -14,13 +14,14 @@ from src.utils.camera import Camera
 depth_image_cmap = 'gist_yarg'
 
 
-def plot_depth_image(image):
-    fig, ax = plt.subplots(1)
+def plot_depth_image(image, fig_location=None):
+    fig, ax = plt.subplots(1, figsize=(3, 3))
     _plot_depth_image(ax, image)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    fig.tight_layout()
-    plt.show()
+    fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.98)
+    # fig.tight_layout()
+    save_show_fig(fig, fig_location, show_figure=True)
 
 
 class FixZorderCollection(Poly3DCollection):
@@ -234,6 +235,20 @@ def plot_proportion_below_threshold(proportions, show_figure=True, fig_location=
     ax.set_xlabel('Max joint error threshold (mm)')
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_figure)
+
+
+def plot_depth_image_histogram(image, show_fig=True, fig_location=None):
+    plt.rcParams.update({"font.size": 24})
+    fig = plt.figure(figsize=(10, 7))
+    min, max = np.min(image), np.max(image)
+    plt.hist(image, bins=np.arange(min, max + 1, step=1), histtype='stepfilled')
+    plt.xlabel('Depth [mm]', labelpad=20)
+    plt.ylabel('Frequency', labelpad=20)
+    plt.margins(x=0, y=0)
+    plt.tick_params(axis='x', pad=15)
+    plt.tick_params(axis='y', pad=15)
+    plt.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
 
 
 def save_show_fig(fig, fig_location, show_figure):
