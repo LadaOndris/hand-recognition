@@ -121,9 +121,11 @@ class ComPreprocessor:
 
     def apply_otsus_thresholding(self, images, plot_image_before_thresholding=False,
                                  plot_image_after_thresholding=False, plot_histogram=False):
-        def apply_treshold(image):
-            if type(image) is tf.RaggedTensor:
-                image = image.to_tensor()
+        def apply_treshold(image_in):
+            if tf.size(image_in) == 0:
+                return image_in
+            if type(image_in) is tf.RaggedTensor:
+                image = image_in.to_tensor()
 
             if plot_image_before_thresholding:
                 plot_depth_image(image)
@@ -132,8 +134,15 @@ class ComPreprocessor:
             # then it fails to remove it. Then it is probably best to
             # find the biggest countour.
             image_min = tf.reduce_min(image)
-            image_np = image.numpy()
-            image_above_zero = image_np[image_np > image_min]
+            # image_np = image.numpy()
+            # image_above_zero = image_np[image_np > image_min]
+            indices = tf.where(image > image_min)
+            image_above_zero = tf.gather_nd(image, indices)
+            # print(image_above_zero.shape, image_min)
+            if tf.size(image_above_zero) == 0:
+                return tf.RaggedTensor.from_tensor(image, ragged_rank=2)
+
+            image_above_zero = image_above_zero.numpy()
             threshold_depth = filters.threshold_otsu(image_above_zero)
 
             # Apply thresholding only if the threshold_frequency
@@ -147,9 +156,11 @@ class ComPreprocessor:
                 print('Threshold:', threshold_depth)
                 plot_depth_image_histogram(image_above_zero, True)
                 print(F"{threshold_frequency}/{peak_frequency}={float(threshold_frequency) / peak_frequency}")
-            if float(threshold_frequency) / peak_frequency < 0.01:
-                image_np[image_np > threshold_depth] = 0
-                image = tf.convert_to_tensor(image_np)
+            ALLOWANCE_THRESHOLD = 0.01
+            if float(threshold_frequency) / peak_frequency < ALLOWANCE_THRESHOLD:
+                # image_np[image_np > threshold_depth] = 0
+                image = tf.where(image > threshold_depth, 0, image)
+                image = tf.convert_to_tensor(image)
             if plot_image_after_thresholding:
                 plot_depth_image(image)
             return tf.RaggedTensor.from_tensor(image, ragged_rank=2)

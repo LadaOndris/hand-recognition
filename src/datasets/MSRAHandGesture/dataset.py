@@ -1,4 +1,4 @@
-from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
+from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
 from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
 from src.acceptance.base import rds_errors, hand_rotation, vectors_angle
 from src.utils.camera import Camera
@@ -169,14 +169,17 @@ def plot_hands():
     idx = 8
     idx2 = idx + 301
     joints1_2d = cam.world_to_pixel(joints[idx])
-    plot_joints_2d(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2])
+    plot_joints_2d(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2], show_fig=False)
     joints2_2d = cam.world_to_pixel(joints2[idx])
-    plot_joints_2d(images2[idx], joints2_2d[..., :2] - bbox_coords2[idx, ..., :2])
+    plot_joints_2d(images2[idx], joints2_2d[..., :2] - bbox_coords2[idx, ..., :2], show_fig=False)
 
     hand1 = (images[idx], bbox_coords[idx], joints[idx])
     hand2 = (images2[idx2], bbox_coords2[idx2], joints2[idx2])
-    plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True)
-    plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True)
+
+    fig1 = DOCS_DIR.joinpath('figures/msra_jre_1.png')
+    fig2 = DOCS_DIR.joinpath('figures/msra_jre_2.png')
+    plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True, fig_location=fig1)
+    plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True, fig_location=fig2)
 
     hand1_orientation, _ = hand_rotation(joints[idx])
     hand2_orientation, _ = hand_rotation(joints2[idx2])

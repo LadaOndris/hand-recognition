@@ -39,7 +39,8 @@ class FixZorderCollection(Poly3DCollection):
 def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
                         hand2: Tuple[np.ndarray, np.ndarray, np.ndarray],
                         cam: Camera,
-                        show_norm=False, show_joint_errors=False):
+                        show_norm=False, show_joint_errors=False,
+                        fig_location=None, show_fig=True):
     """
     Plots an image with a skeleton of the first hand and
     shows major differences from the second hand.
@@ -64,27 +65,33 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
     else:
         errors = None
 
-    fig, ax = plt.subplots()
-    _plot_depth_image(ax, image1)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6.5, 5),
+                             gridspec_kw={"width_ratios": [5.0 / 6, 1.5 / 6]})
+    hand_axis = axes[0]
+    bar_axis = axes[1]
+    # hand_axis.set_position([0, 0, 0.9, 1])
+    # bar_axis.set_position([0.9, 0, 1, 1])
+    _plot_depth_image(hand_axis, image1)
     joints1_2d = cam.world_to_pixel(joints1)
     # The image is cropped. Amend the joint coordinates to match the depth image
     joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
-    _plot_skeleton_with_errors_2d(fig, ax, joints1_2d, joint_errors=errors, color='blue')
+    _plot_hand_skeleton_2d(hand_axis, joints1_2d, wrist_index=0, scatter=False)
+    _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints1_2d, joint_errors=errors, color='blue')
 
     if show_norm:
         norm, mean = hand_rotation(joints1)
         norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + 20 * norm, mean]))
         norm_2d = norm_2d[..., :2] - bbox1[..., :2]
         mean_2d = mean_2d[..., :2] - bbox1[..., :2]
-        ax.arrow(mean_2d[0], mean_2d[1], dx=norm_2d[0] - mean_2d[0], dy=norm_2d[1] - mean_2d[1],
-                 color='orange', head_length=5, shape='full', head_width=4, zorder=1000,
-                 width=1)
-
-    ax.xaxis.set_visible(False)
-    ax.yaxis.set_visible(False)
-    ax.set_axis_off()
-    # fig.tight_layout()
-    plt.show()
+        hand_axis.arrow(mean_2d[0], mean_2d[1], dx=norm_2d[0] - mean_2d[0], dy=norm_2d[1] - mean_2d[1],
+                        color='orange', head_length=5, shape='full', head_width=4, zorder=1000,
+                        width=1)
+    for ax in axes:
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        ax.set_axis_off()
+    fig.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
 
 
 def cmap_subset(cmap, min, max):
@@ -94,24 +101,23 @@ def cmap_subset(cmap, min, max):
         cmap(np.linspace(min, max, 256)))
 
 
-def _plot_skeleton_with_errors_2d(fig, ax, joints, joint_errors, color='r'):
-    _plot_hand_skeleton_2d(ax, joints, wrist_index=0, scatter=False)
-
+def _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors, color='r'):
+    plt.rcParams.update({"font.size": 18})
     min_err, max_err = joint_errors.min(), joint_errors.max()
     min_s, max_s = min_err * 4, max_err * 4  # 20., 200.
     scaled_errors = joint_errors / (max_err / (max_s - min_s)) + min_s
 
     cmap = cmap_subset(cm.get_cmap('Reds'), 0.4, 1.0)
-    ax.scatter(joints[..., 0], joints[..., 1],
-               c=joint_errors, cmap=cmap, s=scaled_errors, alpha=1, zorder=100)
-    ax_inset = inset_axes(ax, width="100%", height="100%", loc='upper center',
-                          bbox_to_anchor=(1.05, 0.71, 0.04, 0.24), bbox_transform=ax.transAxes)
+    hand_axis.scatter(joints[..., 0], joints[..., 1],
+                      c=joint_errors, cmap=cmap, s=scaled_errors, alpha=1, zorder=100)
+    ax_inset = inset_axes(bar_axis, width="100%", height="100%", loc='upper center',
+                          bbox_to_anchor=(0, 0.35, 0.15, 0.4), bbox_transform=bar_axis.transAxes)
     cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=ax_inset, format='%.2f')
     colorbar_tick_labels = np.linspace(min_err, max_err, 5, dtype=float)
     colorbar_tick_labels = np.round(colorbar_tick_labels, 1)
     cbar.set_ticks(np.linspace(0, 1, 5))
     cbar.set_ticklabels(colorbar_tick_labels)
-    cbar.ax.set_ylabel('Average distance [mm]')
+    cbar.ax.set_ylabel('Joint relation error [mm]', labelpad=15)
     # cbar.ax.xaxis.set_label_position('top')
 
 
@@ -168,7 +174,9 @@ def plot_joints(image, bbox, joints, show_norm=False):
 
     for i in range(len(ax.collections)):
         ax.collections[i].__class__ = FixZorderCollection
-    _plot_skeleton_with_errors_2d(fig, ax, joints)
+
+    _plot_hand_skeleton_2d(ax, joints, wrist_index=0, scatter=False)
+    _plot_joint_errors_2d(fig, ax, joints)
 
     if show_norm:
         norm, mean = hand_rotation(joints)

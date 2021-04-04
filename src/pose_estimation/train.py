@@ -24,12 +24,12 @@ def test(dataset: str, weights_path: str):
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=1, shuffle=False)
         test_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam,
-                                       dataset_includes_bboxes=False)
+                                       camera=cam, dataset_includes_bboxes=False, refine_iters=0, cube_size=230)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=True)
+                                       camera=cam, dataset_includes_bboxes=True, refine_iters=1,
+                                       cube_size=180)
 
     model = network.graph()
     model.load_weights(weights_path)
@@ -68,9 +68,9 @@ def train(dataset: str, weights_path: str):
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=bighand_test_size, batch_size=JGRJ2O_TRAIN_BATCH_SIZE,
                             shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                               camera=cam, augment=False, cube_size=230, refine_iters=0)
+                                        camera=cam, augment=True, cube_size=230, refine_iters=0)
         test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                               camera=cam, augment=False, cube_size=230, refine_iters=0)
+                                       camera=cam, augment=False, cube_size=230, refine_iters=0)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
         train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
@@ -96,19 +96,24 @@ def train(dataset: str, weights_path: str):
         tf.keras.callbacks.EarlyStopping(monitor=monitor_loss, patience=10, restore_best_weights=True),
         tf.keras.callbacks.TerminateOnNaN()
     ]
+
+    steps_per_epoch = ds.num_train_batches
+    if dataset == 'bighand':
+        steps_per_epoch = 512
+
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=JGRJ2O_LEARNING_RATE,
-        decay_steps=ds.num_train_batches,
+        decay_steps=steps_per_epoch,
         decay_rate=JGRJ2O_LR_DECAY,
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
-    
+
     if dataset == "bighand":
-        model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=512,
+        model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=steps_per_epoch,
                   validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
     else:
-        model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=ds.num_train_batches,
+        model.fit(train_ds_gen, epochs=70, verbose=0, callbacks=callbacks, steps_per_epoch=steps_per_epoch,
                   validation_data=test_ds_gen, validation_steps=ds.num_test_batches)
 
     # probably won't come to this, but just to be sure.
@@ -126,28 +131,36 @@ def try_dataset_pipeline(dataset: str):
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=4, shuffle=True)
-        gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size,
+        gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size,
                                network.out_size, camera=cam, augment=False, cube_size=230,
                                refine_iters=0)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
-        gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+        gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
                                camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
     for images, y_true in gen:
-        joints = y_true[0]
+        joints_true = y_true[0]
         # y_true_joints = gen.postprocess(y_true)
         # true_joints_2d = y_true_joints[..., :2] - tf.cast(gen.bboxes[:, tf.newaxis, :2], dtype=tf.float32)
 
-        for image, true_joints in zip(images, joints):
-            plot_joints_2d(image, true_joints[..., :2] * 96)
+        uvz_pred = gen.postprocess(y_true)
+        joints2d = uvz_pred[..., :2] - gen.bboxes[..., tf.newaxis, :2]
+
+        for image, joints in zip(gen.cropped_imgs, joints2d):
+            plot_joints_2d(image.to_tensor(), joints)
+
+        # for image, true_joints in zip(images, joints_true):
+        #    plot_joints_2d(image, true_joints[..., :2] * 96)
 
 
 if __name__ == "__main__":
 
-    # weights = LOGS_DIR.joinpath("20210330-024055/train_ckpts/weights.31.h5") # bighand
-    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5') # msra
+    # weights = LOGS_DIR.joinpath("20210330-024055/train_ckpts/weights.31.h5")  # bighand
+    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')  # msra
+    # weights = LOGS_DIR.joinpath('20210402-112810/train_ckpts/weights.14.h5')  # msra
+    # weights = LOGS_DIR.joinpath('20210403-183544/train_ckpts/weights.01.h5')  # overtrained on single image
+    # test('bighand', weights)
     # try_dataset_pipeline('bighand')
-    # test('msra', weights)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', type=str, action='store', default=None)

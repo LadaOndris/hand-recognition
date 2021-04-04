@@ -5,6 +5,7 @@ from src.utils.paths import BIGHAND_DATASET_DIR
 from src.utils import plots
 from src.utils.camera import Camera
 import matplotlib.pyplot as plt
+from PIL import Image
 
 
 class BighandDataset:
@@ -50,6 +51,19 @@ class BighandDataset:
 
         boundary_index = int(len(annotation_files) * self.train_size)
         return annotation_files[:boundary_index], annotation_files[boundary_index:]
+
+    def _build_dataset_one_sample(self, annotation_files):
+        file = annotation_files[0]
+        tf.print(file)
+        with open(file, 'r') as f:
+            annotation_line = f.readline()
+        line = tf.constant(annotation_line, dtype=tf.string)
+        line = tf.reshape(line, shape=[1])
+        ds = tf.data.Dataset.from_tensor_slices(line)
+        ds = ds.repeat()
+        ds = ds.map(self._prepare_sample)
+        ds = ds.batch(1)
+        return ds
 
     def _build_dataset(self, annotation_files):
         """ Read specified files """
@@ -109,18 +123,6 @@ class BighandDataset:
 
 if __name__ == '__main__':
     cam = Camera('bighand')
-    from PIL import Image
-
-    # img = Image.open(os.path.join(BIGHAND_DATASET_DIR, 'Subject_1/ego/image_D00004312.png'))
-    # plt.imshow(img)
-    # str = "52.6535\t17.4918\t244.7902\t53.4700\t10.5999\t232.5524\t-7.5528\t-25.6909\t246.3567\t-7.9223\t-11.1448\t265.4427\t-0.7686\t2.2768\t276.8307\t4.5669\t14.8456\t288.6272\t-0.5667\t11.4204\t213.3530\t-34.0246\t11.9284\t201.4653\t-54.3765\t6.6205\t183.8623\t-53.0614\t-32.1009\t256.1785\t-79.4255\t-35.8143\t261.8684\t-98.8141\t-40.6814\t264.8109\t-53.3633\t-16.1438\t287.2915\t-82.5084\t-19.3500\t301.3050\t-102.7916\t-23.0986\t308.8707\t-32.0517\t32.4398\t292.7742\t-9.4679\t34.0019\t275.2228\t4.7097\t42.8654\t262.1639\t-18.2654\t11.7553\t325.9233\t-31.7898\t9.9248\t348.0151\t-46.1367\t5.7294\t363.2272"
-    # jnts = tf.strings.split(tf.constant(str, tf.string), sep='\t', maxsplit=63)
-    # jnts = tf.strings.to_number(jnts, tf.float32)
-    # jnts = tf.reshape(jnts, [21, 3])
-    # jnts2d = cam.world_to_pixel(jnts)
-    # plt.scatter(jnts2d[..., 0], jnts2d[..., 1], c='r', marker='o', s=20)
-    # plt.show()
-
     ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=10, shuffle=True)
     iterator = iter(ds.train_dataset)
     batch_images, batch_labels = next(iterator)
