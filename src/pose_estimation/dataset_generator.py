@@ -4,10 +4,11 @@ import numpy as np
 import cv2
 from src.utils.images import resize_images, resize_bilinear_nearest_batch
 from src.utils.camera import Camera
-from src.utils.plots import plot_joints_2d
+import src.utils.plots as plots
 from src.pose_estimation.preprocessing import ComPreprocessor
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from src.utils.paths import DOCS_DIR
 
 
 class DatasetGenerator:
@@ -159,23 +160,43 @@ class DatasetGenerator:
 
     def find_largest_countour(self, image):
         image_tensor = image.to_tensor()
-        image_casted = tf.cast(image_tensor, dtype=tf.uint16)
-        image_casted = tf.image.convert_image_dtype(image_casted, dtype=tf.uint8).numpy()
+        image_casted_uint16 = tf.cast(image_tensor, dtype=tf.uint16).numpy()
+        # image_casted = tf.cast(image_casted_uint16, dtype=tf.uint8).numpy()
+        # image_casted = tf.image.convert_image_dtype(image_casted_uint16, dtype=tf.uint8).numpy()
+        # image_casted = cv2.convertScaleAbs(image_casted_uint16, alpha=(255.0 / 65535.0))
+        image_casted = image_casted_uint16
 
-        # Generate intermediate image; use morphological closing to keep parts of the brain together
-        inter = cv2.morphologyEx(image_casted, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        # plot_image_comparison(image_casted_uint16, image_casted, 'uint8')
+        # Use morphological closing to connect disconnected fingers
+        # caused by a depth camera
+        image_morph_closed = cv2.morphologyEx(image_casted, cv2.MORPH_CLOSE,
+                                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        # image_morph_opened = cv2.morphologyEx(image_casted, cv2.MORPH_OPEN,
+        #                                       cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+
+        # plot_image_comparison(image_casted, image_morph_closed, 'closing')
+        # plot_image_comparison(image_casted, image_morph_opened, 'opening')
+        # plots.plot_depth_image(image_casted, DOCS_DIR.joinpath('images/largest_contour_original.png'))
+        # plots.plot_depth_image(image_morph_closed, DOCS_DIR.joinpath('images/largest_contour_after_morphing.png'))
+
+        # Convert dtype to uint8
+        image_morph_closed = cv2.convertScaleAbs(image_morph_closed)
 
         # Find largest contour in intermediate image
-        cnts, _ = cv2.findContours(inter, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        cnts, _ = cv2.findContours(image_morph_closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         cnt = max(cnts, key=cv2.contourArea)
 
         # Output
         out = np.zeros(image_casted.shape, np.uint8)
         cv2.drawContours(out, [cnt], -1, 255, cv2.FILLED)
-        # cleared_img = cv2.bitwise_and(image_casted, out)
+
         out_tensor = tf.convert_to_tensor(out)
         mask = out_tensor > 0
         cleared_img = tf.where(mask, image_tensor, 0)
+
+        # plots.plot_depth_image(out_tensor, DOCS_DIR.joinpath('images/largest_contour_mask.png'))
+        # plots.plot_depth_image(cleared_img, DOCS_DIR.joinpath('images/largest_contour_result.png'))
+
         # cleared_img = tf.convert_to_tensor(cleared_img[..., np.newaxis])
         # cleared_img = tf.image.convert_image_dtype(cleared_img, tf.uint16)
         # cleared_img = tf.cast(cleared_img, tf.float32)

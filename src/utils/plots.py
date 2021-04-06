@@ -259,6 +259,18 @@ def plot_depth_image_histogram(image, show_fig=True, fig_location=None):
     save_show_fig(fig, fig_location, show_fig)
 
 
+def plot_image_comparison(original, filtered, filter_name):
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(8, 4), sharex=True,
+                                   sharey=True)
+    _plot_depth_image(ax1, original)
+    ax1.set_title('original')
+    ax1.axis('off')
+    _plot_depth_image(ax2, filtered)
+    ax2.set_title(filter_name)
+    ax2.axis('off')
+    fig.show()
+
+
 def save_show_fig(fig, fig_location, show_figure):
     if fig_location:
         fig.savefig(fig_location)
