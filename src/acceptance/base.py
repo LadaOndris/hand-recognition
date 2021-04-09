@@ -3,6 +3,9 @@ import scipy.spatial
 
 
 def _upper_tri(A):
+    """
+    Returns an upper triangle of a given matrix.
+    """
     r = np.arange(A.shape[A.ndim - 2])
     mask = r[:, None] < r
     return A[..., mask]
@@ -145,7 +148,7 @@ def best_fitting_hyperplane(z: np.ndarray):
     return norm_vec, z_mean
 
 
-def rds_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
+def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
     """
     Computes the average relative difference of joint positions of one hand
     in comparison to the second hand.

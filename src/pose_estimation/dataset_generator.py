@@ -78,6 +78,8 @@ class DatasetGenerator:
         self.bcubes = self.com_preprocessor.refine_bcube_using_com(images, bboxes,
                                                                    cube_size=self.cube_size,
                                                                    refine_iters=self.refine_iters)
+        # path = DOCS_DIR.joinpath('images/bounding_cube1.png')
+        # plots.plot_bounding_cube(images[0], self.bcubes[0], self.camera, fig_location=path)
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
         self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(self.cropped_imgs,

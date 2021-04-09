@@ -1,3 +1,7 @@
+"""
+This file contains functions to scan user-defined gestures,
+extract poses, and save them into a directory.
+"""
 from src.utils.logs import make_timestamped_dir
 from src.utils.paths import USECASE_DATASET_DIR, USECASE_DATASET_JOINTS_PATH
 from src.utils.live import generate_live_images

@@ -1,6 +1,6 @@
 import numpy as np
 from src.acceptance import database
-from src.acceptance.base import rds_errors, hand_distance, hand_rotation, get_relative_distances, vectors_angle
+from src.acceptance.base import joint_relation_errors, hand_distance, hand_rotation, get_relative_distances, vectors_angle
 
 
 def predict_gesture(keypoints: np.ndarray, hands_db):
@@ -47,7 +47,7 @@ def accept_gesture(keypoints: np.ndarray, rd_threshold, orientation_threshold, d
     gesture_idx, rd_diff, orientation_diff, distance = predict_gesture(keypoints, keypoints_db)
 
     most_similar_gesture = keypoints_db[gesture_idx]
-    rd_errors = rds_errors(keypoints, most_similar_gesture)
+    rd_errors = joint_relation_errors(keypoints, most_similar_gesture)
     orientation_error = orientation_threshold - orientation_diff
 
     if rd_diff > rd_threshold or orientation_diff > orientation_threshold:

@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from src.detection.yolov3.utils import draw_centroid
 from mpl_toolkits.mplot3d.art3d import Path3DCollection, Poly3DCollection
-from src.acceptance.base import hand_rotation, rds_errors
+from src.acceptance.base import hand_rotation, joint_relation_errors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from typing import Tuple
 import numpy as np
@@ -14,8 +14,8 @@ from src.utils.camera import Camera
 depth_image_cmap = 'gist_yarg'
 
 
-def plot_depth_image(image, fig_location=None):
-    fig, ax = plt.subplots(1, figsize=(3, 3))
+def plot_depth_image(image, fig_location=None, figsize=(3, 3)):
+    fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
@@ -61,7 +61,7 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
     image2, bbox2, joints2 = hand2
 
     if show_joint_errors:
-        errors = rds_errors(np.expand_dims(joints1, axis=0), np.expand_dims(joints2, axis=0))[0, 0, :]
+        errors = joint_relation_errors(np.expand_dims(joints1, axis=0), np.expand_dims(joints2, axis=0))[0, 0, :]
     else:
         errors = None
 
@@ -269,6 +269,47 @@ def plot_image_comparison(original, filtered, filter_name):
     ax2.set_title(filter_name)
     ax2.axis('off')
     fig.show()
+
+
+def plot_bounding_cube(image, bcube, cam: Camera, fig_location=None, show_fig=True):
+    def get_four_points(P, dx, dy):
+        P = np.array(P)
+        P1 = P.copy()
+        P2 = P.copy()
+        P3 = P.copy()
+        P4 = P.copy()
+        P2[0] += dx
+        P3[1] += dy
+        P4[:2] += [dx, dy]
+        Ps_xyz = np.array([P1, P2, P4, P3])
+        Ps_uv = cam.world_to_pixel(Ps_xyz)[:, :2]
+        return Ps_uv
+
+    Au, Av, Az, Bu, Bv, Bz = bcube
+    A = np.array([Au, Av, Az])
+    B = np.array([Bu, Bv, Bz])
+    A = cam.pixel_to_world(A[np.newaxis, ...])[0]
+    B = cam.pixel_to_world(B[np.newaxis, ...])[0]
+    dx = B[0] - A[0]
+    dy = B[1] - A[1]
+    As = get_four_points(A, dx, dy)
+    Bs = get_four_points(B, -dx, -dy)
+    rect1 = np.concatenate([As, [As[0]]])
+    rect2 = np.concatenate([Bs, [Bs[0]]])
+
+    fig, ax = plt.subplots(1, figsize=(3, 3))
+    _plot_depth_image(ax, image)
+    color = '#c61732'
+    ax.plot(rect1[:, 0], rect1[:, 1], c=color)
+    ax.plot(rect2[:, 0], rect2[:, 1], c=color)
+    ax.plot([As[0, 0], Bs[2, 0]], [As[0, 1], Bs[2, 1]], c=color)
+    ax.plot([As[1, 0], Bs[3, 0]], [As[1, 1], Bs[3, 1]], c=color)
+    ax.plot([As[2, 0], Bs[0, 0]], [As[2, 1], Bs[0, 1]], c=color)
+    ax.plot([As[3, 0], Bs[1, 0]], [As[3, 1], Bs[1, 1]], c=color)
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    fig.subplots_adjust(left=0.01, right=0.99, bottom=0.01, top=0.99)
+    save_show_fig(fig, fig_location, show_fig)
 
 
 def save_show_fig(fig, fig_location, show_figure):

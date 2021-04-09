@@ -103,6 +103,7 @@ if __name__ == '__main__':
     # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
     # weights = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
     # weights = LOGS_DIR.joinpath("20210324-203043/train_ckpts/weights.12.h5")
-    weights = LOGS_DIR.joinpath('20210403-191540/train_ckpts/weights.09.h5')  # msra
+    # weights = LOGS_DIR.joinpath('20210403-191540/train_ckpts/weights.09.h5')  # msra
+    weights = LOGS_DIR.joinpath('20210407-172551/train_ckpts/weights.13.h5')  # msra
     thres, mje = evaluate('msra', weights)
     print(mje)

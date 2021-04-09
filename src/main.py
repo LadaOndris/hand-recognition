@@ -56,7 +56,9 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210403-011340/train_ckpts/weights.15.h5")  # bighand from 52.h5
         # weights_path = LOGS_DIR.joinpath("20210403-212844/train_ckpts/weights.10.h5")  # bighand smaller LR
         # weights_path = LOGS_DIR.joinpath("20210404-133121/train_ckpts/weights.14.h5")  # bighand smaller LR, augmentation, otsus thesh 0.03
-        weights_path = LOGS_DIR.joinpath("20210404-175716/train_ckpts/weights.02.h5")  # bighand smaller LR, augmentation, otsus thesh 0.01
+        # weights_path = LOGS_DIR.joinpath("20210404-175716/train_ckpts/weights.02.h5")  # bighand smaller LR, augmentation, otsus thesh 0.01
+        # weights_path = LOGS_DIR.joinpath("20210405-223012/train_ckpts/weights.20.h5")  # augmentation, LR = e-4
+        weights_path = LOGS_DIR.joinpath("20210407-172950/train_ckpts/weights.18.h5")
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -216,18 +218,18 @@ if __name__ == '__main__':
                 estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(
                     F"Subject_1/226 300/image_D000{i}{j}000.png")))
     else:
-        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/85.png')))
+        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-230536/85.png')))
         # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/42.png')))
-        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/72.png')))
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232147/75.png')))
         # # Fails in otsus method for empty array
-        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-233307/22.png")))
-        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath('20210326-232751/420.png')))
+        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-233307/22.png")))
 
-        #for j in range(9):
-        #   estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/50{j}.png")))
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232147/70.png")))
 
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-231436/70.png")))
+        # for j in range(9):
+        #     estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/50{j}.png")))
 
+        # estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-231436/70.png")))
 
     # estimator.detect_live()
 

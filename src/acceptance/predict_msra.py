@@ -3,9 +3,11 @@ import src.datasets.MSRAHandGesture.dataset as msra_dataset
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_curve
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, recall_score, accuracy_score
+from sklearn.metrics import accuracy_score
 import numpy as np
 import sklearn
+import src.utils.plots as plots
+from src.utils.paths import DOCS_DIR
 
 
 def plot_precision_recall_vs_threshold(precisions, recalls, thresholds):
@@ -18,6 +20,24 @@ def plot_precision_recall_vs_threshold(precisions, recalls, thresholds):
 
 
 def predict(joints, db_joints, db_labels):
+    """
+    Gets Joint Relation Errors for each pair of hands---
+    betweeen the joints and db_joints---and
+    classifies the gesture as the one with the lowest error.
+
+    Parameters
+    ----------
+    joints : shape [batch_size, 21]
+        A batch of input hand poses.
+    db_joints : shappe [db_size, 21]
+        The database of hand poses (train dataset).
+    db_labels : shape [db_size]
+        The gesture labels for the database of hand poses.
+
+    Returns
+    -------
+    Gesture class labels of each sample in the batch.
+    """
     rds = get_relative_distances(joints, db_joints)
 
     # rds = np.where(rds < 10000, rds, np.inf)
@@ -30,6 +50,25 @@ def predict(joints, db_joints, db_labels):
 
 
 def sample_train_test_split(joints, labels, class_names, indices, train_samples_per_class):
+    """
+    Randomly samples train dataset and the rest puts
+    in the test dataset. The number of training samples is specified
+    by the train_samples_per_class argument.
+
+    Parameters
+    ----------
+    joints
+    labels
+    class_names
+    indices
+    train_samples_per_class : int
+        Number of train samples to select per each class.
+
+    Returns
+    -------
+    dataset : Tuple(x_train, x_test, y_train, y_test)
+    """
+
     x_train = x_test = y_train = y_test = None
     for i, class_name in enumerate(class_names):
         class_indices = indices == i
@@ -49,6 +88,16 @@ def sample_train_test_split(joints, labels, class_names, indices, train_samples_
 
 
 def false_prediction_pairs(y_pred, y_true):
+    """
+    Prints pairs of predicted and true classes that differ.
+
+    Returns
+    -------
+    false_pairs
+        The pairs of classes that differ.
+    counts
+        Number of occurences of the pairs.
+    """
     cond = y_pred != y_true
     false_preds = np.stack([y_true[cond], y_pred[cond]], axis=-1)
     false_pairs, counts = np.unique(false_preds, axis=0, return_counts=True)
@@ -56,6 +105,21 @@ def false_prediction_pairs(y_pred, y_true):
 
 
 def predict_for_different_train_sizes(repetitions=10):
+    """
+    Performs gesture recognition on MSRA dataset.
+    Randomly samples N frames for gesture, creating the training dataset.
+    Then, the gesture recognition is evaluated on the rest of the dataset.
+    All accuracies are printed.
+
+    Parameters
+    ----------
+    repetitions : int
+    Number of times to repeat the experiment.
+
+    Returns
+    -------
+    None
+    """
     gestures, joints, labels = msra_dataset.load_dataset()
     unique_labels, indices = np.unique(labels, return_inverse=True)
     print(F"The accuracies are averaged over {repetitions} runs.")
@@ -81,7 +145,10 @@ def predict_for_different_train_sizes(repetitions=10):
 
 def plot_predition():
     """
-    The accuracy fromthe randomnly sampled trained dataset works.
+    Prints accuracy score of the gesture recognition on the msra dataset,
+    and plots precision recall curve.
+
+    The accuracy from the randomnly sampled trained dataset works.
     The plot who knows..
     """
     gestures, joints, labels = msra_dataset.load_dataset()
@@ -101,5 +168,32 @@ def plot_predition():
     plot_precision_recall_vs_threshold(precisions, recalls, thresholds)
 
 
-# plot_predition()
-predict_for_different_train_sizes()
+def plot_accuracy_vs_train_sizes():
+    """
+    Plots the accuracy score produced by the
+    predict_for_different_train_sizes function.
+    """
+    fig_location = DOCS_DIR.joinpath('figures/gesture_recognition_evaluation_msra.png')
+    acc = [0.47216, 0.68169, 0.79358, 0.83532, 0.86857,
+           0.90493, 0.91702, 0.94044, 0.94254, 0.94857]
+    samples_per_class = np.arange(1, 11)
+
+    plt.style.use('seaborn-whitegrid')
+    plt.rcParams.update({"font.size": 24})
+    # sns.set_style("whitegrid", {'axes.grid': False})
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.plot(samples_per_class, acc)
+    ax.set_ylim([0, 1])
+    ax.set_xlim([1, 10])
+    ax.set_xlabel('Number of samples per class', labelpad=20)
+    ax.set_ylabel('Accuracy', labelpad=20)
+    ax.tick_params(axis='x', pad=15)
+    ax.tick_params(axis='y', pad=15)
+    fig.tight_layout()
+    plots.save_show_fig(fig, fig_location, True)
+
+
+if __name__ == '__main__':
+    # plot_predition()
+    # predict_for_different_train_sizes()
+    plot_accuracy_vs_train_sizes()

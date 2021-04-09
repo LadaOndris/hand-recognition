@@ -121,42 +121,53 @@ class ComPreprocessor:
 
     def apply_otsus_thresholding(self, images, plot_image_before_thresholding=False,
                                  plot_image_after_thresholding=False, plot_histogram=False):
+        def has_single_color(image):
+            image_min = tf.reduce_min(image)
+            image_max = tf.reduce_max(image)
+            return image_min == image_max
+
+        def is_valid_image(image):
+            if tf.size(image) == 0 or has_single_color(image):
+                return False
+            else:
+                return True
+
         def apply_treshold(image_in):
             if tf.size(image_in) == 0:
                 return image_in
             if type(image_in) is tf.RaggedTensor:
                 image = image_in.to_tensor()
 
+            image_min = tf.reduce_min(image)
+
             if plot_image_before_thresholding:
                 plot_depth_image(image)
+
             # Apply otsu thresholding to remove background and leave closest object only
             # However if there is another object in similar distance as a hand,
             # then it fails to remove it. Then it is probably best to
             # find the biggest countour.
-            image_min = tf.reduce_min(image)
-            # image_np = image.numpy()
-            # image_above_zero = image_np[image_np > image_min]
             indices = tf.where(image > image_min)
-            image_above_zero = tf.gather_nd(image, indices)
-            # print(image_above_zero.shape, image_min)
-            if tf.size(image_above_zero) == 0:
+            image_above_min = tf.gather_nd(image, indices)
+            
+            if not is_valid_image(image_above_min):
                 return tf.RaggedTensor.from_tensor(image, ragged_rank=2)
 
-            image_above_zero = image_above_zero.numpy()
-            threshold_depth = filters.threshold_otsu(image_above_zero)
+            image_above_min_numpy = image_above_min.numpy()
+            threshold_depth = filters.threshold_otsu(image_above_min_numpy)
 
             # Apply thresholding only if the threshold_frequency
             # is significantly low
-            peak_depth, peak_frequency = stats.mode(image_above_zero)
-            unique, counts = np.unique(image_above_zero, return_counts=True)
+            peak_depth, peak_frequency = stats.mode(image_above_min_numpy)
+            unique, counts = np.unique(image_above_min_numpy, return_counts=True)
             threshold_frequency = counts[unique == np.round(threshold_depth)]
             if np.size(threshold_frequency) == 0:
                 threshold_frequency = 0
             if plot_histogram:
                 print('Threshold:', threshold_depth)
-                plot_depth_image_histogram(image_above_zero, True)
+                plot_depth_image_histogram(image_above_min_numpy, True)
                 print(F"{threshold_frequency}/{peak_frequency}={float(threshold_frequency) / peak_frequency}")
-            ALLOWANCE_THRESHOLD = 0.03
+            ALLOWANCE_THRESHOLD = 0.01
             if float(threshold_frequency) / peak_frequency < ALLOWANCE_THRESHOLD:
                 # image_np[image_np > threshold_depth] = 0
                 image = tf.where(image > threshold_depth, 0, image)
@@ -204,7 +215,7 @@ class ComPreprocessor:
         """
         com_xyz = self.camera.pixel_to_world(com)
         half_size = tf.constant(size, dtype=tf.float32) / 2
-        # Do not subtact Z coordinate yet
+        # Do not subtract Z coordinate yet
         # The Z coordinates must stay the same for both points
         # in order for the projection to image plane to be correct
         half_size_xy = tf.stack([half_size[0], half_size[1], 0], axis=0)
@@ -212,8 +223,11 @@ class ComPreprocessor:
         bcube_end_xyz = com_xyz + half_size_xy
         bcube_start_uv = self.camera.world_to_pixel(bcube_start_xyz)[..., :2]
         bcube_end_uv = self.camera.world_to_pixel(bcube_end_xyz)[..., :2]
+        # Bounding Z coordinates are computed independendly of XY
         bcube_start_z = com[..., 2:3] - half_size[2]
         bcube_end_z = com[..., 2:3] + half_size[2]
+        # Then, the UV and Z coordinates are concatenated together to produce bounding cube
+        # defined in UVZ coordinates
         bcube = tf.concat([bcube_start_uv, bcube_start_z, bcube_end_uv, bcube_end_z], axis=-1)
         return tf.cast(bcube, dtype=tf.int32)
 

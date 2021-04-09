@@ -92,6 +92,7 @@ class Camera:
             points_xyz = coords_xyz[tf.newaxis, ...]
         else:
             points_xyz = coords_xyz
+        points_xyz = tf.cast(points_xyz, tf.float32)
 
         # Add ones for all points
         new_shape = [points_xyz.shape[0], points_xyz.shape[1], 1]
@@ -113,6 +114,7 @@ class Camera:
             points_uvz = coords_uvz[tf.newaxis, ...]
         else:
             points_uvz = coords_uvz
+        points_uvz = tf.cast(points_uvz, tf.float32)
 
         multiplied_uv = points_uvz[..., 0:2] * points_uvz[..., 2:3]
         ones = tf.ones([points_uvz.shape[0], points_uvz.shape[1], 1], dtype=points_uvz.dtype)
