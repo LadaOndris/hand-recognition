@@ -2,10 +2,10 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import numpy as np
 import cv2
-from src.utils.images import resize_images, resize_bilinear_nearest_batch
+from src.utils.imaging import resize_images, resize_bilinear_nearest_batch
 from src.utils.camera import Camera
 import src.utils.plots as plots
-from src.pose_estimation.preprocessing import ComPreprocessor
+from src.estimation.com_preprocessing import ComPreprocessor
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from src.utils.paths import DOCS_DIR

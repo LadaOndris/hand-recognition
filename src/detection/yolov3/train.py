@@ -1,6 +1,6 @@
 import tensorflow as tf
-from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_preprocessor import DatasetPreprocessor
+from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
+from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
 from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
 from src.detection.yolov3.yolo_loss import YoloLoss
 from src.core.cfg.cfg_parser import Model

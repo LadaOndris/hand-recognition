@@ -1,11 +1,11 @@
 import tensorflow as tf
-from src.pose_estimation.loss import CoordinateAndOffsetLoss, CoordinateLoss, OffsetLoss
+from src.estimation.losses import CoordinateAndOffsetLoss, CoordinateLoss, OffsetLoss
 from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.MSRAHandGesture.dataset import MSRADataset
-from src.pose_estimation.dataset_preprocessor import DatasetPreprocessor
-from src.pose_estimation.jgr_j2o import JGR_J2O
-from src.pose_estimation.evaluate import evaluate
-from src.pose_estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
+from src.estimation.dataset_preprocessing import DatasetPreprocessor
+from src.estimation.jgrp2o import JGR_J2O
+from src.estimation.evaluation import evaluate
+from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
 from src.utils.paths import BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR, SAVED_MODELS_DIR, LOGS_DIR
 from src.utils.camera import Camera
 from src.utils.config import JGRJ2O_LEARNING_RATE, JGRJ2O_LR_DECAY, JGRJ2O_TRAIN_BATCH_SIZE

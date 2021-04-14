@@ -1,4 +1,4 @@
-from src.datasets.handseg150k.dataset import HUGE_INT
+from src.datasets.handseg.dataset import HUGE_INT
 from numba import jit
 import numpy as np
 

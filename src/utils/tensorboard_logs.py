@@ -8,6 +8,14 @@ from src.utils.plots import save_show_fig
 
 
 def load_stats(experiment_id: str):
+    """
+    Reads data into a dataframe from tensorboard.
+
+    Parameters
+    ----------
+    experiment_id
+        Id of the experiment, see https://www.tensorflow.org/tensorboard/dataframe_api.
+    """
     experiment = tb.data.experimental.ExperimentFromDev(experiment_id)
     df = experiment.get_scalars()
     return df
@@ -15,6 +23,9 @@ def load_stats(experiment_id: str):
 
 def plot_epoch_loss(df: pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
+    """
+    Plots loss from dataframe from a tensorboard data.
+    """
     df_epoch_loss = df[df['tag'] == 'epoch_loss']
     sns.set_style("whitegrid", {'axes.grid': False})
     fig, ax = plt.subplots(figsize=(5, 3))

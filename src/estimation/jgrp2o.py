@@ -4,7 +4,7 @@ from tensorflow.keras import Model
 import tensorflow as tf
 import numpy as np
 from src.utils.config import JGRJ2O_WEIGHT_DECAY
-from src.utils.images import resize_bilinear_nearest_batch
+from src.utils.imaging import resize_bilinear_nearest_batch
 
 
 class ResnetBlock(tf.keras.layers.Layer):

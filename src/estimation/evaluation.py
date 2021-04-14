@@ -1,7 +1,7 @@
 from src.datasets.MSRAHandGesture.dataset import MSRADataset
-from src.pose_estimation.dataset_preprocessor import DatasetPreprocessor
-from src.pose_estimation.jgr_j2o import JGR_J2O
-from src.pose_estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
+from src.estimation.dataset_preprocessing import DatasetPreprocessor
+from src.estimation.jgrp2o import JGR_J2O
+from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
 from src.utils.paths import LOGS_DIR
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
 from src.utils.camera import Camera

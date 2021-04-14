@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from src.core.cfg.cfg_parser import Model
-from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_preprocessor import DatasetPreprocessor
+from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
+from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR, DOCS_DIR
 from src.detection.yolov3.metrics import get_positives_and_negatives

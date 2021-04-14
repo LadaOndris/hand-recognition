@@ -15,7 +15,7 @@ from joblib import dump, load
 from datetime import datetime
 from matplotlib import pyplot as plt
 
-from src.datasets.handseg150k.dataset import HandsegDataset, HUGE_INT
+from src.datasets.handseg.dataset import HandsegDataset, HUGE_INT
 from src.detection.rdf.feature_extraction_numba import extract_features, extract_features_and_labels, \
     get_pixel_coords, get_feature_offsets
 

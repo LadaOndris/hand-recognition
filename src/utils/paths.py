@@ -11,10 +11,11 @@ SRC_DIR = _ROOT_PATH.joinpath('src')
 DOCS_DIR = _ROOT_PATH.joinpath('documentation')
 OTHER_DIR = _ROOT_PATH.joinpath('other')
 
-HANDSEG_DATASET_DIR = _ROOT_PATH.joinpath("datasets/handseg150k")
+HANDSEG_DATASET_DIR = _ROOT_PATH.joinpath("datasets/handseg")
 MSRAHANDGESTURE_DATASET_DIR = _ROOT_PATH.joinpath("datasets/cvpr15_MSRAHandGestureDB")
 BIGHAND_DATASET_DIR = _ROOT_PATH.joinpath("datasets/bighand")
 CUSTOM_DATASET_DIR = _ROOT_PATH.joinpath("datasets/custom")
 USECASE_DATASET_DIR = _ROOT_PATH.joinpath("datasets/usecase")
+SIMPLE_DATASET_DIR = _ROOT_PATH.jointpath("datasets/simple_boxes")
 
 USECASE_DATASET_JOINTS_PATH = USECASE_DATASET_DIR.joinpath('joints.txt')

@@ -4,11 +4,11 @@ from src.core.cfg.cfg_parser import Model
 from src.utils.paths import LOGS_DIR, DOCS_DIR
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.live import generate_live_images
-from src.pose_estimation.dataset_preprocessor import DatasetPreprocessor
+from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.utils.camera import Camera
 import src.utils.plots as plots
-from src.pose_estimation.jgr_j2o import JGR_J2O
-from src.utils.images import tf_resize_image
+from src.estimation.jgrp2o import JGR_J2O
+from src.utils.imaging import tf_resize_image
 
 
 class HandPositionEstimator:
