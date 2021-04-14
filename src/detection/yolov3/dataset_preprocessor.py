@@ -5,7 +5,7 @@ Preprocesses bounding boxes from tf.Dataset and produces y_true.
 """
 
 
-class DatasetGenerator:
+class DatasetPreprocessor:
 
     def __init__(self, dataset_bboxes_iterator, input_shape, output_shapes, anchors):
         self.dataset_bboxes_iterator = dataset_bboxes_iterator

@@ -210,8 +210,8 @@ def _plot_depth_image(ax, image):
     ax.imshow(image, cmap=depth_image_cmap)
 
 
-def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None):
-    fig, ax = plt.subplots(1)
+def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4, 3)):
+    fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     _plot_hand_skeleton_2d(ax, joints2d)
     ax.set_axis_off()

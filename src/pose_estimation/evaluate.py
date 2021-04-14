@@ -1,5 +1,5 @@
 from src.datasets.MSRAHandGesture.dataset import MSRADataset
-from src.pose_estimation.dataset_generator import DatasetGenerator
+from src.pose_estimation.dataset_preprocessor import DatasetPreprocessor
 from src.pose_estimation.jgr_j2o import JGR_J2O
 from src.pose_estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
 from src.utils.paths import LOGS_DIR
@@ -78,8 +78,8 @@ def evaluate(dataset: str, weights_path: str):
     cam = Camera(dataset)
 
     ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=False)
-    test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                   camera=cam, dataset_includes_bboxes=True)
+    test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+                                      camera=cam, dataset_includes_bboxes=True)
 
     model = network.graph()
     model.load_weights(weights_path)

@@ -1,6 +1,6 @@
 import tensorflow as tf
 from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_generator import DatasetGenerator
+from src.detection.yolov3.dataset_preprocessor import DatasetPreprocessor
 from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
 from src.detection.yolov3.yolo_loss import YoloLoss
 from src.core.cfg.cfg_parser import Model
@@ -15,10 +15,10 @@ def train():
 
     handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.8, model_input_shape=model.input_shape,
                                            batch_size=model.batch_size)
-    train_dataset_generator = DatasetGenerator(handseg_dataset.train_batch_iterator,
-                                               model.input_shape, yolo_out_shapes, model.anchors)
-    test_dataset_generator = DatasetGenerator(handseg_dataset.test_batch_iterator,
-                                              model.input_shape, yolo_out_shapes, model.anchors)
+    train_dataset_generator = DatasetPreprocessor(handseg_dataset.train_batch_iterator,
+                                                  model.input_shape, yolo_out_shapes, model.anchors)
+    test_dataset_generator = DatasetPreprocessor(handseg_dataset.test_batch_iterator,
+                                                 model.input_shape, yolo_out_shapes, model.anchors)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=model.learning_rate,

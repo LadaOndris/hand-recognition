@@ -86,7 +86,7 @@ class JGR_J2O:
         self.A_e = self.connection_weight_matrix()
 
     def connection_weight_matrix(self):
-        # This is A + I:
+        # This is A + I (adjancency matrix + identity matrix):
         A = np.array([[1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
                       [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                       [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

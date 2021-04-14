@@ -28,8 +28,8 @@ class BighandDataset:
         self.num_train_batches = int(self.train_annotations // self.batch_size)
         self.num_test_batches = int(self.test_annotations // self.batch_size)
 
-        self.train_dataset = self._build_dataset(self.train_annotation_files)
-        self.test_dataset = self._build_dataset(self.test_annotation_files)
+        self.train_dataset = self._build_dataset(self.train_annotation_files, self.train_annotations)
+        self.test_dataset = self._build_dataset(self.test_annotation_files, self.test_annotations)
 
     def _count_annotations(self, annotation_files):
         def file_lines(filename):
@@ -42,7 +42,7 @@ class BighandDataset:
         return sum(counts)
 
     def _load_annotations(self):
-        subject_dirs = [f.stem for f in self.dataset_path.iterdir() if f.is_dir()]
+        subject_dirs = self._get_subject_dirs()
         annotation_files = []
         for subject_dir in subject_dirs:
             pattern = F"full_annotation/{subject_dir}/[!README]*.txt"
@@ -51,6 +51,9 @@ class BighandDataset:
 
         boundary_index = int(len(annotation_files) * self.train_size)
         return annotation_files[:boundary_index], annotation_files[boundary_index:]
+
+    def _get_subject_dirs(self):
+        return [f.stem for f in self.dataset_path.iterdir() if f.is_dir()]
 
     def _build_dataset_one_sample(self, annotation_files):
         file = annotation_files[0]
@@ -65,13 +68,17 @@ class BighandDataset:
         ds = ds.batch(1)
         return ds
 
-    def _build_dataset(self, annotation_files):
+    def _build_dataset(self, annotation_files, annotations_count):
         """ Read specified files """
         # dataset = tf.data.Dataset.from_tensor_slices(annotations)
 
         """ Read all available annotations """
         # pattern = os.path.join(self.dataset_path, 'full_annotation/*/*.txt')
         # dataset = tf.data.Dataset.list_files(pattern)
+
+        """ Cannot perform shuffle with less than 1 element"""
+        annotations_count = tf.maximum(annotations_count, 1)
+        annotations_count = tf.cast(annotations_count, dtype=tf.int64)
 
         """ Convert to Tensor and shuffle the files """
         annotation_files = tf.constant(annotation_files, dtype=tf.string)
@@ -81,7 +88,7 @@ class BighandDataset:
         dataset = tf.data.TextLineDataset(annotation_files)
         """ Reshuffle the dataset each iteration """
         if self.shuffle:
-            dataset = dataset.shuffle(buffer_size=131072, reshuffle_each_iteration=True)
+            dataset = dataset.shuffle(buffer_size=annotations_count, reshuffle_each_iteration=True)
         dataset = dataset.repeat()
         dataset = dataset.map(self._prepare_sample)
         dataset = dataset.batch(self.batch_size)

@@ -174,15 +174,19 @@ def plot_accuracy_vs_train_sizes():
     predict_for_different_train_sizes function.
     """
     fig_location = DOCS_DIR.joinpath('figures/gesture_recognition_evaluation_msra.png')
-    acc = [0.47216, 0.68169, 0.79358, 0.83532, 0.86857,
-           0.90493, 0.91702, 0.94044, 0.94254, 0.94857]
+    acc_without_length_norm = [0.47216, 0.68169, 0.79358, 0.83532, 0.86857,
+                               0.90493, 0.91702, 0.94044, 0.94254, 0.94857]
+
+    acc_with_length_norm = [0.62158, 0.77591, 0.88974, 0.91951, 0.94561,
+                            0.94694, 0.96007, 0.96839, 0.96998, 0.97280]
     samples_per_class = np.arange(1, 11)
 
     plt.style.use('seaborn-whitegrid')
     plt.rcParams.update({"font.size": 24})
     # sns.set_style("whitegrid", {'axes.grid': False})
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(samples_per_class, acc)
+    ax.plot(samples_per_class, acc_without_length_norm)
+    ax.plot(samples_per_class, acc_with_length_norm)
     ax.set_ylim([0, 1])
     ax.set_xlim([1, 10])
     ax.set_xlabel('Number of samples per class', labelpad=20)
@@ -194,6 +198,5 @@ def plot_accuracy_vs_train_sizes():
 
 
 if __name__ == '__main__':
-    # plot_predition()
     # predict_for_different_train_sizes()
     plot_accuracy_vs_train_sizes()

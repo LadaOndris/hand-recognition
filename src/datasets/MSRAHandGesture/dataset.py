@@ -1,6 +1,6 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
 from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
-from src.acceptance.base import joint_relation_errors, hand_rotation, vectors_angle
+from src.acceptance.base import joint_relation_errors, hand_rotation, vectors_angle, fingers_length
 from src.utils.camera import Camera
 import sklearn
 import numpy as np
@@ -178,8 +178,8 @@ def plot_hands():
 
     fig1 = DOCS_DIR.joinpath('figures/msra_jre_1.png')
     fig2 = DOCS_DIR.joinpath('figures/msra_jre_2.png')
-    plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True, fig_location=fig1)
-    plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True, fig_location=fig2)
+    plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True, fig_location=None)
+    plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True, fig_location=None)
 
     hand1_orientation, _ = hand_rotation(joints[idx])
     hand2_orientation, _ = hand_rotation(joints2[idx2])
@@ -192,7 +192,50 @@ def plot_hands():
     # plot_norm(joints[idx])
 
 
+def try_fingers_lengths():
+    """
+    Calls fingers_length function on a few
+    images from the MSRA dataset.
+    (For experimental purposes)
+    """
+    images, bbox_coords, joints = read_images(MSRAHANDGESTURE_DATASET_DIR.joinpath('P0/2'))
+    lengths = fingers_length(joints[0:5])
+    return lengths
+
+
+def mean_finger_length():
+    """
+    Computes the average length of a finger
+    in the MSRA dataset.
+    Result: 65 mm
+
+    Returns
+    -------
+    A scalar value in milimeters representing the
+    mean finger length.
+    """
+    msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=64)
+    it = iter(msra.train_dataset)
+    lengths_train = finger_lengths_for_iter(it, msra.num_train_batches)
+    it = iter(msra.test_dataset)
+    lengths_test = finger_lengths_for_iter(it, msra.num_test_batches)
+    lengths = np.concatenate([lengths_train, lengths_test])
+    mean_length = np.mean(lengths)
+    return mean_length
+
+
+def finger_lengths_for_iter(batch_iterator, batches):
+    lengths_arrays = []
+    for i in range(batches):
+        images, bboxes, joints = next(batch_iterator)
+        lengths = fingers_length(joints)
+        lengths_arrays.append(lengths)
+    lengths = np.concatenate(lengths_arrays)
+    return lengths
+
+
 if __name__ == '__main__':
+    # mean_finger_length()
     np.set_printoptions(precision=2)
     plot_hands()
     # msra = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4)

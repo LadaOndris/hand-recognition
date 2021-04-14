@@ -11,7 +11,7 @@ import matplotlib.patches as patches
 from src.utils.paths import DOCS_DIR
 
 
-class DatasetGenerator:
+class DatasetPreprocessor:
     """
     DatasetGenerator takes an iterator of a hand pose dataset
     as its input, and preprocesses the joints coordinates
@@ -404,7 +404,7 @@ class DatasetGenerator:
 
 
 def try_dataset_genereator():
-    gen = DatasetGenerator(None, image_in_size=96, image_out_size=24, camera=Camera('bighand'))
+    gen = DatasetPreprocessor(None, image_in_size=96, image_out_size=24, camera=Camera('bighand'))
     images = tf.ones([4, 480, 640])
     bboxes = tf.constant([[100, 120, 200, 230], [20, 50, 60, 80], [0, 0, 200, 200], [200, 200, 630, 470]])
     images, bboxes = gen.crop_bbox(images, bboxes)  # TODO: crop_bbox has been moved to ComPreprocessor

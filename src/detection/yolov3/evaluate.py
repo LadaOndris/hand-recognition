@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from src.core.cfg.cfg_parser import Model
 from src.datasets.handseg150k.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_generator import DatasetGenerator
+from src.detection.yolov3.dataset_preprocessor import DatasetPreprocessor
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR, DOCS_DIR
 from src.detection.yolov3.metrics import get_positives_and_negatives
@@ -18,8 +18,8 @@ def evaluate(weights_path):
 
     handseg = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.99, batch_size=model.batch_size,
                                    shuffle=False, model_input_shape=model.input_shape)
-    test_dataset_generator = DatasetGenerator(handseg.test_batch_iterator,
-                                              model.input_shape, model.yolo_output_shapes, model.anchors)
+    test_dataset_generator = DatasetPreprocessor(handseg.test_batch_iterator,
+                                                 model.input_shape, model.yolo_output_shapes, model.anchors)
 
     batch_idx = 0
     y_pred = None

@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Layer, Input, ZeroPadding2D, BatchNormalizat
     UpSampling2D, MaxPool2D
 from typing import Tuple, Dict, List
 from src.utils.config import YOLO_CONFIG_FILE
-from src.detection.yolov3.model import YoloLayer
+from src.detection.yolov3.yolo_layer import YoloLayer
 
 
 class Model:

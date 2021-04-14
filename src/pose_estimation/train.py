@@ -2,7 +2,7 @@ import tensorflow as tf
 from src.pose_estimation.loss import CoordinateAndOffsetLoss, CoordinateLoss, OffsetLoss
 from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.MSRAHandGesture.dataset import MSRADataset
-from src.pose_estimation.dataset_generator import DatasetGenerator
+from src.pose_estimation.dataset_preprocessor import DatasetPreprocessor
 from src.pose_estimation.jgr_j2o import JGR_J2O
 from src.pose_estimation.evaluate import evaluate
 from src.pose_estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
@@ -23,13 +23,13 @@ def test(dataset: str, weights_path: str):
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=1, shuffle=False)
-        test_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=False, refine_iters=0, cube_size=230)
+        test_ds_gen = DatasetPreprocessor(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                          camera=cam, dataset_includes_bboxes=False, refine_iters=0, cube_size=230)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
-        test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=True, refine_iters=1,
-                                       cube_size=180)
+        test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+                                          camera=cam, dataset_includes_bboxes=True, refine_iters=1,
+                                          cube_size=180)
 
     model = network.graph()
     model.load_weights(weights_path)
@@ -60,23 +60,23 @@ def test(dataset: str, weights_path: str):
 
 
 def train(dataset: str, weights_path: str):
-    network = JGR_J2O()
+    network = JGR_J2O(n_features=196)
     cam = Camera(dataset)
     bighand_test_size = 1.0
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=bighand_test_size, batch_size=JGRJ2O_TRAIN_BATCH_SIZE,
                             shuffle=True)
-        train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam, augment=True, cube_size=230, refine_iters=0)
-        test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, augment=False, cube_size=230, refine_iters=0)
+        train_ds_gen = DatasetPreprocessor(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                           camera=cam, augment=True, cube_size=230, refine_iters=0)
+        test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+                                          camera=cam, augment=False, cube_size=230, refine_iters=0)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=JGRJ2O_TRAIN_BATCH_SIZE, shuffle=True)
-        train_ds_gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                                        camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
-        test_ds_gen = DatasetGenerator(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                       camera=cam, dataset_includes_bboxes=True, cube_size=180)
+        train_ds_gen = DatasetPreprocessor(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                           camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
+        test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
+                                          camera=cam, dataset_includes_bboxes=True, cube_size=180)
 
     model = network.graph()
     print(model.summary(line_length=120))
@@ -99,7 +99,7 @@ def train(dataset: str, weights_path: str):
 
     steps_per_epoch = ds.num_train_batches
     if dataset == 'bighand':
-        steps_per_epoch = 512
+        steps_per_epoch = 1024
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=JGRJ2O_LEARNING_RATE,
@@ -131,13 +131,13 @@ def try_dataset_pipeline(dataset: str):
 
     if dataset == 'bighand':
         ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=4, shuffle=True)
-        gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size,
-                               network.out_size, camera=cam, augment=False, cube_size=230,
-                               refine_iters=0)
+        gen = DatasetPreprocessor(iter(ds.train_dataset), cam.image_size, network.input_size,
+                                  network.out_size, camera=cam, augment=False, cube_size=230,
+                                  refine_iters=0)
     elif dataset == 'msra':
         ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=4, shuffle=True)
-        gen = DatasetGenerator(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
-                               camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
+        gen = DatasetPreprocessor(iter(ds.train_dataset), cam.image_size, network.input_size, network.out_size,
+                                  camera=cam, dataset_includes_bboxes=True, augment=True, cube_size=180)
     for images, y_true in gen:
         joints_true = y_true[0]
         # y_true_joints = gen.postprocess(y_true)

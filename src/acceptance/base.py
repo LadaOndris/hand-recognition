@@ -40,8 +40,34 @@ def relative_distance_matrix(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray
 
     a = distance_matrix(hand1).astype(np.float16)
     b = distance_matrix(hand2).astype(np.float16)
+    a *= get_scale_factors(a)[:, np.newaxis, np.newaxis]
+    b *= get_scale_factors(b)[:, np.newaxis, np.newaxis]
     diff_matrix = a[:, np.newaxis, :, :] - b[np.newaxis, ...]
     return diff_matrix
+
+
+def get_scale_factors(distance_matrix, standard_finger_length=65.):
+    """
+    Computes factors for scaling hand based on a mean
+    finger length. The actual mean lengths are divided
+    by a standard length of 65 mm.
+
+    Parameters
+    ----------
+    distance_matrix
+    standard_finger_length
+        A standard mean finger length
+
+    Returns
+    -------
+    scale_factors
+    """
+    if distance_matrix.ndim != 3:
+        raise Exception(F"Invalid rank of distance matrix, expected 3.")
+    fingers_lengths = fingers_length_from_distance_matrix(distance_matrix)
+    mean_lengths = np.mean(fingers_lengths, axis=1)
+    scale_factors = standard_finger_length / mean_lengths
+    return scale_factors
 
 
 def relative_distance_diff(hand1: np.ndarray, hand2: np.ndarray) -> np.ndarray:
@@ -183,6 +209,62 @@ def vectors_angle(v1, v2):
     v1 = unit_vector(v1)
     v2 = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1, v2), -1.0, 1.0))
+
+
+def fingers_length(joints):
+    """
+    Returns length of each finger by summing the
+    distance between MCP, PIP, DIP, and TIP joints in 3D coordinates.
+
+    Parameters
+    ----------
+    joints : (batch_size, 21 joints, 3)
+        0-th joint is the wrist,
+        1--4 Index (MCP, PIP, DIP, TIP)
+        5--8 Middle (MCP, PIP, DIP, TIP)
+        9--12 Ring (MCP, PIP, DIP, TIP)
+        13--16 Little (MCP, PIP, DIP, TIP)
+        17--20 Thumb (MCP, PIP, DIP, TIP)
+
+    Returns
+    -------
+    shape (batch_size, 5)
+    an array of 5 scalars for each hand
+    """
+    distances = distance_matrix(joints)
+    finger_lengths = fingers_length_from_distance_matrix(distances)
+    return finger_lengths
+
+
+def fingers_length_from_distance_matrix(distance_matrix):
+    """
+    Returns length of each finger by summing the
+    distance between MCP, PIP, DIP, and TIP joints in 3D coordinates.
+
+    Parameters
+    ----------
+    distance_matrix : shape [batch_size, 21, 21]
+    Matrix of distances between each joint.
+
+    Returns
+    -------
+    shape (batch_size, 5)
+    an array of 5 scalars for each hand
+    """
+    # Gather distances between the MCP, DIP, PIP, and tip fingers
+    # of each finger, producing shape [batch_size, 15]
+    x = np.array([1, 2, 3,
+                  5, 6, 7,
+                  9, 10, 11,
+                  13, 14, 15,
+                  17, 18, 19])
+    y = x + 1
+    joint_distances = distance_matrix[:, x, y]
+
+    # Reshape to [batch_size, 5 fingers, 3 distances]
+    finger_distances = np.reshape(joint_distances, [-1, 5, 3])
+    finger_lengths = np.sum(finger_distances, axis=2)
+    return finger_lengths
 
 
 if __name__ == '__main__':
