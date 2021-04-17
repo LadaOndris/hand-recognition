@@ -174,7 +174,7 @@ def best_fitting_hyperplane(z: np.ndarray):
     return norm_vec, z_mean
 
 
-def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
+def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray, relative_distance_matrix=None) -> np.ndarray:
     """
     Computes the average relative difference of joint positions of one hand
     in comparison to the second hand.
@@ -183,19 +183,20 @@ def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray) -> np.ndarray:
     Then, it subtracts these relative distances producing a so-called Relative Distance Matrix.
     This operation produces the following shapes: (21, 21) - (21, 21) = (21, 21).
     Relative distances for each joint are summed and averaged by the number of joints, producing
-    21 scalars, which are the actual RDS errors.
+    21 scalars, which are the actual joint relation errors.
 
     Returns (21,) np.ndarray Vector
         A vector of 21 scalars: an error for each joint.
     -------
 
     """
-    rds_diff = relative_distance_matrix(hands1, hands2)
-    rds_abs = np.abs(rds_diff)
-    aggregated_joint_errors = np.sum(rds_abs, axis=-1)
-    averaged_joint_errors = np.divide(aggregated_joint_errors, rds_abs.shape[-1])
+    if relative_distance_matrix is None:
+        relative_distances = relative_distance_matrix(hands1, hands2)
+    distances_abs = np.abs(relative_distances)
+    aggregated_joint_errors = np.sum(distances_abs, axis=-1)
+    joints_count = distances_abs.shape[-1] - 1  # 21 - 1 = 20, do not count the joint itself
+    averaged_joint_errors = np.divide(aggregated_joint_errors, joints_count)
     return averaged_joint_errors
-
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """

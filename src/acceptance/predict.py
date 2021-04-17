@@ -1,56 +1,56 @@
 import numpy as np
 from src.acceptance import database
-from src.acceptance.base import joint_relation_errors, hand_distance, hand_rotation, get_relative_distances, vectors_angle
+from src.acceptance.base import joint_relation_errors, hand_distance, hand_rotation, get_relative_distances, \
+    vectors_angle
 
 
-def predict_gesture(keypoints: np.ndarray, hands_db):
-    """
-    Finds the most likely gesture from hands database.
+class GestureAccepter:
 
-    Parameters
-    ----------
-    keypoints  np.ndarray of 21 keypoints, shape (21, 3)
-    hands_db
+    def __init__(self, gesture_database, jre_thresh, orientation_thresh, distance_limits=None):
+        self.gesture_database = gesture_database
+        self.jre_thres = jre_thresh
+        self.orientation_thresh = orientation_thresh
+        self.distance_limits = distance_limits
 
-    Returns Tuple (gesture_index, RD diff, orientation diff, distance)
-    -------
-    """
-    rds = get_relative_distances(keypoints, hands_db)
-    min_rds_idx = np.argmin(rds)
-    predicted_gesture = hands_db[min_rds_idx]
+        # Statistics created for each prediction
+        # The joint relation errors between given hand pose and the whole database
+        self.joints_errors = None
+        # Index of the gesture from the dataset that is most similar to the given
+        self.predicted_gesture_idx = None
+        # The gesture from the dataset that is most similar to the given
+        self.predicted_gesture = None
+        # Aggregated (summed) joint relation errors between the given hand pose
+        # and the most similar one from the dataset
+        self.gesture_jre = None
+        # The angle of the given gesture
+        self.angle = None
+        # The angle of the most similar hand pose
+        self.expected_angle = None
+        # The orientation difference between given and most similar poses
+        # represented as an angle
+        self.angle_difference = None
 
-    given_hand_orientation, _ = hand_rotation(keypoints)
-    predicted_hand_orientation, _ = hand_rotation(predicted_gesture)
-    orientation_diff = vectors_angle(given_hand_orientation, predicted_hand_orientation)
+    def accept_gesture(self, keypoints: np.ndarray):
+        """
+        Predicts a gesture for the given keypoints.
+        Compares given keypoints to the ones stored in the database.
 
-    distance = hand_distance(keypoints)
+        Parameters
+        ----------
+        keypoints np.ndarray of 21 keypoints, shape (21, 3)
+        """
+        # files, keypoints_db = database.load_gestures()
+        self.joints_errors = joint_relation_errors(keypoints, self.gesture_database)
+        aggregated_errors = np.sum(self.joints_errors, axis=-1)
+        self.predicted_gesture_idx = np.argmin(aggregated_errors)
+        self.predicted_gesture = self.gesture_database[self.predicted_gesture_idx]
+        self.gesture_jre = aggregated_errors[self.predicted_gesture_idx]
 
-    return min_rds_idx, rds[min_rds_idx], orientation_diff, distance
+        self.angle, _ = hand_rotation(keypoints)
+        self.expected_angle, _ = hand_rotation(self.predicted_gesture)
+        self.angle_difference = vectors_angle(self.expected_angle, self.angle)
 
+        if self.gesture_jre > self.jre_thresh or self.angle_difference > self.orientation_thresh:
+            gesture_idx = None
 
-def accept_gesture(keypoints: np.ndarray, rd_threshold, orientation_threshold, distance_limits):
-    """
-    Predicts a gesture for the given keypoints.
-    Compares given keypoints to the ones stored in the database.
-
-    Parameters
-    ----------
-    keypoints
-    rd_threshold
-    orientation_threshold
-    distance_limits
-
-    Returns Tuple (gesture_idx, rd errors, orientation error)
-    -------
-    """
-    files, keypoints_db = database.load_gestures()
-    gesture_idx, rd_diff, orientation_diff, distance = predict_gesture(keypoints, keypoints_db)
-
-    most_similar_gesture = keypoints_db[gesture_idx]
-    rd_errors = joint_relation_errors(keypoints, most_similar_gesture)
-    orientation_error = orientation_threshold - orientation_diff
-
-    if rd_diff > rd_threshold or orientation_diff > orientation_threshold:
-        gesture_idx = None
-
-    return gesture_idx, rd_errors, orientation_error
+        return gesture_idx

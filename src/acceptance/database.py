@@ -8,6 +8,29 @@ from src.utils.live import generate_live_images
 import numpy as np
 
 
+class UsecaseDatabase:
+
+    def __init__(self, subdir):
+        self.subdir = subdir
+        self.subdir_path = USECASE_DATASET_DIR.joinpath(subdir)
+        self.hand_poses = None
+        self.labels = None
+
+    def scan_into_subdir(self):
+        pass
+
+    def load_from_subdir(self):
+        self.hand_poses = None
+        self.labels = None
+
+    def get_label_by_index(self, hand_pose_index):
+        if self.labels is None:
+            raise Exception("No hand poses are loaded")
+        if hand_pose_index < 0 or hand_pose_index >= np.shape(self.labels)[0]:
+            raise Exception("Index out of bounds")
+        return self.labels[hand_pose_index]
+
+
 def scan_raw_images(scan_period: float):
     """
     Scans images in intervals specified by 'scan_period'.

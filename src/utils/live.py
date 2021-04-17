@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 from src.utils.plots import _plot_depth_image
 
 
-def generate_live_images(normalize_to_mm=False):
+def generate_live_images():
     pipe = rs.pipeline()
     cfg = rs.config()
     cfg.enable_stream(rs.stream.depth, 640, 480)
-    profile = pipe.start(cfg)
+    pipe.start(cfg)
     try:
         while True:
             frameset = pipe.wait_for_frames()
@@ -43,6 +43,15 @@ def print_live_images(num=None):
 
 
 def intrinsic_parameters():
+    """
+    Retrieves camera's parameters for a depth stream of
+    shape (640, 480).
+
+    Returns
+    -------
+    intrinsics
+    max_distance
+    """
     pipe = rs.pipeline()
     cfg = rs.config()
     cfg.enable_stream(rs.stream.depth, 640, 480)
@@ -51,7 +60,7 @@ def intrinsic_parameters():
     intrinsics = stream.get_intrinsics()
 
     depth_sensor = profile.get_device().first_depth_sensor()
-    # max_distance = depth_sensor.get_option(rs.option.max_distance)
+    max_distance = depth_sensor.get_option(rs.option.max_distance)
     """
     fx = fy = 476.0068054199219
     ppx, ppy = 313.6830139, 242.7547302
@@ -60,10 +69,9 @@ def intrinsic_parameters():
     
     D415
     [ 640x480  p[313.79 238.076]  f[592.138 592.138]  Brown Conrady [0 0 0 0 0] ]
-    
     """
     pipe.stop()
-    pass
+    return intrinsics, max_distance
 
 
 if __name__ == '__main__':

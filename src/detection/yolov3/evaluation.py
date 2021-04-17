@@ -112,9 +112,6 @@ def generate_precision_recall_curves(y_pred_pkl, y_true_pkl, fig_scores_location
 
 
 if __name__ == '__main__':
-    # disable CUDA, run on CPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
     pred_path = '../../../other/eval_y_pred_03-15.pkl.npy'
     true_path = '../../../other/eval_y_true_03-15.pkl.npy'
     # weights_path = LOGS_DIR.joinpath("20210112-220731/train_ckpts/ckpt_9") # Previous model that uses padding

@@ -25,7 +25,7 @@ class HandPositionEstimator:
         self.plot_skeleton = plot_skeleton
         self.resize_mode = 'crop'
         self.detector = self.load_detector(self.resize_mode)
-        self.network = JGR_J2O()
+        self.network = JGR_J2O(n_features=196)
         self.estimator = self.load_estimator()
         self.estimation_preprocessor = DatasetPreprocessor(None, self.detector.input_shape, self.network.input_size,
                                                            self.network.out_size,
@@ -59,7 +59,9 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210405-223012/train_ckpts/weights.20.h5")  # augmentation, LR = e-4
         # weights_path = LOGS_DIR.joinpath("20210407-172950/train_ckpts/weights.18.h5")
         # weights_path = LOGS_DIR.joinpath("20210409-033315/train_ckpts/weights.20.h5")  # batch size 32
-        weights_path = LOGS_DIR.joinpath("20210409-031509/train_ckpts/weights.12.h5")  # batch size 64
+        # weights_path = LOGS_DIR.joinpath("20210409-031509/train_ckpts/weights.12.h5")  # batch size 64
+        # weights_path = LOGS_DIR.joinpath("20210414-190122/train_ckpts/weights.13.h5")
+        weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -95,6 +97,7 @@ class HandPositionEstimator:
         -------
 
         """
+        image = tf.convert_to_tensor(image)
         batch_images = tf.expand_dims(image, axis=0)
         boxes = self.detect(batch_images)
 

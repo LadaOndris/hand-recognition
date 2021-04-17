@@ -30,6 +30,4 @@ def predict():
 
 
 if __name__ == '__main__':
-    # disable CUDA, run on CPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     predict()
