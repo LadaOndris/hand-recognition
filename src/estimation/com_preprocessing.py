@@ -7,6 +7,7 @@ from skimage import exposure
 from scipy import stats
 import numpy as np
 from src.utils.paths import DOCS_DIR
+from src.utils.config import OTSUS_ALLOWANCE_THRESHOLD
 
 
 class ComPreprocessor:
@@ -167,8 +168,8 @@ class ComPreprocessor:
                 print('Threshold:', threshold_depth)
                 plot_depth_image_histogram(image_above_min_numpy, True)
                 print(F"{threshold_frequency}/{peak_frequency}={float(threshold_frequency) / peak_frequency}")
-            ALLOWANCE_THRESHOLD = 0.03
-            if float(threshold_frequency) / peak_frequency < ALLOWANCE_THRESHOLD:
+
+            if float(threshold_frequency) / peak_frequency < OTSUS_ALLOWANCE_THRESHOLD:
                 # image_np[image_np > threshold_depth] = 0
                 image = tf.where(image > threshold_depth, 0, image)
                 image = tf.convert_to_tensor(image)

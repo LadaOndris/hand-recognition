@@ -5,8 +5,8 @@ from src.position_estimation import HandPositionEstimator
 
 def plot_estimation_on_custom_dataset():
     # Gesture 1
-    for j in range(3, 18):
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-230536/{j}0.png")))
+    # for j in range(3, 18):
+    #    estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-230536/{j}0.png")))
 
     # Gesture 1, but fingers are not stretched
     # for j in range(1, 6):  # up to 21
@@ -38,9 +38,9 @@ def plot_estimation_on_custom_dataset():
     #   estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/50{j}.png")))
 
     # Alphabet
-    # for j in range(1, 11):
-    #     estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}00.png")))
-    #     estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}50.png")))
+    for j in range(1, 11):
+        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}00.png")))
+        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}50.png")))
 
 
 def save_estimations_on_bighand():
@@ -69,19 +69,19 @@ def get_figures_filenames(image_files):
 
 def plot_estimation_on_bighand():
     for i in range(1):
-        for j in range(1, 9):
+        for j in range(1, 5):
             estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(
                 F"Subject_1/226 300/image_D000{i}{j}000.png")))
 
 
 if __name__ == '__main__':
-    dataset = 'bighand'
-    estimator = HandPositionEstimator(Camera(dataset), cube_size=200, plot_detection=False,
+    dataset = 'custom'
+    estimator = HandPositionEstimator(Camera(dataset), cube_size=230, plot_detection=False,
                                       plot_estimation=True, plot_skeleton=True)
 
     if dataset == 'bighand':
-        save_estimations_on_bighand()
-        # plot_estimation_on_bighand()
+        # save_estimations_on_bighand()
+        plot_estimation_on_bighand()
     else:
         plot_estimation_on_custom_dataset()
     # estimator.detect_live()

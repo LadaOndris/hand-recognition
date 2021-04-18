@@ -61,7 +61,8 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210409-033315/train_ckpts/weights.20.h5")  # batch size 32
         # weights_path = LOGS_DIR.joinpath("20210409-031509/train_ckpts/weights.12.h5")  # batch size 64
         # weights_path = LOGS_DIR.joinpath("20210414-190122/train_ckpts/weights.13.h5")
-        weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
+        # weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
+        weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
