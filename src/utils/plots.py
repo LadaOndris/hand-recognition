@@ -219,6 +219,17 @@ def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4
     save_show_fig(fig, fig_location, show_fig)
 
 
+def plot_skeleton_with_labels(image, joints2d, label, show_fig=True, fig_location=None, figsize=(4, 3)):
+    width, height = image.shape[1], image.shape[0]
+    fig, ax = plt.subplots(1, figsize=figsize)
+    _plot_depth_image(ax, image)
+    _plot_hand_skeleton_2d(ax, joints2d)
+    ax.text(width / 2, height - 50, label)
+    ax.set_axis_off()
+    fig.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
+
+
 def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
     fig, ax = plt.subplots(1)
     _plot_depth_image(ax, image)

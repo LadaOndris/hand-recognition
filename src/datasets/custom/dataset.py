@@ -3,6 +3,7 @@ import numpy as np
 import src.utils.plots as plots
 
 from src.utils.paths import CUSTOM_DATASET_DIR
+from src.detection.yolov3.utils import tf_load_image
 
 
 class CustomDataset:
@@ -15,6 +16,7 @@ class CustomDataset:
         filepaths, labels = self._get_line_annotations(sequence_annotations)
         self.num_batches = int(len(filepaths) // batch_size)
         self.dataset = self._build_dataset(filepaths, labels)
+        self.dataset_iterator = iter(self.dataset)
 
     def _get_sequence_annotations(self):
         path = self.dataset_path.joinpath('annotations.txt')
@@ -46,10 +48,27 @@ class CustomDataset:
         return ds
 
     def _prepare_sample(self, image_path, label):
-        image = tf.io.read_file(image_path)
-        image = tf.io.decode_image(image, channels=1, dtype=tf.uint16)
-        image.set_shape([480, 640, 1])
+        image = tf_load_image(image_path, dtype=tf.uint16, shape=[640, 480])
         return image, label
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.dataset_iterator)
+
+
+class CustomDatasetGenerator:
+
+    def __init__(self, dataset):
+        self.iterator = iter(dataset)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        images, labels = next(self.iterator)
+        return images
 
 
 if __name__ == '__main__':

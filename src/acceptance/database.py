@@ -2,10 +2,12 @@
 This file contains functions to scan user-defined gestures,
 extract poses, and save them into a directory.
 """
-from src.utils.logs import make_timestamped_dir
+from src.position_estimation import HandPositionEstimator
+from src.utils.camera import Camera
 from src.utils.paths import USECASE_DATASET_DIR, USECASE_DATASET_JOINTS_PATH
 from src.utils.live import generate_live_images
 import numpy as np
+from src.utils.logs import make_dir, get_current_timestamp
 
 
 class UsecaseDatabase:
@@ -16,8 +18,35 @@ class UsecaseDatabase:
         self.hand_poses = None
         self.labels = None
 
-    def scan_into_subdir(self):
-        pass
+    def scan_into_subdir(self, scan_period=1):
+        """
+        Scans images in intervals specified by 'scan_period'.
+        Also creates a new directory for the scanned images.
+        """
+        file_path = self.prepare_file()
+        camera = Camera('SR305')
+        estimator = HandPositionEstimator(camera, 230, plot_estimation=True)
+        generator = generate_live_images()
+        with open(file_path, 'a+') as file:
+            for image in generator:
+                joints_uvz = estimator.inference_from_image(image)
+                joints_xyz = camera.pixel_to_world(joints_uvz)
+                self.save_joints_to_file(file, joints_xyz)
+
+    def prepare_file(self):
+        make_dir(self.subdir_path)
+        timestamp = get_current_timestamp()
+        timestamped_file = self.subdir_path.joinpath(F"{timestamp}.txt")
+        return timestamped_file
+
+    def save_joints_to_file(self, file, joints):
+        formatted_joints = self.format_joints(joints)
+        file.write(F"{formatted_joints}\n")
+
+    def format_joints(self, joints):
+        flattened_joints = np.flatten(joints)
+        formatted_joints = ' '.join(flattened_joints)
+        return formatted_joints
 
     def load_from_subdir(self):
         self.hand_poses = None
@@ -31,30 +60,6 @@ class UsecaseDatabase:
         return self.labels[hand_pose_index]
 
 
-def scan_raw_images(scan_period: float):
-    """
-    Scans images in intervals specified by 'scan_period'.
-    Also creates a new directory for the scanned images.
-    """
-
-    # Scan images
-    live_image_generator = generate_live_images()
-
-    # Save them to folder
-    scan_dir = make_timestamped_dir(USECASE_DATASET_DIR)
-
-    pass
-
-
-def produce_hand_keypoints():
-    # 1. load detection and pose estimation models
-    # 2. read depth image
-    # 3. pass the image to detection model
-    # 4. pass the subimage to pose estimation model
-    # profit
-    pass
-
-
 def load_gestures():
     annotations = np.genfromtxt(USECASE_DATASET_JOINTS_PATH, skip_header=0, dtype=np.str)
     filenames = annotations[:, 0]
@@ -62,8 +67,8 @@ def load_gestures():
     return filenames, joints
 
 
-if __name__ == '__main__':
-    scan_raw_images(scan_period=5)
-    # produce_hand_keypoints()
-    # files, joints = load_gestures()
-    pass
+# if __name__ == '__main__':
+#     #scan_raw_images(scan_period=5)
+#     # produce_hand_keypoints()
+#     # files, joints = load_gestures()
+#     pass

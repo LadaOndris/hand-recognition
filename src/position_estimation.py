@@ -74,7 +74,6 @@ class HandPositionEstimator:
         """
         self.estimation_fig_location = fig_location
         image = self.read_image(file_path)
-        image = self.resize_image_and_depth(image)
         return self.inference_from_image(image)
 
     def inference_live(self):
@@ -99,7 +98,10 @@ class HandPositionEstimator:
 
         """
         image = tf.convert_to_tensor(image)
-        batch_images = tf.expand_dims(image, axis=0)
+        if tf.rank(image) != 3:
+            raise Exception("Invalid image rank, expected 3")
+        resized_image = self.resize_image_and_depth(image)
+        batch_images = tf.expand_dims(resized_image, axis=0)
         boxes = self.detect(batch_images)
 
         # If detection failed

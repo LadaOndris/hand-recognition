@@ -30,9 +30,13 @@ def make_log_dir() -> str:
     """
     Creates a new directory with a timestamp in the logs directory.
     """
-    if not os.path.isdir(LOGS_DIR):
-        os.makedirs(LOGS_DIR)
+    make_dir(LOGS_DIR)
     return make_timestamped_dir(LOGS_DIR)
+
+
+def make_dir(dir):
+    if not os.path.isdir(dir):
+        os.makedirs(dir)
 
 
 def compose_ckpt_path(log_dir: str):
