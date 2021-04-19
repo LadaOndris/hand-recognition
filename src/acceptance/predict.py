@@ -1,7 +1,5 @@
 import numpy as np
-from src.acceptance import database
-from src.acceptance.base import joint_relation_errors, hand_distance, hand_rotation, get_relative_distances, \
-    vectors_angle
+from src.acceptance.base import joint_relation_errors, hand_rotation, vectors_angle
 
 
 class GestureAccepter:

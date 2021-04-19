@@ -1,6 +1,6 @@
 from src.utils.paths import CUSTOM_DATASET_DIR, BIGHAND_DATASET_DIR, DOCS_DIR
 from src.utils.camera import Camera
-from src.position_estimation import HandPositionEstimator
+from src.system.hand_position_estimator import HandPositionEstimator
 
 
 def plot_estimation_on_custom_dataset():

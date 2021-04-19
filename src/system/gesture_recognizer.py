@@ -1,7 +1,7 @@
-from src.acceptance import database
+from src.system import database_reader
 from src.acceptance.predict import GestureAccepter
 from src.datasets.custom.dataset import CustomDataset, CustomDatasetGenerator
-from src.position_estimation import HandPositionEstimator
+from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
 from src.utils.live import generate_live_images
 import src.utils.plots as plots
@@ -14,7 +14,7 @@ class GestureRecognizer:
         self.plot_feedback = plot_feedback
         self.camera = Camera('sr305')
         self.estimator = HandPositionEstimator(self.camera, cube_size=230)
-        self.gesture_database = database.load_gestures()
+        self.gesture_database = database_reader.load_gestures()
         orientation_thres = 35
         self.gesture_accepter = GestureAccepter(self.gesture_database, error_thresh, orientation_thres)
 
