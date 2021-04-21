@@ -1,3 +1,5 @@
+import argparse
+
 from src.utils.paths import USECASE_DATASET_DIR
 import numpy as np
 
@@ -8,14 +10,18 @@ class UsecaseDatabaseReader:
         self.hand_poses = None
         self.labels = None
 
-    def load_from_subdir(self, subdir):
+    def load_from_subdir(self, subdir: str):
+        if len(subdir) == 0:
+            raise Exception("Invalid argument 'subdir'")
         annotation_files = self._find_annotation_files(subdir)
         annotation_labels = self._extract_annotation_labels(annotation_files)
         self.hand_poses, self.labels = self._read_hand_poses(annotation_files, annotation_labels)
 
     def _find_annotation_files(self, subdir):
         subdir_path = USECASE_DATASET_DIR.joinpath(subdir)
-        return subdir_path.iterdir()
+        if not subdir_path.exists() or not subdir_path.is_dir():
+            raise Exception("Invalid subdir; no such directory was found.")
+        return list(subdir_path.iterdir())
 
     def _extract_annotation_labels(self, annotation_files):
         labels = []
@@ -41,8 +47,8 @@ class UsecaseDatabaseReader:
             hand_poses_arrs.append(joints_arr)
             labels_arrs.append(labels_arr)
 
-            hand_poses = np.concatenate(hand_poses_arrs)
-            labels = np.concatenate(labels_arrs)
+        hand_poses = np.concatenate(hand_poses_arrs)
+        labels = np.concatenate(labels_arrs)
         return hand_poses, labels
 
     def get_label_by_index(self, hand_pose_index):
@@ -51,3 +57,9 @@ class UsecaseDatabaseReader:
         if hand_pose_index < 0 or hand_pose_index >= np.shape(self.labels)[0]:
             raise Exception("Index out of bounds")
         return self.labels[hand_pose_index]
+
+
+if __name__ == "__main__":
+    reader = UsecaseDatabaseReader()
+    reader.load_from_subdir('test')
+    pass

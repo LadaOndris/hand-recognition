@@ -126,7 +126,7 @@ def hand_distance(joints: np.ndarray, camera_position=[160, 120, 0]) -> np.float
     return np.mean(distances)
 
 
-def hand_rotation(joints: np.ndarray):
+def hand_orientation(joints: np.ndarray):
     """
     Determines the rotation of the hand in comparison to base position
     along each axis x, y, and z.
@@ -142,8 +142,18 @@ def hand_rotation(joints: np.ndarray):
     # 13-16: little_mcp, little_pip, little_dip, little_tip,
     # 17-20: thumb_mcp, thumb_pip, thumb_dip, thumb_tip
 
-    palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=0)
-    norm_vec, mean = best_fitting_hyperplane(palm_joints)
+    palm_joints = np.take(joints, [0, 1, 5, 9, 13], axis=-2)
+    if palm_joints.ndim == 3:
+        norms_list = []
+        means_list = []
+        for i in range(palm_joints.shape[0]):
+            norm_vec, mean = best_fitting_hyperplane(palm_joints[i])
+            norms_list.append(norm_vec)
+            means_list.append(mean)
+        norm_vec = np.concatenate(norms_list)
+        mean = np.concatenate(means_list)
+    else:
+        norm_vec, mean = best_fitting_hyperplane(palm_joints)
     return norm_vec, mean
 
 
@@ -174,7 +184,7 @@ def best_fitting_hyperplane(z: np.ndarray):
     return norm_vec, z_mean
 
 
-def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray, relative_distance_matrix=None) -> np.ndarray:
+def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray, relative_distances=None) -> np.ndarray:
     """
     Computes the average relative difference of joint positions of one hand
     in comparison to the second hand.
@@ -190,13 +200,14 @@ def joint_relation_errors(hands1: np.ndarray, hands2: np.ndarray, relative_dista
     -------
 
     """
-    if relative_distance_matrix is None:
+    if relative_distances is None:
         relative_distances = relative_distance_matrix(hands1, hands2)
     distances_abs = np.abs(relative_distances)
     aggregated_joint_errors = np.sum(distances_abs, axis=-1)
     joints_count = distances_abs.shape[-1] - 1  # 21 - 1 = 20, do not count the joint itself
     averaged_joint_errors = np.divide(aggregated_joint_errors, joints_count)
     return averaged_joint_errors
+
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """

@@ -1,4 +1,4 @@
-from src.datasets.MSRAHandGesture.dataset import MSRADataset
+from src.datasets.msra.dataset import MSRADataset
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
@@ -79,7 +79,8 @@ def evaluate(dataset: str, weights_path: str):
 
     ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=False)
     test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                      camera=cam, dataset_includes_bboxes=True)
+                                      camera=cam, dataset_includes_bboxes=True, augment=False, thresholding=False,
+                                      refine_iters=0, cube_size=180)
 
     model = network.graph()
     model.load_weights(weights_path)
@@ -100,10 +101,10 @@ def evaluate(dataset: str, weights_path: str):
 
 
 if __name__ == '__main__':
-    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')
+    # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')  # msra, first time, 31 MJE
     # weights = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
     # weights = LOGS_DIR.joinpath("20210324-203043/train_ckpts/weights.12.h5")
     # weights = LOGS_DIR.joinpath('20210403-191540/train_ckpts/weights.09.h5')  # msra
-    weights = LOGS_DIR.joinpath('20210407-172551/train_ckpts/weights.13.h5')  # msra
+    weights = LOGS_DIR.joinpath('20210407-172551/train_ckpts/weights.13.h5')  # msra, second time, 18 MJE
     thres, mje = evaluate('msra', weights)
     print(mje)

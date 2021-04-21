@@ -12,8 +12,9 @@ from src.utils.config import OTSUS_ALLOWANCE_THRESHOLD
 
 class ComPreprocessor:
 
-    def __init__(self, camera: Camera):
+    def __init__(self, camera: Camera, thresholding=True):
         self.camera = camera
+        self.thresholding = thresholding
 
     def refine_bcube_using_com(self, full_image, bbox, refine_iters=3, cube_size=(250, 250, 250)):
         """
@@ -63,9 +64,10 @@ class ComPreprocessor:
         center_of_mass : tf.Tensor of shape [batch_size, 3]
             Represented in UVZ coordinates.
         """
-        images = self.apply_otsus_thresholding(images)
+        if self.thresholding:
+            images = self.apply_otsus_thresholding(images)
 
-        com_local = tf.map_fn(self.center_of_mass, images,
+        com_local = tf.map_fn(self.center_of_image, images,
                               fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
 
         # Adjust the center of mass coordinates to orig image space (add U, V offsets)
@@ -74,6 +76,22 @@ class ComPreprocessor:
         com_z = tf.where(tf.experimental.numpy.isclose(com_z, 0.), 300, com_z)
         coms = tf.concat([com_uv_global, com_z], axis=-1)
         return coms
+
+    def center_of_image(self, image):
+        if tf.size(image) == 0:
+            return tf.constant([0, 0, 0], dtype=tf.float32)
+        if type(image) is tf.RaggedTensor:
+            image = image.to_tensor()
+        # NEW CENTER OF MASS (UV IS THE CENTER OF THE IMAGE)!
+        im_width, im_height = tf.shape(image)[:2]
+        total_mass = tf.reduce_sum(image)
+        total_mass = tf.cast(total_mass, dtype=tf.float32)
+        image_mask = tf.cast(image > 0., dtype=tf.float32)
+        nonzero_pixels = tf.math.count_nonzero(image_mask, dtype=tf.float32)
+        u = tf.cast(im_width / 2, dtype=tf.float32)
+        v = tf.cast(im_height / 2, dtype=tf.float32)
+        z = tf.math.divide_no_nan(total_mass, nonzero_pixels)
+        return tf.stack([u, v, z], axis=0)
 
     def center_of_mass(self, image):
         """
@@ -150,7 +168,7 @@ class ComPreprocessor:
             # find the biggest countour.
             indices = tf.where(image > image_min)
             image_above_min = tf.gather_nd(image, indices)
-            
+
             if not is_valid_image(image_above_min):
                 return tf.RaggedTensor.from_tensor(image, ragged_rank=2)
 

@@ -1,6 +1,6 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
 from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
-from src.acceptance.base import joint_relation_errors, hand_rotation, vectors_angle, fingers_length
+from src.acceptance.base import joint_relation_errors, hand_orientation, vectors_angle, fingers_length
 from src.utils.camera import Camera
 import sklearn
 import numpy as np
@@ -181,8 +181,8 @@ def plot_hands():
     plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True, fig_location=None)
     plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True, fig_location=None)
 
-    hand1_orientation, _ = hand_rotation(joints[idx])
-    hand2_orientation, _ = hand_rotation(joints2[idx2])
+    hand1_orientation, _ = hand_orientation(joints[idx])
+    hand2_orientation, _ = hand_orientation(joints2[idx2])
     orientation_diff_rad = vectors_angle(hand1_orientation, hand2_orientation)
     orientation_diff_deg = np.rad2deg(orientation_diff_rad)
     # print(F"Hand1 orientation: {hand1_orientation:.2f}")

@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from src.detection.yolov3.utils import draw_centroid
 from mpl_toolkits.mplot3d.art3d import Path3DCollection, Poly3DCollection
-from src.acceptance.base import hand_rotation, joint_relation_errors
+from src.acceptance.base import hand_orientation, joint_relation_errors
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from typing import Tuple
 import numpy as np
@@ -79,7 +79,7 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
     _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints1_2d, joint_errors=errors, color='blue')
 
     if show_norm:
-        norm, mean = hand_rotation(joints1)
+        norm, mean = hand_orientation(joints1)
         norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + 20 * norm, mean]))
         norm_2d = norm_2d[..., :2] - bbox1[..., :2]
         mean_2d = mean_2d[..., :2] - bbox1[..., :2]
@@ -149,7 +149,7 @@ def plot_norm(joints_3d):
     ax = fig.add_subplot(111, projection='3d')
 
     ax.scatter(joints_3d[..., 0], joints_3d[..., 1], zs=joints_3d[..., 2])
-    norm, mean = hand_rotation(joints_3d)
+    norm, mean = hand_orientation(joints_3d)
     ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
               pivot='tail', length=np.std(joints_3d), arrow_length_ratio=0.1)
 
@@ -179,7 +179,7 @@ def plot_joints(image, bbox, joints, show_norm=False):
     _plot_joint_errors_2d(fig, ax, joints)
 
     if show_norm:
-        norm, mean = hand_rotation(joints)
+        norm, mean = hand_orientation(joints)
         ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
                   pivot='tail', length=np.std(joints), arrow_length_ratio=0.1)
 
@@ -219,12 +219,12 @@ def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4
     save_show_fig(fig, fig_location, show_fig)
 
 
-def plot_skeleton_with_labels(image, joints2d, label, show_fig=True, fig_location=None, figsize=(4, 3)):
+def plot_skeleton_with_label(image, joints2d, label, show_fig=True, fig_location=None, figsize=(4, 3)):
     width, height = image.shape[1], image.shape[0]
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     _plot_hand_skeleton_2d(ax, joints2d)
-    ax.text(width / 2, height - 50, label)
+    ax.text(30, 30, label)
     ax.set_axis_off()
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
@@ -237,7 +237,7 @@ def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
     joints2d = cam.world_to_pixel(joints3d)
     _plot_hand_skeleton_2d(ax, joints2d)
     if show_norm:
-        norm, mean = hand_rotation(joints3d)
+        norm, mean = hand_orientation(joints3d)
         norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + norm, mean]))
         ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
     fig.tight_layout()

@@ -15,6 +15,7 @@ class Camera:
         self.invr_projection_matrix = None
         self.depth_unit = None
 
+        cam_type = cam_type.lower()
         if cam_type == 'bighand':
             self.set_bighand_sr300()
         elif cam_type == 'msra':

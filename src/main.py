@@ -68,15 +68,15 @@ def get_figures_filenames(image_files):
 
 
 def plot_estimation_on_bighand():
-    for i in range(1):
-        for j in range(1, 5):
+    for i in range(3):
+        for j in range(0, 9):
             estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(
                 F"Subject_1/226 300/image_D000{i}{j}000.png")))
 
 
 if __name__ == '__main__':
-    dataset = 'custom'
-    estimator = HandPositionEstimator(Camera(dataset), cube_size=230, plot_detection=False,
+    dataset = 'bighand'
+    estimator = HandPositionEstimator(Camera(dataset), cube_size=200, plot_detection=False,
                                       plot_estimation=True, plot_skeleton=True)
 
     if dataset == 'bighand':

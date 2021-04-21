@@ -62,7 +62,9 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210409-031509/train_ckpts/weights.12.h5")  # batch size 64
         # weights_path = LOGS_DIR.joinpath("20210414-190122/train_ckpts/weights.13.h5")
         # weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
-        weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
+        # weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
+        # weights_path = LOGS_DIR.joinpath("20210418-122635/train_ckpts/weights.08.h5")
+        weights_path = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -154,7 +156,7 @@ class HandPositionEstimator:
 
         # Plot the inferenced pose
         if self.plot_estimation:
-            joints2d = uvz_pred[..., :2] - self.estimation_preprocessor.bboxes[..., tf.newaxis, :2]
+            joints2d = self.estimation_preprocessor.convert_coords_to_local(uvz_pred)
             image = self.estimation_preprocessor.cropped_imgs[0].to_tensor()
             if self.plot_skeleton:
                 plots.plot_joints_2d(image, joints2d[0], fig_location=self.estimation_fig_location,
@@ -162,6 +164,13 @@ class HandPositionEstimator:
             else:
                 plots.plot_depth_image(images, fig_location=self.estimation_fig_location)
         return uvz_pred
+
+    def get_cropped_image(self):
+        return self.estimation_preprocessor.cropped_imgs[0].to_tensor()
+
+    def convert_to_cropped_coords(self, joints_uvz):
+        joints_subregion = self.estimation_preprocessor.convert_coords_to_local(joints_uvz)
+        return joints_subregion
 
     def read_image(self, file_path: str):
         """

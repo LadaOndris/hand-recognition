@@ -20,7 +20,7 @@ class DatasetPreprocessor:
 
     def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
                  return_xyz=False, dataset_includes_bboxes=False, augment=False, cube_size=200,
-                 refine_iters=4):
+                 refine_iters=4, thresholding=True):
         """
         Parameters
         ----------
@@ -42,11 +42,12 @@ class DatasetPreprocessor:
         self.dataset_includes_bboxes = dataset_includes_bboxes
         self.augment = augment
         self.cube_size = (cube_size, cube_size, cube_size)
+        self.thresholding = thresholding
         self.refine_iters = refine_iters
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
         self.cropped_imgs = None
-        self.com_preprocessor = ComPreprocessor(self.camera)
+        self.com_preprocessor = ComPreprocessor(self.camera, thresholding)
 
     def __iter__(self):
         return self
@@ -82,10 +83,12 @@ class DatasetPreprocessor:
         # plots.plot_bounding_cube(images[0], self.bcubes[0], self.camera, fig_location=path)
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
-        self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(self.cropped_imgs,
-                                                                           plot_image_after_thresholding=False,
-                                                                           plot_image_before_thresholding=False,
-                                                                           plot_histogram=False)
+        if self.thresholding:
+            self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(
+                self.cropped_imgs,
+                plot_image_after_thresholding=False,
+                plot_image_before_thresholding=False,
+                plot_histogram=False)
         self.cropped_imgs = self.clear_hand(self.cropped_imgs)  # find countours
         self.bcubes = tf.cast(self.bcubes, tf.float32)
         self.bboxes = tf.concat([self.bcubes[..., 0:2], self.bcubes[..., 3:5]], axis=-1)
@@ -132,11 +135,12 @@ class DatasetPreprocessor:
 
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
-        # self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(self.cropped_imgs,
-        #                                                                    plot_image_after_thresholding=False,
-        #                                                                    plot_image_before_thresholding=False,
-        #                                                                    plot_histogram=False)
-
+        if self.thresholding:
+            self.cropped_imgs = self.com_preprocessor.apply_otsus_thresholding(
+                self.cropped_imgs,
+                plot_image_after_thresholding=False,
+                plot_image_before_thresholding=False,
+                plot_histogram=False)
         self.bcubes = tf.cast(self.bcubes, tf.float32)
         self.bboxes = tf.concat([self.bcubes[..., :2], self.bcubes[..., 3:5]], axis=-1)
 
@@ -402,16 +406,6 @@ class DatasetPreprocessor:
         x *= -1  # [u, u - 1]
         return x
 
-
-def try_dataset_genereator():
-    gen = DatasetPreprocessor(None, image_in_size=96, image_out_size=24, camera=Camera('bighand'))
-    images = tf.ones([4, 480, 640])
-    bboxes = tf.constant([[100, 120, 200, 230], [20, 50, 60, 80], [0, 0, 200, 200], [200, 200, 630, 470]])
-    images, bboxes = gen.crop_bbox(images, bboxes)  # TODO: crop_bbox has been moved to ComPreprocessor
-    return images, bboxes
-
-
-if __name__ == "__main__":
-    # offsets = gen.compute_offsets(joints)
-    try_dataset_genereator()
-    pass
+    def convert_coords_to_local(self, uvz_coords):
+        uv_local = uvz_coords[..., :2] - self.bboxes[..., tf.newaxis, :2]
+        return uv_local
