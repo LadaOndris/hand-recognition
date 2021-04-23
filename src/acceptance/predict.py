@@ -4,8 +4,8 @@ from src.acceptance.base import joint_relation_errors, hand_orientation, vectors
 
 class GestureAccepter:
 
-    def __init__(self, gesture_database, jre_thresh, orientation_thresh, distance_limits=None):
-        self.gesture_database = gesture_database
+    def __init__(self, gesture_database_reader, jre_thresh, orientation_thresh, distance_limits=None):
+        self.gesture_database = gesture_database_reader.hand_poses
         self.jre_thresh = jre_thresh
         self.orientation_thresh = orientation_thresh
         self.distance_limits = distance_limits

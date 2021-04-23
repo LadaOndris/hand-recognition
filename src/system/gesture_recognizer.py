@@ -17,7 +17,7 @@ class GestureRecognizer:
         self.estimator = HandPositionEstimator(self.camera, cube_size=230)
         self.database_reader = UsecaseDatabaseReader()
         self.database_reader.load_from_subdir(database_subdir)
-        self.gesture_accepter = GestureAccepter(self.database_reader.hand_poses, error_thresh, orientation_thresh)
+        self.gesture_accepter = GestureAccepter(self.database_reader, error_thresh, orientation_thresh)
 
     def start(self, image_generator):
         for image_array in image_generator:
@@ -42,7 +42,6 @@ class GestureRecognizer:
             image_subregion = self.estimator.get_cropped_image()
             joints_subregion = self.estimator.convert_to_cropped_coords(joints_uvz)
             plots.plot_skeleton_with_label(image_subregion, joints_subregion, gesture_label)
-
 
 def recognize_live():
     generator = generate_live_images()

@@ -10,6 +10,7 @@ from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR, DOCS_DIR
 from src.detection.yolov3.metrics import get_positives_and_negatives
 from src.utils.plots import save_show_fig
 from sklearn.metrics import precision_recall_curve
+from src.detection.yolov3 import utils
 
 
 def evaluate(weights_path):
@@ -111,6 +112,22 @@ def generate_precision_recall_curves(y_pred_pkl, y_true_pkl, fig_scores_location
     save_show_fig(fig, fig_precision_recall_location, show_figs)
 
 
+def compute_iou(y_pred_pkl, y_true_pkl):
+    y_pred = np.load(y_pred_pkl)
+    y_true = np.load(y_true_pkl)
+
+    pred_xywh = y_pred[..., 0:4]
+    true_xywh = y_true[..., 0:4]
+    true_conf = y_true[..., 4:5]
+    iou_for_all_boxes = utils.tensorflow_bbox_iou(pred_xywh[:, :, :, np.newaxis, :],
+                                                  true_xywh[:, :, :, np.newaxis, :])
+    iou_for_true_boxes = true_conf * iou_for_all_boxes
+    ious_sum = tf.reduce_sum(iou_for_true_boxes)
+    nonzero_ious = tf.math.count_nonzero(iou_for_true_boxes, dtype=tf.float32)
+    iou = tf.math.divide_no_nan(ious_sum, nonzero_ious)
+    return iou
+
+
 if __name__ == '__main__':
     pred_path = '../../../other/eval_y_pred_03-15.pkl.npy'
     true_path = '../../../other/eval_y_true_03-15.pkl.npy'
@@ -121,13 +138,16 @@ if __name__ == '__main__':
     # np.save(pred_path, y_pred)
     # np.save(true_path, y_true)
 
-    figure_scores_path = str(DOCS_DIR.joinpath('figures/yolo_eval_scores_03-15.png'))
-    figure_curve_path = str(DOCS_DIR.joinpath('figures/yolo_eval_curve_03-15.png'))
-    generate_precision_recall_curves(pred_path, true_path, show_figs=True,
-                                     fig_scores_location=figure_scores_path,
-                                     fig_precision_recall_location=figure_curve_path)
+    # figure_scores_path = str(DOCS_DIR.joinpath('figures/yolo_eval_scores_03-15.png'))
+    # figure_curve_path = str(DOCS_DIR.joinpath('figures/yolo_eval_curve_03-15.png'))
+    # generate_precision_recall_curves(pred_path, true_path, show_figs=True,
+    #                                  fig_scores_location=figure_scores_path,
+    #                                  fig_precision_recall_location=figure_curve_path)
 
-    # Preivous model
+    iou = compute_iou(pred_path, true_path)
+    print(iou)
+
+    # Previous model
     # y_pred = np.load('../../../other/eval_y_pred.pkl.npy')
     # y_true = np.load('../../../other/eval_y_true.pkl.npy')
 

@@ -49,7 +49,7 @@ tar -xf "$SCRATCHDIR/datasets/Subject_3.tar" -C "$SCRATCHDIR/datasets/bighand" |
 cp -r "$DATADIR/saved_models" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy saved models"; exit 2; }
 
 export PYTHONPATH=$SCRATCHDIR
-python3 $SCRATCHDIR/src/pose_estimation/train.py --train bighand --model "$SCRATCHDIR/saved_models/210330-024055/weights.52.h5"
+python3 $SCRATCHDIR/src/estimation/train.py --train bighand --model "$SCRATCHDIR/saved_models/210330-024055/weights.52.h5"
 
 cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }
 cp -r $SCRATCHDIR/saved_models $DATADIR/ || { echo >&2 "Couldnt copy saved_models to datadir."; exit 3; }

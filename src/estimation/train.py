@@ -11,14 +11,14 @@ import glob
 import argparse
 
 
-def train(dataset: str, weights_path: str, model_features=128):
+def train(dataset_name: str, weights_path: str, model_features=128):
     network = JGR_J2O(n_features=model_features)
     model = network.graph()
     print(model.summary(line_length=120))
     if weights_path is not None:
         model.load_weights(weights_path)
 
-    dataset, train_ds_gen, test_ds_gen = get_train_and_test_generator(dataset, network, JGRJ2O_TRAIN_BATCH_SIZE)
+    dataset, train_ds_gen, test_ds_gen = get_train_and_test_generator(dataset_name, network, JGRJ2O_TRAIN_BATCH_SIZE)
     monitor_loss = 'val_loss'
     if dataset.num_test_batches == 0:
         test_ds_gen = None
@@ -34,7 +34,7 @@ def train(dataset: str, weights_path: str, model_features=128):
     ]
 
     steps_per_epoch = dataset.num_train_batches
-    if dataset == 'bighand':
+    if dataset_name == 'bighand':
         steps_per_epoch = 1024
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -45,7 +45,7 @@ def train(dataset: str, weights_path: str, model_features=128):
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
 
-    if dataset == "bighand":
+    if dataset_name == "bighand":
         model.fit(train_ds_gen, epochs=1000, verbose=0, callbacks=callbacks, steps_per_epoch=steps_per_epoch,
                   validation_data=test_ds_gen, validation_steps=dataset.num_test_batches)
     else:
@@ -54,7 +54,7 @@ def train(dataset: str, weights_path: str, model_features=128):
 
     # probably won't come to this, but just to be sure.
     # (the best checkpoint is being saved after each epoch)
-    model_filepath = logs_utils.compose_model_path(prefix=F"jgrp2o_{dataset}_")
+    model_filepath = logs_utils.compose_model_path(prefix=F"jgrp2o_{dataset_name}_")
     model.save_weights(model_filepath)
     # checkpoints are located in the log_dir
     # the saved model is located in the model_filepath
@@ -68,8 +68,9 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, action='store', default=None)
     args = parser.parse_args()
 
+    features = 196
     if args.train is not None:
-        log_dir, model_filepath = train(args.train, args.model, model_features=128)
+        log_dir, model_filepath = train(args.train, args.model, model_features=features)
 
     if (args.evaluate is not None) and (args.train is not None):
         if model_filepath is not None and os.path.isfile(model_filepath):
@@ -80,7 +81,7 @@ if __name__ == "__main__":
             path = max(ckpts, key=os.path.getctime)
         # path = LOGS_DIR.joinpath('20210306-000815/train_ckpts/weights.07.h5')
         if path is not None:
-            mje = evaluate(args.evaluate, path)
+            mje = evaluate(args.evaluate, path, features)
             tf.print("MJE:", mje)
         else:
             raise ValueError("No checkpoints available")

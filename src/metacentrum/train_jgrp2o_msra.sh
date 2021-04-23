@@ -37,7 +37,7 @@ tar -xf "$SCRATCHDIR/datasets/cvpr15_MSRAHandGestureDB.tar" -C "$SCRATCHDIR/data
 cp -r "$DATADIR/saved_models" "$SCRATCHDIR/" || { echo >&2 "Couldnt copy saved models"; exit 2; }
 
 export PYTHONPATH=$SCRATCHDIR
-python3 $SCRATCHDIR/src/pose_estimation/train.py --train msra --evaluate msra --model "$SCRATCHDIR/saved_models/20210407-172551/weights.13.h5"
+python3 $SCRATCHDIR/src/estimation/train.py --train msra --evaluate msra --model "$SCRATCHDIR/saved_models/20210407-172551/weights.13.h5"
 
 cp -r $SCRATCHDIR/logs $DATADIR/ || { echo >&2 "Couldnt copy logs to datadir."; exit 3; }
 cp -r $SCRATCHDIR/saved_models $DATADIR/ || { echo >&2 "Couldnt copy saved_models to datadir."; exit 3; }

@@ -121,13 +121,13 @@ def _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors, color=
     # cbar.ax.xaxis.set_label_position('top')
 
 
-def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True):
+def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True,
+                           finger_colors='rmcgb', linewidth=2, linestyle='solid'):
     joints = np.squeeze(joints)  # get rid of surplus dimensions
     if joints.ndim != 2:
         raise ValueError(F"joints.ndim should be 2, but is {joints.ndim}")
     fingers_bases = np.arange(wrist_index + 1, wrist_index + 20, 4)
     wrist_joint = joints[wrist_index]
-    finger_colors = ['r', 'm', 'c', 'g', 'b']
     if scatter:
         ax.scatter(wrist_joint[..., 0], wrist_joint[..., 1], c=finger_colors[-1], marker=marker, s=s, alpha=alpha)
     for i, finger_base in enumerate(fingers_bases):
@@ -141,7 +141,7 @@ def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o',
         #     zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
         #     ax.plot(xs, ys, zs=zs, c=finger_colors[i])
         # else:
-        ax.plot(xs, ys, c=finger_colors[i])
+        ax.plot(xs, ys, c=finger_colors[i], linewidth=linewidth, linestyle=linestyle)
 
 
 def plot_norm(joints_3d):
@@ -214,6 +214,18 @@ def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     _plot_hand_skeleton_2d(ax, joints2d)
+    ax.set_axis_off()
+    fig.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def plot_joints_with_annotations(image, joints_pred, joints_true, show_fig=True, fig_location=None, figsize=(4, 3)):
+    fig, ax = plt.subplots(1, figsize=figsize)
+    _plot_depth_image(ax, image)
+    first_color = np.full(shape=[5], fill_value="orange")
+    second_color = np.full(shape=[5], fill_value="red")
+    _plot_hand_skeleton_2d(ax, joints_true, scatter=False, linewidth=2, linestyle=(0, (2, 2)))
+    _plot_hand_skeleton_2d(ax, joints_pred, scatter=False, linewidth=2)
     ax.set_axis_off()
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
