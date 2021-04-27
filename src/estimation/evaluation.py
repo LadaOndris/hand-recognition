@@ -1,4 +1,5 @@
 from src.datasets.msra.dataset import MSRADataset
+from src.estimation.common import get_evaluation_dataset_generator
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
@@ -70,29 +71,25 @@ def plot_proportions_below_threshold():
     fig.show()
 
 
-def evaluate(dataset: str, weights_path: str, model_features=128):
-    if dataset != 'msra':
+def evaluate(dataset_name: str, weights_path: str, model_features=128):
+    if dataset_name != 'msra':
         raise ValueError("Invalid dataset")
 
     network = JGR_J2O(n_features=model_features)
-    cam = Camera(dataset)
-
-    ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=8, shuffle=False)
-    test_ds_gen = DatasetPreprocessor(iter(ds.test_dataset), cam.image_size, network.input_size, network.out_size,
-                                      camera=cam, dataset_includes_bboxes=True, augment=False, thresholding=False,
-                                      refine_iters=0, cube_size=180)
+    cam = Camera(dataset_name)
+    dataset, generator = get_evaluation_dataset_generator(dataset_name, network, batch_size=8)
 
     model = network.graph()
     model.load_weights(weights_path)
     mje_metric = MeanJointErrorMetric()
     threshold_metric = DistancesBelowThreshold(max_thres=200)
 
-    for batch_idx in range(ds.num_test_batches):
-        normalized_images, y_true = next(test_ds_gen)
+    for batch_idx in range(dataset.num_test_batches):
+        normalized_images, y_true = next(generator)
         y_pred = model.predict(normalized_images)
         # y_pred and y_true are normalized values from/for the model
-        uvz_true = test_ds_gen.postprocess(y_true)
-        uvz_pred = test_ds_gen.postprocess(y_pred)
+        uvz_true = generator.postprocess(y_true)
+        uvz_pred = generator.postprocess(y_pred)
         xyz_pred = cam.pixel_to_world(uvz_pred)
         xyz_true = cam.pixel_to_world(uvz_true)
         threshold_metric.update_state(xyz_true, xyz_pred)
@@ -100,7 +97,7 @@ def evaluate(dataset: str, weights_path: str, model_features=128):
     return threshold_metric.result(), mje_metric.result()
 
 
-if __name__ == '__main__':
+def evaluate_msra():
     # weights = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')  # msra, first time, 31 MJE
     # weights = LOGS_DIR.joinpath("20210323-160416/train_ckpts/weights.10.h5")
     # weights = LOGS_DIR.joinpath("20210324-203043/train_ckpts/weights.12.h5")
@@ -109,3 +106,13 @@ if __name__ == '__main__':
     weights = LOGS_DIR.joinpath('20210421-221853/train_ckpts/weights.22.h5')  # msra, third time, 14.87 MJE
     thres, mje = evaluate('msra', weights)
     print(mje)
+
+
+def evaluate_bighand():
+    weights = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")  # bighand
+    thres, mje = evaluate('bighand', weights)
+    print(mje)
+
+
+if __name__ == '__main__':
+    evaluate_bighand()

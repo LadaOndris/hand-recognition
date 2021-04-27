@@ -135,16 +135,11 @@ class YoloLoss(tf.keras.losses.Loss):
         more than some threshold we ignore the prediction.'
         Meaning: true_conf is 0 if the grid cell is not responsible for that prediction,
         then the loss for that grid is computed only if the IoU is less than some 
-        threshold. So we don't penalizes confidence of grid cells that does overlap
+        threshold. So we don't penalizes confidence of grid cells that do overlap
         the object by some margin.
         """
 
         loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_conf, logits=raw_conf)
         ignore_conf = (1.0 - true_conf) * tf.cast(max_iou < self.ignore_thresh, tf.float32)
         loss_conf = true_conf * loss_conf + ignore_conf * loss_conf
-
-        # loss for each sample in the batch
-        # loss_conf = tf.reduce_sum(loss_conf, axis=[1, 2, 3, 4])
-        # loss for the batch as a whole
-        # loss_conf = tf.reduce_mean(loss_conf)
         return loss_conf

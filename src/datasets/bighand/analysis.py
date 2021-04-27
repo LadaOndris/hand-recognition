@@ -13,7 +13,7 @@ def get_line(file):
 
 
 def show_sample_from_each_folder(save_fig_location_pattern=None):
-    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=1.0, batch_size=1, shuffle=False)
+    ds = BighandDataset(BIGHAND_DATASET_DIR, batch_size=1, shuffle=False)
     camera = Camera('bighand')
     samples_per_file = 1
     for i, file in enumerate(ds.train_annotation_files):

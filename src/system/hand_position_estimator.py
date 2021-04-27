@@ -64,7 +64,8 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
         # weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
         # weights_path = LOGS_DIR.joinpath("20210418-122635/train_ckpts/weights.08.h5")
-        weights_path = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")
+        # weights_path = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")
+        weights_path = LOGS_DIR.joinpath("20210423-220702/train_ckpts/weights.13.h5")
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -214,7 +215,7 @@ def preprocess_image_for_detection(images):
     Parameters
     ----------
     images
-        Image pixel values should be in milimeters.
+        Image pixel values are expected to be in milimeters.
     camera
     """
     dtype = images.dtype

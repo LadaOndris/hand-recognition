@@ -42,16 +42,17 @@ def plot_predictions_with_annotations(y_pred, y_true, generator: DatasetPreproce
     xyz_true = camera.pixel_to_world(uvz_true)
 
     mje_metric = MeanJointErrorMetric()
-    mje = mje_metric.mean_joint_error(xyz_true, xyz_pred)
+    mjes = mje_metric.mean_joint_error(xyz_true, xyz_pred)
 
     for i in range(generator.cropped_imgs.shape[0]):
         image = generator.cropped_imgs[i]
         joints_pred = joints2d_pred[i]
         joints_true = joints2d_true[i]
+        mje = mjes[i]
 
-        fig_location = DOCS_DIR.joinpath(F"images/estimation/msra/msra_{i}_{mje:.2f}.png")
+        # fig_location = DOCS_DIR.joinpath(F"images/estimation/msra/msra_{mje:.2f}.png")
         plots.plot_joints_with_annotations(image.to_tensor(), joints_pred, joints_true, figsize=(3, 3),
-                                           fig_location=fig_location)
+                                           fig_location=None)
 
 
 def infer_on_dataset(dataset: str, weights_path: str, model_features=128):
@@ -80,6 +81,11 @@ if __name__ == "__main__":
     # weights = LOGS_DIR.joinpath('20210403-183544/train_ckpts/weights.01.h5')  # overtrained on single image
     # weights = LOGS_DIR.joinpath('20210407-172551/train_ckpts/weights.13.h5')  # msra, second time, 18 MJE
     # weights = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")  # bighand, 196 features
-    weights = LOGS_DIR.joinpath('20210421-221853/train_ckpts/weights.22.h5')  # msra, third time, 14.87 MJE
-    infer_on_dataset('msra', weights)
+    # weights = LOGS_DIR.joinpath('20210421-221853/train_ckpts/weights.22.h5')  # msra, third time, 14.87 MJE
+    # weights = LOGS_DIR.joinpath("20210423-220702/train_ckpts/weights.13.h5")  # bighand
+    # weights = LOGS_DIR.joinpath("20210424-122810/train_ckpts/weights.26.h5")  # bighand
+    # weights = LOGS_DIR.joinpath("20210425-122826/train_ckpts/weights.25.h5")  # bighand
+    weights = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")  # bighand
+
+    infer_on_dataset('bighand', weights, model_features=196)
     # try_dataset_pipeline('bighand')

@@ -2,6 +2,7 @@ __pycache__/
 .spyproject/
 .idea/
 *.npy
+tmp
 
 logs/
 other/

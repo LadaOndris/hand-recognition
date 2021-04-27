@@ -10,14 +10,9 @@ from PIL import Image
 
 class BighandDataset:
 
-    def __init__(self, dataset_path, train_size, batch_size=16, shuffle=True):
-        if train_size < 0 or train_size > 1:
-            raise ValueError("Train_size expected to be in range [0, 1], but got {train_size}.")
-        if batch_size < 1:
-            raise ValueError("Batch size has to be greater than 0.")
-
+    def __init__(self, dataset_path, test_subject=None, batch_size=16, shuffle=True):
         self.dataset_path = dataset_path
-        self.train_size = train_size
+        self.test_subject = test_subject
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.batch_index = 0
@@ -43,14 +38,18 @@ class BighandDataset:
 
     def _load_annotations(self):
         subject_dirs = self._get_subject_dirs()
-        annotation_files = []
+        train_annotation_files = []
+        test_annotation_files = []
         for subject_dir in subject_dirs:
             pattern = F"full_annotation/{subject_dir}/[!README]*.txt"
             full_pattern = os.path.join(self.dataset_path, pattern)
-            annotation_files += glob.glob(full_pattern)
+            annotation_files = glob.glob(full_pattern)
 
-        boundary_index = int(len(annotation_files) * self.train_size)
-        return annotation_files[:boundary_index], annotation_files[boundary_index:]
+            if subject_dir == self.test_subject:
+                test_annotation_files += annotation_files
+            else:
+                train_annotation_files += annotation_files
+        return train_annotation_files, test_annotation_files
 
     def _get_subject_dirs(self):
         return [f.stem for f in self.dataset_path.iterdir() if f.is_dir()]
@@ -130,7 +129,7 @@ class BighandDataset:
 
 if __name__ == '__main__':
     cam = Camera('bighand')
-    ds = BighandDataset(BIGHAND_DATASET_DIR, train_size=0.9, batch_size=10, shuffle=True)
+    ds = BighandDataset(BIGHAND_DATASET_DIR, batch_size=10, shuffle=True)
     iterator = iter(ds.train_dataset)
     batch_images, batch_labels = next(iterator)
 

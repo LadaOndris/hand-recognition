@@ -9,13 +9,17 @@ class MeanJointErrorMetric(tf.keras.metrics.Metric):
         self._count = self.add_weight(name='count', initializer='zeros')
 
     def update_state(self, xyz_true, xyz_pred, sample_weight=None):
-        mje = self.mean_joint_error(xyz_true, xyz_pred)
+        mje = self.reduced_mean_joint_error(xyz_true, xyz_pred)
         self._total.assign_add(tf.cast(mje, dtype=tf.float32))
         self._count.assign_add(1)
 
-    def mean_joint_error(self, joints1, joints2):
+    def reduced_mean_joint_error(self, joints1, joints2):
         distances = tf.norm(joints1 - joints2, axis=2)
         return tf.reduce_mean(distances)
+
+    def mean_joint_error(self, joints1, joints2):
+        distances = tf.norm(joints1 - joints2, axis=2)
+        return tf.reduce_mean(distances, axis=-1)
 
     def result(self):
         return tf.math.divide_no_nan(self._total, self._count)
