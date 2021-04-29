@@ -32,7 +32,7 @@ def start_live_capture(plot=False):
         path = os.path.join(dir, F"{i}.png")
         save_16bit_png(np.squeeze(image_array), path)
         print(path)
-        plt.pause(0.05)
+        plt.pause(0.10)
 
 
 def show_captured(dirname):
@@ -56,5 +56,5 @@ def show_captured(dirname):
 
 if __name__ == "__main__":
     start_live_capture()
-    # show_captured('20210326-233053')
+    # show_captured('20210429-201220')
 

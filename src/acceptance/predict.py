@@ -51,7 +51,18 @@ class GestureAccepter:
 
         self.orientation, _ = hand_orientation(keypoints)
         self.expected_orientation, _ = hand_orientation(self.predicted_gesture)
-        self.angle_difference = np.rad2deg(vectors_angle(self.expected_orientation, self.orientation))
+        angle_difference = np.rad2deg(vectors_angle(self.expected_orientation, self.orientation))
+        self.angle_difference = self._suit_angle_for_both_hands(angle_difference)
 
         self.gesture_invalid = self.gesture_jre > self.jre_thresh or \
                                self.angle_difference > self.orientation_thresh
+
+    def _suit_angle_for_both_hands(self, angle):
+        """
+        Do not allow angle above 90 because tt is unknown
+        which hand is in the image.
+        """
+        if angle > 90:
+            return 180 - angle
+        else:
+            return angle

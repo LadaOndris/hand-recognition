@@ -6,6 +6,7 @@ from src.utils.imaging import resize_images, resize_bilinear_nearest_batch
 from src.utils.camera import Camera
 import src.utils.plots as plots
 from src.estimation.com_preprocessing import ComPreprocessor
+from src.estimation.configuration import Config
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from src.utils.paths import DOCS_DIR
@@ -18,9 +19,7 @@ class DatasetPreprocessor:
     to match the expected output of JGR-J2O network.
     """
 
-    def __init__(self, dataset_iterator, depth_image_size, image_in_size, image_out_size, camera: Camera,
-                 return_xyz=False, dataset_includes_bboxes=False, augment=False, cube_size=200,
-                 refine_iters=4, thresholding=True):
+    def __init__(self, dataset_iterator, image_in_size, image_out_size, camera: Camera, config: Config):
         """
         Parameters
         ----------
@@ -34,20 +33,18 @@ class DatasetPreprocessor:
             If dataset returns bboxes, then the images are expected to be already cropped.
         """
         self.iterator = dataset_iterator
-        self.depth_image_size = depth_image_size
         self.image_in_size = [image_in_size, image_in_size]
         self.image_out_size = image_out_size
         self.camera = camera
-        self.return_xyz = return_xyz
-        self.dataset_includes_bboxes = dataset_includes_bboxes
-        self.augment = augment
-        self.cube_size = (cube_size, cube_size, cube_size)
-        self.thresholding = thresholding
-        self.refine_iters = refine_iters
+        self.return_xyz = config.return_xyz
+        self.augment = config.augment
+        self.cube_size = (config.cube_size, config.cube_size, config.cube_size)
+        self.thresholding = config.thresholding
+        self.refine_iters = config.refine_iters
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
         self.cropped_imgs = None
-        self.com_preprocessor = ComPreprocessor(self.camera, thresholding)
+        self.com_preprocessor = ComPreprocessor(self.camera, config.thresholding, config.use_center_of_image)
 
     def __iter__(self):
         return self
@@ -112,10 +109,7 @@ class DatasetPreprocessor:
         Both, images and coordinates are normalized to range [0, 1].
         Also, offsets are computed from the normalized coordinates.
         """
-        if self.dataset_includes_bboxes:
-            images, ignore_bboxes, self.xyz_global = self.iterator.get_next()
-        else:
-            images, self.xyz_global = self.iterator.get_next()
+        images, self.xyz_global = self.iterator.get_next()
         uv_global = self.camera.world_to_pixel(self.xyz_global)[..., :2]
 
         # Rotate in plane
@@ -124,7 +118,7 @@ class DatasetPreprocessor:
         images = tf.cast(images, tf.float32)
 
         self.bboxes = self.extract_bboxes(uv_global)
-        self.bboxes = self.square_bboxes(self.bboxes)
+        self.bboxes = self.square_bboxes(self.bboxes, tf.shape(images)[1:3])
         self.bcubes = self.com_preprocessor.refine_bcube_using_com(images, self.bboxes,
                                                                    cube_size=self.cube_size)
         if self.augment:
@@ -336,7 +330,7 @@ class DatasetPreprocessor:
         bboxes = tf.cast(bboxes, dtype=tf.int32)
         return bboxes
 
-    def square_bboxes(self, bboxes):
+    def square_bboxes(self, bboxes, image_size):
         u_min, v_min, u_max, v_max = tf.unstack(bboxes, axis=-1)
         width = u_max - u_min
         height = v_max - v_min
@@ -348,7 +342,7 @@ class DatasetPreprocessor:
         u_max_raw = tf.where(width < height, u_max_new, u_max)
         # Crop out of bounds
         u_min = tf.math.maximum(u_min_raw, 0)
-        u_max = tf.math.minimum(u_max_raw, self.depth_image_size[0])
+        u_max = tf.math.minimum(u_max_raw, image_size[0])
 
         # Make bbox square in the V axis
         v_min_new = v_min + tf.cast(height / 2 - width / 2, dtype=v_min.dtype)
@@ -357,7 +351,7 @@ class DatasetPreprocessor:
         v_max_raw = tf.where(height < width, v_max_new, v_max)
         # Crop out of bounds
         v_min = tf.math.maximum(v_min_raw, 0)
-        v_max = tf.math.minimum(v_max_raw, self.depth_image_size[1])
+        v_max = tf.math.minimum(v_max_raw, image_size[1])
 
         return tf.stack([u_min, v_min, u_max, v_max], axis=-1)
 

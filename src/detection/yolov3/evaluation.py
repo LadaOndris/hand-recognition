@@ -11,6 +11,7 @@ from src.detection.yolov3.metrics import get_positives_and_negatives
 from src.utils.plots import save_show_fig
 from sklearn.metrics import precision_recall_curve
 from src.detection.yolov3 import utils
+import src.utils.plots as plots
 
 
 def evaluate(weights_path):
@@ -83,33 +84,9 @@ def generate_precision_recall_curves(y_pred_pkl, y_true_pkl, fig_scores_location
     thresholds = np.concatenate([[0], thresholds])
     f1 = tf.math.divide_no_nan(2 * precision * recall, (precision + recall)).numpy()
 
-    figsize = (8, 6)
-    plt.style.use('seaborn-whitegrid')
-    plt.rcParams.update({"font.size": 24})
-    fig = plt.figure(figsize=figsize)
-    plt.plot(thresholds, precision)
-    plt.plot(thresholds, recall)
-    plt.plot(thresholds, f1)
-    plt.legend(labels=['Precision', 'Recall', 'F1'])
-    # plt.title("Precision, Recall, and F1 metric evaluated on Tiny YOLOv3 model")
-    plt.xlabel('Threshold', labelpad=20)
-    plt.ylabel('Score', labelpad=20)
-    plt.margins(x=0, y=0)
-    plt.tick_params(axis='x', pad=15)
-    plt.tick_params(axis='y', pad=15)
-    plt.tight_layout()
-    save_show_fig(fig, fig_scores_location, show_figs)
-
-    fig = plt.figure(figsize=figsize)
-    plt.plot(recall, precision)
-    # plt.title("Precision-recall curve of a trained Tiny YOLOv3 model")
-    plt.xlabel('Recall', labelpad=20)
-    plt.ylabel('Precision', labelpad=20)
-    plt.margins(x=0, y=0)
-    plt.tick_params(axis='x', pad=15)
-    plt.tick_params(axis='y', pad=15)
-    plt.tight_layout()
-    save_show_fig(fig, fig_precision_recall_location, show_figs)
+    plots.plot_scores(x=thresholds, y=[precision, recall, f1], labels=['Precision', 'Recall', 'F1'],
+                      fig_location=fig_scores_location, show_fig=show_figs)
+    plots.precision_recall_curve(recall, precision, fig_location=fig_precision_recall_location, show_fig=show_figs)
 
 
 def compute_iou(y_pred_pkl, y_true_pkl):

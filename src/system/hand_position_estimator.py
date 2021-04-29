@@ -1,24 +1,26 @@
 import tensorflow as tf
-from src.detection.yolov3 import utils
-from src.core.cfg.cfg_parser import Model
-from src.utils.paths import LOGS_DIR, DOCS_DIR
-from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
-from src.utils.live import generate_live_images
-from src.estimation.dataset_preprocessing import DatasetPreprocessor
-from src.utils.camera import Camera
+
 import src.utils.plots as plots
+from src.core.cfg.cfg_parser import Model
+from src.detection.yolov3 import utils
+from src.estimation.configuration import Config
+from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
+from src.utils.camera import Camera
+from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.imaging import tf_resize_image
+from src.utils.live import generate_live_images
+from src.utils.paths import DOCS_DIR, LOGS_DIR
 
 
 class HandPositionEstimator:
     """
     Loads a hand detector and hand pose estimator.
     Then, it uses them to estimate the precision position of hands
-    either from files, live images, or from given images.
+    either from files, live2 images, or from given images.
     """
 
-    def __init__(self, camera: Camera, cube_size, plot_detection=False, plot_estimation=False, plot_skeleton=True):
+    def __init__(self, camera: Camera, config: Config, plot_detection=False, plot_estimation=False, plot_skeleton=True):
         self.camera = camera
         self.plot_detection = plot_detection
         self.plot_estimation = plot_estimation
@@ -27,10 +29,8 @@ class HandPositionEstimator:
         self.detector = self.load_detector(self.resize_mode)
         self.network = JGR_J2O(n_features=196)
         self.estimator = self.load_estimator()
-        self.estimation_preprocessor = DatasetPreprocessor(None, self.detector.input_shape, self.network.input_size,
-                                                           self.network.out_size,
-                                                           camera=self.camera, augment=False, cube_size=cube_size,
-                                                           refine_iters=0)
+        self.estimation_preprocessor = DatasetPreprocessor(None, self.network.input_size, self.network.out_size,
+                                                           camera=self.camera, config=config)
         self.estimation_fig_location = None
 
     def load_detector(self, resize_mode):
@@ -65,7 +65,8 @@ class HandPositionEstimator:
         # weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
         # weights_path = LOGS_DIR.joinpath("20210418-122635/train_ckpts/weights.08.h5")
         # weights_path = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")
-        weights_path = LOGS_DIR.joinpath("20210423-220702/train_ckpts/weights.13.h5")
+        # weights_path = LOGS_DIR.joinpath("20210423-220702/train_ckpts/weights.13.h5")
+        weights_path = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")  # bighand
 
         model = self.network.graph()
         model.load_weights(str(weights_path))
@@ -79,12 +80,16 @@ class HandPositionEstimator:
         image = self.read_image(file_path)
         return self.inference_from_image(image)
 
-    def inference_live(self):
+    def inference_live(self, save_folder=None):
+        i = 0
+        fig_location = None
         live_image_generator = generate_live_images()
-
         for depth_image in live_image_generator:
-            depth_image = self.resize_image_and_depth(depth_image)
+            if save_folder is not None:
+                fig_location = save_folder.joinpath(F"{i}.png")
+                self.estimation_fig_location = fig_location
             joints = self.inference_from_image(depth_image)
+            i += 1
 
     def inference_from_image(self, image):
         """
@@ -115,10 +120,10 @@ class HandPositionEstimator:
 
     def detect_live(self):
         """
-        Reads live images from RealSense depth camera, and
+        Reads live2 images from RealSense depth camera, and
         detects hands for each frame.
         """
-        # create live image generator
+        # create live2 image generator
         live_image_generator = generate_live_images()
 
         for depth_image in live_image_generator:

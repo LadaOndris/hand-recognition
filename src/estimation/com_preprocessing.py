@@ -12,9 +12,13 @@ from src.utils.config import OTSUS_ALLOWANCE_THRESHOLD
 
 class ComPreprocessor:
 
-    def __init__(self, camera: Camera, thresholding=True):
+    def __init__(self, camera: Camera, thresholding=True, use_center_of_image=False):
         self.camera = camera
         self.thresholding = thresholding
+        if use_center_of_image:
+            self.com_function = self.center_of_image
+        else:
+            self.com_function = self.center_of_mass
 
     def refine_bcube_using_com(self, full_image, bbox, refine_iters=3, cube_size=(250, 250, 250)):
         """
@@ -67,7 +71,7 @@ class ComPreprocessor:
         if self.thresholding:
             images = self.apply_otsus_thresholding(images)
 
-        com_local = tf.map_fn(self.center_of_image, images,
+        com_local = tf.map_fn(self.com_function, images,
                               fn_output_signature=tf.TensorSpec(shape=[3], dtype=tf.float32))
 
         # Adjust the center of mass coordinates to orig image space (add U, V offsets)

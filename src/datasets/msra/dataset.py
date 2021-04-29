@@ -124,7 +124,6 @@ class MSRADataset:
         ds = ds.map(self._read_image)
         ds = ds.batch(self.batch_size)
         ds = ds.prefetch(buffer_size=1)
-        # ds = ds.map(self._squeeze_image_dimension)
         return ds
 
     def get_records(self, subject_folders):
@@ -155,7 +154,7 @@ class MSRADataset:
         image = tf.cast(image, dtype=tf.float32)
         # image = tf.expand_dims(image, 0)
         # image = tf.RaggedTensor.from_tensor(image, ragged_rank=2)
-        return image, bbox, joints
+        return image, joints
 
     def _squeeze_image_dimension(self, images, bboxes, joints):
         return tf.squeeze(images, axis=1), bboxes, joints
@@ -227,7 +226,7 @@ def mean_finger_length():
 def finger_lengths_for_iter(batch_iterator, batches):
     lengths_arrays = []
     for i in range(batches):
-        images, bboxes, joints = next(batch_iterator)
+        images, joints = next(batch_iterator)
         lengths = fingers_length(joints)
         lengths_arrays.append(lengths)
     lengths = np.concatenate(lengths_arrays)

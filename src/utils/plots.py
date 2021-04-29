@@ -1,14 +1,13 @@
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from src.detection.yolov3.utils import draw_centroid
-from mpl_toolkits.mplot3d.art3d import Path3DCollection, Poly3DCollection
-from src.acceptance.base import hand_orientation, joint_relation_errors
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from typing import Tuple
-import numpy as np
+
 import matplotlib.colors as colors
-import matplotlib.ticker as tick
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import cm
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+from src.acceptance.base import hand_orientation, joint_relation_errors
 from src.utils.camera import Camera
 
 depth_image_cmap = 'gist_yarg'
@@ -236,7 +235,7 @@ def plot_skeleton_with_label(image, joints2d, label, show_fig=True, fig_location
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     _plot_hand_skeleton_2d(ax, joints2d)
-    ax.text(30, 30, label)
+    ax.set_title(label)
     ax.set_axis_off()
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
@@ -333,6 +332,60 @@ def plot_bounding_cube(image, bcube, cam: Camera, fig_location=None, show_fig=Tr
     ax.yaxis.set_visible(False)
     fig.subplots_adjust(left=0.01, right=0.99, bottom=0.01, top=0.99)
     save_show_fig(fig, fig_location, show_fig)
+
+
+def plot_scores(x, y, labels=None, fig_location=None, show_fig=True):
+    figsize = (8, 6)
+    plt.style.use('seaborn-whitegrid')
+    plt.rcParams.update({"font.size": 24})
+
+    fig = plt.figure(figsize=figsize)
+    for y_score in y:
+        plt.plot(x, y_score)
+    if labels is not None:
+        if len(labels) != len(y):
+            raise ValueError('y shape is not the same as labels shape')
+        plt.legend(labels=labels)
+    plt.xlabel('Threshold', labelpad=20)
+    plt.ylabel('Score', labelpad=20)
+    plt.margins(x=0, y=0)
+    plt.tick_params(axis='x', pad=15)
+    plt.tick_params(axis='y', pad=15)
+    plt.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def precision_recall_curve(precision, recall, fig_location=None, show_fig=True):
+    plt.style.use('seaborn-whitegrid')
+    plt.rcParams.update({"font.size": 24})
+    figsize = (8, 6)
+    fig = plt.figure(figsize=figsize)
+    plt.plot(recall, precision)
+    plt.xlabel('Recall', labelpad=20)
+    plt.ylabel('Precision', labelpad=20)
+    plt.margins(x=0, y=0)
+    plt.tick_params(axis='x', pad=15)
+    plt.tick_params(axis='y', pad=15)
+    plt.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def histogram(y, label, fig_location=None, show_fig=True, **kwargs):
+    plt.style.use('seaborn-whitegrid')
+    plt.rcParams.update({"font.size": 24})
+    fig = plt.figure(figsize=(8, 6))
+    plt.hist(y, bins=50, density=True, **kwargs)
+    _set_pad_and_labels(label, 'Density')
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def _set_pad_and_labels(xlabel, ylabel):
+    plt.xlabel(xlabel, labelpad=20)
+    plt.ylabel(ylabel, labelpad=20)
+    plt.margins(x=0, y=0)
+    plt.tick_params(axis='x', pad=15)
+    plt.tick_params(axis='y', pad=15)
+    plt.tight_layout()
 
 
 def save_show_fig(fig, fig_location, show_figure):

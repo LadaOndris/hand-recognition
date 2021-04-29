@@ -7,6 +7,7 @@ from src.utils.live import generate_live_images
 import numpy as np
 from src.utils.logs import make_dir, get_current_timestamp
 import time
+import src.estimation.configuration as configs
 
 
 class UsecaseDatabaseScanner:
@@ -15,7 +16,8 @@ class UsecaseDatabaseScanner:
         self.subdir = subdir
         self.camera = camera
         self.subdir_path = USECASE_DATASET_DIR.joinpath(subdir)
-        self.estimator = HandPositionEstimator(self.camera, 230, plot_estimation=plot_estimation)
+        config = configs.PredictCustomDataset()
+        self.estimator = HandPositionEstimator(self.camera, config=config, plot_estimation=plot_estimation)
 
     def scan_into_subdir(self, gesture_label, scan_period=1):
         """

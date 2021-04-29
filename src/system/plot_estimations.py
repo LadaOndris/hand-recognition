@@ -1,6 +1,7 @@
-from src.utils.paths import CUSTOM_DATASET_DIR, BIGHAND_DATASET_DIR, DOCS_DIR
-from src.utils.camera import Camera
+import src.estimation.configuration as configs
 from src.system.hand_position_estimator import HandPositionEstimator
+from src.utils.camera import Camera
+from src.utils.paths import BIGHAND_DATASET_DIR, CUSTOM_DATASET_DIR, DOCS_DIR
 
 
 def plot_estimation_on_custom_dataset():
@@ -75,14 +76,21 @@ def plot_estimation_on_bighand():
 
 
 if __name__ == '__main__':
-    dataset = 'bighand'
-    estimator = HandPositionEstimator(Camera(dataset), cube_size=200, plot_detection=False,
+    dataset = 'custom'
+    if dataset == 'bighand':
+        config = configs.PredictBighandConfig()
+    elif dataset == 'msra':
+        config = configs.PredictMsraConfig()
+    else:
+        config = configs.PredictCustomDataset()
+    estimator = HandPositionEstimator(Camera(dataset), config=config, plot_detection=False,
                                       plot_estimation=True, plot_skeleton=True)
 
-    if dataset == 'bighand':
-        # save_estimations_on_bighand()
-        plot_estimation_on_bighand()
-    else:
-        plot_estimation_on_custom_dataset()
+    # if dataset == 'bighand':
+    #     # save_estimations_on_bighand()
+    #     plot_estimation_on_bighand()
+    # else:
+    #     plot_estimation_on_custom_dataset()
     # estimator.detect_live()
+    estimator.inference_live(save_folder=DOCS_DIR.joinpath('images/estimation/live3'))
     pass

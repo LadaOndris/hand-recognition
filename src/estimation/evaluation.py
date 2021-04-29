@@ -1,13 +1,14 @@
+from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.msra.dataset import MSRADataset
-from src.estimation.common import get_evaluation_dataset_generator
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
-from src.utils.paths import LOGS_DIR
+from src.utils.paths import BIGHAND_DATASET_DIR, LOGS_DIR
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
 from src.utils.camera import Camera
 import matplotlib.pyplot as plt
 import numpy as np
+import src.estimation.configuration as configs
 
 
 def plot_proportions_below_threshold():
@@ -71,10 +72,22 @@ def plot_proportions_below_threshold():
     fig.show()
 
 
-def evaluate(dataset_name: str, weights_path: str, model_features=128):
-    if dataset_name != 'msra':
-        raise ValueError("Invalid dataset")
+def get_evaluation_dataset_generator(dataset_name: str, network, batch_size: int) -> DatasetPreprocessor:
+    cam = Camera(dataset_name)
+    if dataset_name == 'bighand':
+        dataset = BighandDataset(BIGHAND_DATASET_DIR, test_subject="Subject_8", batch_size=batch_size, shuffle=True)
+        test_generator = DatasetPreprocessor(iter(dataset.test_dataset), network.input_size,
+                                             network.out_size, camera=cam, config=configs.EvaluateBighandConfig())
+    elif dataset_name == 'msra':
+        dataset = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=batch_size, shuffle=True)
+        test_generator = DatasetPreprocessor(iter(dataset.test_dataset), network.input_size,
+                                             network.out_size, camera=cam, config=configs.EvaluateMsraConfig())
+    else:
+        raise ValueError(F"Invalid dataset: {dataset_name}")
+    return dataset, test_generator
 
+
+def evaluate(dataset_name: str, weights_path: str, model_features=128):
     network = JGR_J2O(n_features=model_features)
     cam = Camera(dataset_name)
     dataset, generator = get_evaluation_dataset_generator(dataset_name, network, batch_size=8)
@@ -110,7 +123,7 @@ def evaluate_msra():
 
 def evaluate_bighand():
     weights = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")  # bighand
-    thres, mje = evaluate('bighand', weights)
+    thres, mje = evaluate('bighand', weights, model_features=196)
     print(mje)
 
 

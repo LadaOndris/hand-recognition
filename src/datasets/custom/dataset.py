@@ -1,17 +1,23 @@
-import tensorflow as tf
 import numpy as np
-import src.utils.plots as plots
+import tensorflow as tf
 
-from src.utils.paths import CUSTOM_DATASET_DIR
+import src.utils.plots as plots
 from src.detection.yolov3.utils import tf_load_image
+from src.utils.paths import CUSTOM_DATASET_DIR
 
 
 class CustomDataset:
 
-    def __init__(self, dataset_path, batch_size, shuffle=True):
+    def __init__(self, dataset_path, batch_size, shuffle=True, left_hand_only=False,
+                 right_hand_only=False):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
         self.shuffle = shuffle
+        if left_hand_only and right_hand_only:
+            raise ValueError("Cannot include both hands only.")
+        self.left_hand_only = left_hand_only
+        self.right_hand_only = right_hand_only
+
         sequence_annotations = self._get_sequence_annotations()
         filepaths, labels = self._get_line_annotations(sequence_annotations)
         self.num_batches = int(len(filepaths) // batch_size)
@@ -21,6 +27,12 @@ class CustomDataset:
     def _get_sequence_annotations(self):
         path = self.dataset_path.joinpath('annotations.txt')
         annotations = np.genfromtxt(path, delimiter=' ', dtype=str)
+        left_hand = annotations[..., -2].astype(np.bool)
+        right_hand = annotations[..., -1].astype(np.bool)
+        if self.left_hand_only:
+            annotations = annotations[left_hand & ~right_hand]
+        elif self.right_hand_only:
+            annotations = annotations[right_hand & ~left_hand]
         return annotations
 
     def _get_line_annotations(self, annotations):
@@ -31,7 +43,7 @@ class CustomDataset:
         for i in range(annotations.shape[0]):
             folder_path = self.dataset_path.joinpath(folder_names[i])
             files = np.array(list(folder_path.iterdir()), dtype=str)
-            labels = np.full(shape=[files.shape[0]], fill_value=gesture_label[i])
+            labels = np.full(shape=[files.shape[0]], fill_value=gesture_label[i], dtype=str)
             file_names.append(files)
             file_labels.append(labels)
         file_names = np.concatenate(file_names)

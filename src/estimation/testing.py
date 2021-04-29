@@ -1,4 +1,4 @@
-from src.estimation.common import get_dataset_generator
+from src.estimation.common import get_generator_for_dataset_prediction
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric
@@ -59,7 +59,7 @@ def infer_on_dataset(dataset: str, weights_path: str, model_features=128):
     network = JGR_J2O(n_features=model_features)
     model = network.graph()
     model.load_weights(weights_path)
-    gen = get_dataset_generator(dataset, network, batch_size=4, augment=False)
+    gen = get_generator_for_dataset_prediction(dataset, network, batch_size=4, augment=False)
 
     for batch_images, y_true in gen:
         y_pred = model.predict(batch_images)
@@ -68,7 +68,7 @@ def infer_on_dataset(dataset: str, weights_path: str, model_features=128):
 
 def try_dataset_pipeline(dataset: str):
     network = JGR_J2O()
-    gen = get_dataset_generator(dataset, network, batch_size=4, augment=True)
+    gen = get_generator_for_dataset_prediction(dataset, network, batch_size=4, augment=True)
 
     for images, y_true in gen:
         plot_estimators_predictions(y_true, gen)

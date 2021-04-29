@@ -1,7 +1,6 @@
-import argparse
+import numpy as np
 
 from src.utils.paths import USECASE_DATASET_DIR
-import numpy as np
 
 
 class UsecaseDatabaseReader:
