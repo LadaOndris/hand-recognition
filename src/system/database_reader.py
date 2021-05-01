@@ -27,11 +27,7 @@ class UsecaseDatabaseReader:
         for file in annotation_files:
             file_name = file.stem
             name_parts = file_name.split('_')
-            if len(name_parts) != 2:
-                raise Exception(
-                    F"Unexpected file name: {file_name}. Expected name given by "
-                    "two components: label_timestamp")
-            label, timestamp = name_parts
+            label, timestamp = name_parts[:2]
             labels.append(label)
         return labels
 

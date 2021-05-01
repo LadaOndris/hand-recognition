@@ -63,34 +63,57 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
         errors = joint_relation_errors(np.expand_dims(joints1, axis=0), np.expand_dims(joints2, axis=0))[0, 0, :]
     else:
         errors = None
+    joints1_2d = cam.world_to_pixel(joints1)
+    # The image is cropped. Amend the joint coordinates to match the depth image
+    joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
 
+    if show_norm:
+        mean, norm = _compute_orientation(joints1, bbox1, cam)
+    else:
+        mean = None
+        norm = None
+    plot_skeleton_with_jre(image1, joints1_2d, errors, mean_vec=mean, norm_vec=norm,
+                           fig_location=fig_location, show_fig=show_fig)
+
+
+def plot_skeleton_with_jre(image, joints, jres, label=None, show_fig=True, fig_location=None,
+                           norm_vec=None, mean_vec=None):
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6.5, 5),
                              gridspec_kw={"width_ratios": [5.0 / 6, 1.5 / 6]})
     hand_axis = axes[0]
     bar_axis = axes[1]
-    # hand_axis.set_position([0, 0, 0.9, 1])
-    # bar_axis.set_position([0.9, 0, 1, 1])
-    _plot_depth_image(hand_axis, image1)
-    joints1_2d = cam.world_to_pixel(joints1)
-    # The image is cropped. Amend the joint coordinates to match the depth image
-    joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
-    _plot_hand_skeleton_2d(hand_axis, joints1_2d, wrist_index=0, scatter=False)
-    _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints1_2d, joint_errors=errors, color='blue')
+    _plot_depth_image(hand_axis, image)
+    _plot_hand_skeleton_2d(hand_axis, joints, wrist_index=0, scatter=False)
+    _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors=jres, color='blue')
+    if norm_vec is not None and mean_vec is not None:
+        _plot_hand_orientation(hand_axis, mean_vec, norm_vec)
+    if label is not None:
+        hand_axis.set_title(label)
 
-    if show_norm:
-        norm, mean = hand_orientation(joints1)
-        norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + 20 * norm, mean]))
-        norm_2d = norm_2d[..., :2] - bbox1[..., :2]
-        mean_2d = mean_2d[..., :2] - bbox1[..., :2]
-        hand_axis.arrow(mean_2d[0], mean_2d[1], dx=norm_2d[0] - mean_2d[0], dy=norm_2d[1] - mean_2d[1],
-                        color='orange', head_length=5, shape='full', head_width=4, zorder=1000,
-                        width=1)
     for ax in axes:
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
         ax.set_axis_off()
-    fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
+
+
+def _compute_orientation(joints, bbox, cam: Camera):
+    norm, mean = hand_orientation(joints)
+    norm2d, mean2d = transform_orientation_to_2d(norm, mean, bbox, cam)
+    return mean2d, norm2d
+
+
+def transform_orientation_to_2d(norm3d, mean3d, bbox, cam: Camera):
+    norm2d, mean2d = cam.world_to_pixel(np.stack([mean3d + 20 * norm3d, mean3d]))
+    norm2d = norm2d[..., :2] - bbox[..., :2]
+    mean2d = mean2d[..., :2] - bbox[..., :2]
+    return norm2d, mean2d
+
+
+def _plot_hand_orientation(ax, mean, norm):
+    ax.arrow(mean[0], mean[1], dx=norm[0] - mean[0], dy=norm[1] - mean[1],
+             color='orange', head_length=5, shape='full', head_width=4, zorder=1000,
+             width=1)
 
 
 def cmap_subset(cmap, min, max):
@@ -363,6 +386,21 @@ def precision_recall_curve(precision, recall, fig_location=None, show_fig=True):
     plt.plot(recall, precision)
     plt.xlabel('Recall', labelpad=20)
     plt.ylabel('Precision', labelpad=20)
+    plt.margins(x=0, y=0)
+    plt.tick_params(axis='x', pad=15)
+    plt.tick_params(axis='y', pad=15)
+    plt.tight_layout()
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def roc_curve(fnr, fpr, fig_location=None, show_fig=True):
+    plt.style.use('seaborn-whitegrid')
+    plt.rcParams.update({"font.size": 24})
+    figsize = (8, 6)
+    fig = plt.figure(figsize=figsize)
+    plt.plot(fpr, fnr)
+    plt.xlabel('False positive rate', labelpad=20)
+    plt.ylabel('False negative rate', labelpad=20)
     plt.margins(x=0, y=0)
     plt.tick_params(axis='x', pad=15)
     plt.tick_params(axis='y', pad=15)

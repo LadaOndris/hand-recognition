@@ -27,8 +27,8 @@ class CustomDataset:
     def _get_sequence_annotations(self):
         path = self.dataset_path.joinpath('annotations.txt')
         annotations = np.genfromtxt(path, delimiter=' ', dtype=str)
-        left_hand = annotations[..., -2].astype(np.bool)
-        right_hand = annotations[..., -1].astype(np.bool)
+        left_hand = annotations[..., 2].astype(np.bool)
+        right_hand = annotations[..., 3].astype(np.bool)
         if self.left_hand_only:
             annotations = annotations[left_hand & ~right_hand]
         elif self.right_hand_only:

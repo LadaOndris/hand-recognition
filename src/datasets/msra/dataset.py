@@ -1,6 +1,6 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
-from src.utils.plots import plot_joints, plot_joints_only, plot_two_hands_diff, plot_joints_2d, plot_norm
-from src.acceptance.base import joint_relation_errors, hand_orientation, vectors_angle, fingers_length
+from src.utils.plots import plot_two_hands_diff, plot_joints_2d
+from src.acceptance.base import hand_orientation, vectors_angle, fingers_length
 from src.utils.camera import Camera
 import sklearn
 import numpy as np

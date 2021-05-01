@@ -1,4 +1,7 @@
+from time import time
+
 import numpy as np
+import tensorflow as tf
 
 import src.estimation.configuration as configs
 import src.utils.plots as plots
@@ -13,8 +16,11 @@ from src.utils.paths import CUSTOM_DATASET_DIR
 
 class GestureRecognizer:
 
-    def __init__(self, error_thresh, database_subdir, orientation_thresh, plot_feedback=False):
+    def __init__(self, error_thresh, database_subdir, orientation_thresh,
+                 plot_result=True, plot_feedback=False, plot_orientation=False):
+        self.plot_result = plot_result
         self.plot_feedback = plot_feedback
+        self.plot_orientation = plot_orientation
         self.camera = Camera('sr305')
         config = configs.PredictCustomDataset()
         self.estimator = HandPositionEstimator(self.camera, config=config)
@@ -23,8 +29,13 @@ class GestureRecognizer:
         self.gesture_accepter = GestureAccepter(self.database_reader, error_thresh, orientation_thresh)
 
     def start(self, image_generator):
+        image_idx = 0
+        norm, mean = None, None
         for image_array in image_generator:
-            joints_uvz = self.estimator.inference_from_image(image_array[0])
+            start_time = time()
+            if tf.rank(image_array) == 4:
+                image_array = image_array[0]
+            joints_uvz = self.estimator.inference_from_image(image_array)
             # Detection failed, continue to next image
             if joints_uvz is None:
                 continue
@@ -43,7 +54,29 @@ class GestureRecognizer:
             # plot the hand position with gesture label
             image_subregion = self.estimator.get_cropped_image()
             joints_subregion = self.estimator.convert_to_cropped_coords(joints_uvz)
-            plots.plot_skeleton_with_label(image_subregion, joints_subregion, gesture_label)
+            if self.plot_result:
+                if self.plot_feedback:
+                    jres = self.gesture_accepter.get_jres()
+                    # fig_path = DOCS_DIR.joinpath(F"images/evaluation/live_{image_idx}.png")
+                    if self.plot_orientation:
+                        norm, mean = self._get_orientation_vectors_in_2d()
+                    plots.plot_skeleton_with_jre(image_subregion, joints_subregion, jres,
+                                                 label=gesture_label, fig_location=None,
+                                                 norm_vec=norm, mean_vec=mean)
+                else:
+                    plots.plot_skeleton_with_label(image_subregion, joints_subregion, gesture_label)
+            image_idx += 1
+            end_time = time()
+            print('Evaluation time: ', end_time - start_time)
+
+    def _get_orientation_vectors_in_2d(self):
+        mean3d = self.gesture_accepter.orientation_joints_mean
+        norm3d = self.gesture_accepter.orientation
+        norm2d, mean2d = self.camera.world_to_pixel(
+            np.stack([mean3d + 20 * norm3d, mean3d]))
+        mean_cropped = tf.squeeze(self.estimator.convert_to_cropped_coords(mean2d))
+        norm_cropped = tf.squeeze(self.estimator.convert_to_cropped_coords(norm2d))
+        return norm_cropped, mean_cropped
 
     def _get_gesture_labels(self):
         gesture_indices = self.gesture_accepter.predicted_gesture_idx
@@ -55,8 +88,8 @@ class GestureRecognizer:
         angles = []
         pred_labels = []
         true_labels = []
-        num_batches = max(dataset.num_batches, 125)
-        for i in range(num_batches):
+        # num_batches = max(dataset.num_batches, 125)
+        for i in range(dataset.num_batches):
             image_array_batch, true_labels_batch = next(dataset.dataset_iterator)
             for image_array, true_label in zip(image_array_batch, true_labels_batch.numpy()):
                 joints_uvz = self.estimator.inference_from_image(image_array)
@@ -79,15 +112,18 @@ class GestureRecognizer:
 
 def recognize_live():
     generator = generate_live_images()
-    live_acceptance = GestureRecognizer(error_thresh=10000, orientation_thresh=60, database_subdir='test')
+    live_acceptance = GestureRecognizer(error_thresh=120, orientation_thresh=60,
+                                        database_subdir='test3', plot_feedback=True, plot_result=False)
     live_acceptance.start(generator)
 
 
 def recognize_from_custom_dataset():
     ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=1)
     generator = CustomDatasetGenerator(ds)
-    live_acceptance = GestureRecognizer(error_thresh=150, orientation_thresh=50, database_subdir='test')
+    live_acceptance = GestureRecognizer(error_thresh=150, orientation_thresh=50,
+                                        database_subdir='test3')
     live_acceptance.start(generator)
 
+
 if __name__ == '__main__':
-    pass
+    recognize_live()

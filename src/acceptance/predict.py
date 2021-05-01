@@ -1,5 +1,6 @@
 import numpy as np
-from src.acceptance.base import joint_relation_errors, hand_orientation, vectors_angle
+
+from src.acceptance.base import hand_orientation, joint_relation_errors, vectors_angle
 
 
 class GestureAccepter:
@@ -28,8 +29,14 @@ class GestureAccepter:
         # The orientation difference between given and most similar poses
         # represented as an angle
         self.angle_difference = None
+        # The mean vector defining the center of palm joints.
+        # It is used as the starting point when displaying the orientation vector.
+        self.orientation_joints_mean = None
         # True if thresholds are exceeded
         self.gesture_invalid = False
+
+    def get_jres(self):
+        return self.joints_jre[:, self.predicted_gesture_idx]
 
     def accept_gesture(self, keypoints: np.ndarray):
         """
@@ -49,7 +56,7 @@ class GestureAccepter:
         self.predicted_gesture = self.gesture_database[self.predicted_gesture_idx, ...]
         self.gesture_jre = aggregated_errors[..., self.predicted_gesture_idx]
 
-        self.orientation, _ = hand_orientation(keypoints)
+        self.orientation, self.orientation_joints_mean = hand_orientation(keypoints)
         self.expected_orientation, _ = hand_orientation(self.predicted_gesture)
         angle_difference = np.rad2deg(vectors_angle(self.expected_orientation, self.orientation))
         self.angle_difference = self._suit_angle_for_both_hands(angle_difference)
