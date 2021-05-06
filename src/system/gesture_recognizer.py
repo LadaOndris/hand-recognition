@@ -114,7 +114,7 @@ class GestureRecognizer:
 def recognize_live():
     generator = generate_live_images()
     live_acceptance = GestureRecognizer(error_thresh=120, orientation_thresh=60,
-                                        database_subdir='test3', plot_feedback=True, plot_result=False, camera='sr305')
+                                        database_subdir='test', plot_feedback=True, plot_result=False, camera='sr305')
     live_acceptance.start(generator)
 
 

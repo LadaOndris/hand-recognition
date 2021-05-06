@@ -9,7 +9,7 @@ from src.utils.paths import CUSTOM_DATASET_DIR, DOCS_DIR, OTHER_DIR
 
 def save_produced_metrics_on_custom_dataset(file_name):
     ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=8, left_hand_only=True)
-    live_acceptance = GestureRecognizer(error_thresh=200, orientation_thresh=50, database_subdir='test3')
+    live_acceptance = GestureRecognizer(error_thresh=200, orientation_thresh=50, database_subdir='test')
     jres, angles, pred_labels, true_labels = live_acceptance.produce_jres(ds)
     custom_dataset_jre_path = OTHER_DIR.joinpath(file_name)
     np.savez(custom_dataset_jre_path, jres=jres, angles=angles, pred_labels=pred_labels, true_labels=true_labels)
