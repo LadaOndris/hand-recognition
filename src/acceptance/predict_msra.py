@@ -1,5 +1,5 @@
 from src.acceptance.base import get_relative_distances
-import src.datasets.MSRAHandGesture.dataset as msra_dataset
+import src.datasets.msra.dataset as msra_dataset
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_curve
 from sklearn.model_selection import train_test_split
@@ -173,7 +173,7 @@ def plot_accuracy_vs_train_sizes():
     Plots the accuracy score produced by the
     predict_for_different_train_sizes function.
     """
-    fig_location = DOCS_DIR.joinpath('figures/gesture_recognition_evaluation_msra.png')
+    fig_location = DOCS_DIR.joinpath('figures/gesture_recognition_evaluation_msra.pdf')
     acc_without_length_norm = [0.47216, 0.68169, 0.79358, 0.83532, 0.86857,
                                0.90493, 0.91702, 0.94044, 0.94254, 0.94857]
 

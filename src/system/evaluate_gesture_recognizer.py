@@ -15,47 +15,52 @@ def save_produced_metrics_on_custom_dataset(file_name):
     np.savez(custom_dataset_jre_path, jres=jres, angles=angles, pred_labels=pred_labels, true_labels=true_labels)
 
 
-def evaluation_plots_from_saved_metrics(file_name):
+def plot_evaluation_metrics_from_file(file_name):
     data = load_saved_metrics(file_name)
     jres = data['jres']
     true_labels = data['true_labels']
 
     true_labels[true_labels != '1'] = '0'
 
-    fig_path = DOCS_DIR.joinpath('figures/evaluation/false_positives_and_negatives.png')
+    fig_path = DOCS_DIR.joinpath('figures/evaluation/false_positives_and_negatives.pdf')
     fpr, fnr, thresholds = det_curve_threshold_based(true_labels, jres, pos_label='1')
     plots.plot_scores(thresholds, y=[fpr, fnr], labels=['False positive rate', 'False negative rate'],
-                      fig_location=None)
+                      fig_location=fig_path)
     plots.roc_curve(fnr, fpr)
 
-    fig_path = DOCS_DIR.joinpath('figures/evaluation/precision_recall_threshold.png')
+    fig_path = DOCS_DIR.joinpath('figures/evaluation/precision_recall_threshold.pdf')
     precision, recall, thresholds = precision_recall_curve_threshold_based(
         true_labels, jres, pos_label='1')
     plots.plot_scores(thresholds, y=[precision, recall], labels=['Precision', 'Recall'],
-                      fig_location=None)
+                      fig_location=fig_path)
 
 
 def jre_histogram_from_saved_metrics(file_name):
     data = load_saved_metrics(file_name)
     jres = data['jres']
-    orient_diffs = data['angles']
     true_labels = data['true_labels']
     true_jres = jres[true_labels == '1']
-    true_diffs = orient_diffs[true_labels == '1']
+    none_gesture_jres = jres[true_labels == '0']
 
-    fig_gesture1 = DOCS_DIR.joinpath('figures/evaluation/jre_histogram_gesture1.png')
-    fig_nongesture = DOCS_DIR.joinpath('figures/evaluation/jre_histogram_nongesture.png')
-    plots.histogram(true_jres, label='Joint Relation Error (Gesture 1)', range=(0, 500),
-                    fig_location=None)
-    fig_orientation_gesture1 = DOCS_DIR.joinpath('figures/evaluation/orientation_histogram_gesture1_right_hand.png')
+    fig_gesture1 = DOCS_DIR.joinpath('figures/evaluation/jre_histogram_gesture1.pdf')
+    fig_nongesture = DOCS_DIR.joinpath('figures/evaluation/jre_histogram_nongesture.pdf')
+
+    plots.histogram(true_jres, label='Joint Relation Error', range=(0, 500), fig_location=fig_gesture1)
+    plots.histogram(none_gesture_jres, label='Joint Relation Error', range=(0, 500), fig_location=fig_nongesture)
+
+
+def orientation_histogram_from_saved_metrics(file_name):
+    data = load_saved_metrics(file_name)
+    orient_diffs = data['angles']
+    true_labels = data['true_labels']
+    true_diffs = orient_diffs[true_labels == '1']
+    none_gesture_diffs = orient_diffs[true_labels == '0']
+
+    fig_orientation_gesture1 = DOCS_DIR.joinpath('figures/evaluation/orientation_histogram_gesture1.pdf')
+    fig_orientation_nongesture = DOCS_DIR.joinpath('figures/evaluation/orientation_histogram_nongesture.pdf')
+
     plots.histogram(true_diffs, label='Orientation difference [degrees]', range=(0, 90),
                     fig_location=fig_orientation_gesture1)
-
-    none_gesture_jres = jres[true_labels == '0']
-    none_gesture_diffs = orient_diffs[true_labels == '0']
-    plots.histogram(none_gesture_jres, label='Joint Relation Error (No gesture)', range=(0, 500),
-                    fig_location=None)
-    fig_orientation_nongesture = DOCS_DIR.joinpath('figures/evaluation/orientation_histogram_nongesture_right_hand.png')
     plots.histogram(none_gesture_diffs, label='Orientation difference [degrees]', range=(0, 90),
                     fig_location=fig_orientation_nongesture)
 
@@ -95,10 +100,15 @@ def precision_recall_curve_threshold_based(y_true, y_pred, pos_label=1):
 if __name__ == '__main__':
     import time
 
-    filename = 'custom_dataset_jres_right.npz'
     start = time.time()
-    # evaluation_plots_from_saved_metrics(filename)
-    jre_histogram_from_saved_metrics(filename)
+
+    # Evaluate the gesture recognition system and save the metrics to a file
     # save_produced_metrics_on_custom_dataset(filename)
+
+    # Plot the metrics
+    plot_evaluation_metrics_from_file('custom_dataset_jres.npz')
+    jre_histogram_from_saved_metrics('custom_dataset_jres.npz')
+    orientation_histogram_from_saved_metrics('custom_dataset_jres_right.npz')
+
     end = time.time()
     print("It took for X batches x 8 images:", end - start)

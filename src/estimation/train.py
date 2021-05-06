@@ -66,11 +66,11 @@ if __name__ == "__main__":
     parser.add_argument('--train', type=str, action='store', default=None)
     parser.add_argument('--evaluate', type=str, action='store', default=None)
     parser.add_argument('--model', type=str, action='store', default=None)
+    parser.add_argument('--features', type=int, action='store', default=196)
     args = parser.parse_args()
 
-    features = 196
     if args.train is not None:
-        log_dir, model_filepath = train(args.train, args.model, model_features=features)
+        log_dir, model_filepath = train(args.train, args.model, model_features=args.features)
 
     if (args.evaluate is not None) and (args.train is not None):
         if model_filepath is not None and os.path.isfile(model_filepath):
@@ -79,9 +79,8 @@ if __name__ == "__main__":
             ckpts_pattern = os.path.join(str(log_dir), 'train_ckpts/*')
             ckpts = glob.glob(ckpts_pattern)
             path = max(ckpts, key=os.path.getctime)
-        # path = LOGS_DIR.joinpath('20210306-000815/train_ckpts/weights.07.h5')
         if path is not None:
-            mje = evaluate(args.evaluate, path, features)
+            thresholds, mje = evaluate(args.evaluate, path, args.features)
             tf.print("MJE:", mje)
         else:
             raise ValueError("No checkpoints available")

@@ -1,3 +1,4 @@
+import argparse
 from time import time
 
 import numpy as np
@@ -16,12 +17,12 @@ from src.utils.paths import CUSTOM_DATASET_DIR
 
 class GestureRecognizer:
 
-    def __init__(self, error_thresh, database_subdir, orientation_thresh,
+    def __init__(self, error_thresh, database_subdir, orientation_thresh, camera,
                  plot_result=True, plot_feedback=False, plot_orientation=False):
         self.plot_result = plot_result
         self.plot_feedback = plot_feedback
         self.plot_orientation = plot_orientation
-        self.camera = Camera('sr305')
+        self.camera = Camera(camera)
         config = configs.PredictCustomDataset()
         self.estimator = HandPositionEstimator(self.camera, config=config)
         self.database_reader = UsecaseDatabaseReader()
@@ -113,17 +114,37 @@ class GestureRecognizer:
 def recognize_live():
     generator = generate_live_images()
     live_acceptance = GestureRecognizer(error_thresh=120, orientation_thresh=60,
-                                        database_subdir='test3', plot_feedback=True, plot_result=False)
+                                        database_subdir='test3', plot_feedback=True, plot_result=False, camera='sr305')
     live_acceptance.start(generator)
 
 
-def recognize_from_custom_dataset():
+def get_custom_dataset_generator():
     ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=1)
     generator = CustomDatasetGenerator(ds)
-    live_acceptance = GestureRecognizer(error_thresh=150, orientation_thresh=50,
-                                        database_subdir='test3')
-    live_acceptance.start(generator)
+    return generator
 
 
 if __name__ == '__main__':
-    recognize_live()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dir', type=str, action='store', default=None, required=True)
+    parser.add_argument('--error-threshold', type=int, action='store', default=120, required=True)
+    parser.add_argument('--orientation-threshold', type=int, action='store', default=90)
+    parser.add_argument('--camera', type=str, action='store', default='SR305')
+    parser.add_argument('--plot', type=bool, action='store', default=True)
+    parser.add_argument('--plot-feedback', type=bool, action='store', default=True)
+    parser.add_argument('--live', type=bool, action='store_true')
+    parser.add_argument('--custom-dataset', type=bool, action='store_true')
+    args = parser.parse_args()
+
+    if args.live:
+        generator = generate_live_images()
+    elif args.custom_dataset:
+        generator = get_custom_dataset_generator()
+    else:
+        print('No image source was specified. Allowed options are "--live" and "--custom-dataset".')
+
+    live_acceptance = GestureRecognizer(error_thresh=args.error_threshold,
+                                        orientation_thresh=args.orientation_threshold,
+                                        database_subdir=args.dir, plot_feedback=args.plot_feedback,
+                                        plot_result=args.plot, camera=args.camera)
+    live_acceptance.start(generator)

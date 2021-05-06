@@ -1,17 +1,14 @@
-import os
-import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
+import tensorflow as tf
+from sklearn.metrics import precision_recall_curve
+
+import src.utils.plots as plots
 from src.core.cfg.cfg_parser import Model
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
-from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
-from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR, DOCS_DIR
-from src.detection.yolov3.metrics import get_positives_and_negatives
-from src.utils.plots import save_show_fig
-from sklearn.metrics import precision_recall_curve
 from src.detection.yolov3 import utils
-import src.utils.plots as plots
+from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
+from src.utils.config import YOLO_CONFIG_FILE
+from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR, LOGS_DIR
 
 
 def evaluate(weights_path):
@@ -105,24 +102,30 @@ def compute_iou(y_pred_pkl, y_true_pkl):
     return iou
 
 
+def evaluate_and_save(pred_file_path, true_file_path):
+    # Previous Tiny YOLOv3 model that uses padding
+    # weights_path = LOGS_DIR.joinpath("20210112-220731/train_ckpts/ckpt_9")
+    # Tiny YOLOv3 model that uses crop
+    weights_path = LOGS_DIR.joinpath("20210315-143811/train_ckpts/weights.12.h5")
+
+    y_pred, y_true = evaluate(weights_path)
+    np.save(pred_file_path, y_pred)
+    np.save(true_file_path, y_true)
+
+
 if __name__ == '__main__':
     pred_path = '../../../other/eval_y_pred_03-15.pkl.npy'
     true_path = '../../../other/eval_y_true_03-15.pkl.npy'
-    # weights_path = LOGS_DIR.joinpath("20210112-220731/train_ckpts/ckpt_9") # Previous model that uses padding
-    weights_path = LOGS_DIR.joinpath("20210315-143811/train_ckpts/weights.12.h5")  # Model that uses crop
+    # evaluate_and_save(pred_path, true_path)
 
-    # y_pred, y_true = evaluate(weights_path)
-    # np.save(pred_path, y_pred)
-    # np.save(true_path, y_true)
+    figure_scores_path = str(DOCS_DIR.joinpath('figures/yolo_eval_scores_03-15.pdf'))
+    figure_curve_path = str(DOCS_DIR.joinpath('figures/yolo_eval_curve_03-15.pdf'))
+    generate_precision_recall_curves(pred_path, true_path, show_figs=True,
+                                     fig_scores_location=figure_scores_path,
+                                     fig_precision_recall_location=figure_curve_path)
 
-    # figure_scores_path = str(DOCS_DIR.joinpath('figures/yolo_eval_scores_03-15.png'))
-    # figure_curve_path = str(DOCS_DIR.joinpath('figures/yolo_eval_curve_03-15.png'))
-    # generate_precision_recall_curves(pred_path, true_path, show_figs=True,
-    #                                  fig_scores_location=figure_scores_path,
-    #                                  fig_precision_recall_location=figure_curve_path)
-
-    iou = compute_iou(pred_path, true_path)
-    print(iou)
+    # iou = compute_iou(pred_path, true_path)
+    # print(iou)
 
     # Previous model
     # y_pred = np.load('../../../other/eval_y_pred.pkl.npy')

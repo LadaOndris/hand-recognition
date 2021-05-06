@@ -1,6 +1,11 @@
 import tensorflow as tf
 
-
+"""
+The implementation of the YoloLayer is inspired 
+by the implementation of YunYang1994 published under the MIT license:
+YunYang1994. Tensorflow-yolov3 [online]. GitHub, 2020 [cit. 2020-8-10].
+Available at: https://github.com/YunYang1994/tensorflow-yolov3
+"""
 class YoloLayer(tf.keras.layers.Layer):
     def __init__(self, anchors, n_classes, input_layer_shape, name=None):
         super(YoloLayer, self).__init__(name=name)

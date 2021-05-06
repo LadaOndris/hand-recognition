@@ -1,8 +1,8 @@
 import pandas as pd
-from matplotlib import pyplot as plt
 import seaborn as sns
-from scipy import stats
 import tensorboard as tb
+from matplotlib import pyplot as plt
+
 from src.utils.paths import DOCS_DIR
 from src.utils.plots import save_show_fig
 
@@ -26,14 +26,11 @@ def plot_epoch_loss(df: pd.DataFrame, fig_location: str = None,
     """
     Plots loss from dataframe from a tensorboard data.
     """
+
     df_epoch_loss = df[df['tag'] == 'epoch_loss']
-    sns.set_style("whitegrid", {'axes.grid': False})
+    sns.set_style("whitegrid", {'axes.grid': True})
     fig, ax = plt.subplots(figsize=(5, 3))
-    graycolors = sns.mpl_palette('Greys_r', 2)
     g = sns.lineplot(ax=ax, data=df_epoch_loss, x='step', y='value', hue='run')
-    #                 palette=graycolors)
-    # g.lines[0].set_linestyle("-")
-    # g.lines[1].set_linestyle("--")
     g.set_ylabel('Loss')
     g.set_xlabel('Epoch')
     g.set(yscale='log')
@@ -51,7 +48,7 @@ if __name__ == "__main__":
     tensorboard dev upload --logdir ./logs/20210315-143811/
     See: https://www.tensorflow.org/tensorboard/dataframe_api
     """
-    location = DOCS_DIR.joinpath('images/tiny_yolov3_epoch_loss.png')
-    df = load_stats(experiment_id='yxDzYYTETMO0I0GZb4Ab2A')
+    location = DOCS_DIR.joinpath('images/tiny_yolov3_epoch_loss.pdf')
+    df = load_stats(experiment_id='A5l9wDz1QaSxTlDpIdMaRQ')
     plot_epoch_loss(df, fig_location=location, show_figure=True)
     pass

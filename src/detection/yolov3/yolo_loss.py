@@ -3,7 +3,12 @@ import numpy as np
 
 from src.detection.yolov3 import utils
 
-
+"""
+The implementation of the YOLO loss is inspired 
+by the implementation of YunYang1994 published under the MIT license:
+YunYang1994. Tensorflow-yolov3 [online]. GitHub, 2020 [cit. 2020-8-10].
+Available at: https://github.com/YunYang1994/tensorflow-yolov3
+"""
 class YoloLoss(tf.keras.losses.Loss):
 
     def __init__(self, model_input_image_size, ignore_thresh=.5, name='yolo_loss'):

@@ -1,14 +1,14 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+import src.estimation.configuration as configs
 from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.msra.dataset import MSRADataset
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
-from src.estimation.metrics import MeanJointErrorMetric, DistancesBelowThreshold
-from src.utils.paths import BIGHAND_DATASET_DIR, LOGS_DIR
-from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR
+from src.estimation.metrics import DistancesBelowThreshold, MeanJointErrorMetric
 from src.utils.camera import Camera
-import matplotlib.pyplot as plt
-import numpy as np
-import src.estimation.configuration as configs
+from src.utils.paths import BIGHAND_DATASET_DIR, LOGS_DIR, MSRAHANDGESTURE_DATASET_DIR
 
 
 def plot_proportions_below_threshold():

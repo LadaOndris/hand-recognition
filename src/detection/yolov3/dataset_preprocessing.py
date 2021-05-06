@@ -29,8 +29,13 @@ class DatasetPreprocessor:
         y_true = self.preprocess_true_bboxes(batch_bboxes)
         return batch_images, y_true
 
-    # Mostly taken from https://github.com/YunYang1994/tensorflow-yolov3/blob/master/core/dataset.py.
     def preprocess_true_bboxes(self, batch_bboxes):
+        """
+        The implementation of this function is taken from the
+        implementation of YunYang1994 published under the MIT license:
+        YunYang1994. Tensorflow-yolov3 [online]. GitHub, 2020 [cit. 2020-8-10].
+        Available at: https://github.com/YunYang1994/tensorflow-yolov3
+        """
         y_true = [np.zeros((len(batch_bboxes),
                             self.output_shapes[i][1],
                             self.output_shapes[i][2],
