@@ -60,7 +60,7 @@ The system plots figures similar to the following:
 
 ### Hand detection
 
-To detect hands from images captured with SR305 camera, which is the default camera:
+To detect hands from images captured with SR305 camera, which is the default camera:  
 `python3 src/system/hand_position_estimator.py --detect --source live`
 
 <p float="left">
@@ -70,7 +70,7 @@ To detect hands from images captured with SR305 camera, which is the default cam
 
 ### Hand pose estimation
 
-To estimate hand poses from images captured with SR305 camera:
+To estimate hand poses from images captured with SR305 camera:  
 `python3 src/system/hand_position_estimator.py --estimate --source live`
 
 <p float="left">
