@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 
 class CoordinateAndOffsetLoss(tf.keras.losses.Loss):
@@ -12,10 +11,7 @@ class CoordinateAndOffsetLoss(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
         # y.shape: [-1, 21, 3]
-        tf.print(tf.shape(y_true), tf.shape(y_pred))
-        # l_coord = self.loss_coordinate(y_true['coords'], y_pred['coords'])
-        # l_offset = self.loss_offset(y_true['offsets'], y_pred['offsets'])
-        return self.huber_loss(y_true, y_pred)  # l_coord + self.balance * l_offset
+        return self.huber_loss(y_true, y_pred)
 
     def loss_coordinate(self, y_true, y_pred):
         return self.huber_loss(y_true, y_pred)

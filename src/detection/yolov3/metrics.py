@@ -1,6 +1,7 @@
-import tensorflow as tf
-import utils
 import numpy as np
+import tensorflow as tf
+
+import utils
 
 
 def get_positives_and_negatives(y_true, y_pred, conf_threshold):
@@ -100,7 +101,6 @@ class YoloBoxesIoU(tf.keras.metrics.Metric):
         true_boxes = y_true[..., 0:4]
         pred_boxes = y_pred[..., 0:4]
 
-        # TODO: replace numpy with tensorflow
         ious = utils.tensorflow_bbox_iou(true_boxes[..., np.newaxis, :],
                                          pred_boxes[..., np.newaxis, :])
 

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 import src.utils.plots as plots
-from src.detection.yolov3.utils import tf_load_image
+from src.detection.yolov3.dataset_preprocessing import tf_load_image
 from src.utils.paths import CUSTOM_DATASET_DIR
 
 

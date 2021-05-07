@@ -1,6 +1,3 @@
-from src.utils.config import JGRJ2O_TRAIN_BATCH_SIZE, JGRJ2O_TEST_BATCH_SIZE
-
-
 class Config:
 
     def __init__(self):

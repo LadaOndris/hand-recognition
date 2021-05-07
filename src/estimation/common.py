@@ -1,9 +1,9 @@
+import src.estimation.configuration as configs
 from src.datasets.bighand.dataset import BighandDataset
 from src.datasets.msra.dataset import MSRADataset
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.utils.camera import Camera
 from src.utils.paths import BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR
-import src.estimation.configuration as configs
 
 
 def get_generator_for_dataset_prediction(dataset_name: str, network, batch_size: int,
@@ -24,7 +24,6 @@ def get_generator_for_dataset_prediction(dataset_name: str, network, batch_size:
     else:
         raise ValueError(F"Invalid dataset: {dataset_name}")
     return gen
-
 
 
 def get_train_and_test_generator(dataset_name: str, network, batch_size) -> (DatasetPreprocessor, DatasetPreprocessor):

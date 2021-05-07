@@ -1,14 +1,15 @@
+import argparse
+import glob
+import os
+
 import tensorflow as tf
 
-from src.estimation.common import get_train_and_test_generator
-from src.estimation.losses import CoordinateLoss, OffsetLoss
-from src.estimation.jgrp2o import JGR_J2O
-from src.estimation.evaluation import evaluate
-from src.utils.config import JGRJ2O_LEARNING_RATE, JGRJ2O_LR_DECAY, JGRJ2O_TRAIN_BATCH_SIZE
 import src.utils.logs as logs_utils
-import os
-import glob
-import argparse
+from src.estimation.common import get_train_and_test_generator
+from src.estimation.evaluation import evaluate
+from src.estimation.jgrp2o import JGR_J2O
+from src.estimation.losses import CoordinateLoss, OffsetLoss
+from src.utils.config import JGRJ2O_LEARNING_RATE, JGRJ2O_LR_DECAY, JGRJ2O_TRAIN_BATCH_SIZE
 
 
 def train(dataset_name: str, weights_path: str, model_features=128):

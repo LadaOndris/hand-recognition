@@ -1,14 +1,43 @@
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-
-from src.utils.plots import save_show_fig
 
 depth_image_cmap = 'gist_yarg'
 prediction_box_color = '#B73229'
 blue_color = '#293e65'
 boxes_color = '#141d32'
+
+
+def bbox_iou(boxes1, boxes2):
+    """
+    boxes1.shape (n, 4)
+    boxes2.shape (m, 4)
+
+    Returns
+        Returns an array of iou for each combination of possible intersection.
+    """
+    # convert to numpy arrays
+    boxes1 = np.array(boxes1)
+    boxes2 = np.array(boxes2)
+
+    boxes1_area = boxes1[..., 2] * boxes1[..., 3]  # width * height
+    boxes2_area = boxes2[..., 2] * boxes2[..., 3]  # width * height
+
+    # Convert xywh to x1,y1,x2,y2 (top left and bottom right point).
+    boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                             boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
+    boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                             boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+
+    left_up = np.maximum(boxes1[..., :2], boxes2[..., :2])
+    right_down = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
+
+    # Find the length of x and y where the rectangles overlap.
+    # If the length is less than 0, they do not overlap.
+    intersection_lengths = np.maximum(right_down - left_up, 0.0)
+    intersection_area = intersection_lengths[..., 0] * intersection_lengths[..., 1]
+    union_area = boxes1_area + boxes2_area - intersection_area
+
+    return np.nan_to_num(intersection_area / union_area)
 
 
 def tensorflow_bbox_iou(boxes1, boxes2):
@@ -99,68 +128,10 @@ def output_boxes(inputs, model_size, max_output_size, max_output_size_per_class,
                         bottom_right_y,
                         confidence, classes], axis=-1)
 
-    boxes_dicts = non_max_suppression(inputs, model_size, max_output_size, \
+    boxes_dicts = non_max_suppression(inputs, model_size, max_output_size,
                                       max_output_size_per_class, iou_threshold, confidence_threshold)
 
     return boxes_dicts
-
-
-def draw_predictions(image, boxes, nums, fig_location):
-    fig, ax = image_plot()
-    ax.imshow(image, cmap=depth_image_cmap)
-
-    for i in range(nums):
-        x, y = boxes[i, 0:2].numpy()
-        w, h = (boxes[i, 2:4] - boxes[i, 0:2]).numpy()
-        draw_prediction_box(ax, x, y, w, h)
-
-    plot_adjust(fig, ax)
-    save_show_fig(fig, fig_location, True)
-
-
-def image_plot():
-    return plt.subplots(1, figsize=(4, 4))
-
-
-def plot_adjust(fig, ax):
-    ax.xaxis.set_visible(False)
-    ax.yaxis.set_visible(False)
-
-    fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.98)
-
-
-def draw_predictions_with_cells(image, boxes, nums, stride, fig_location=None):
-    fig, ax = image_plot()
-    ax.imshow(image, cmap=depth_image_cmap)
-
-    for i in range(nums):
-        x, y = boxes[i, 0:2].numpy()
-        w, h = (boxes[i, 2:4] - boxes[i, 0:2]).numpy()
-
-        centroid = (x + w / 2, y + h / 2)
-        draw_prediction_box(ax, x, y, w, h)
-        draw_responsible_cell(ax, centroid, stride)
-        draw_centroid(ax, centroid)
-
-    plot_adjust(fig, ax)
-    save_show_fig(fig, fig_location, True)
-    # fig.savefig(F"../../../docs/images/yolo_prediction_with_cell_{index}.pdf", bbox_inches='tight')
-
-
-def draw_prediction_box(ax, x, y, w, h):
-    rect = patches.Rectangle((x, y), w, h, linewidth=2, edgecolor=prediction_box_color, facecolor='none')
-    ax.add_patch(rect)
-
-
-def draw_centroid(ax, centroid):
-    centroid = patches.Circle((centroid[0], centroid[1]), radius=4, facecolor=prediction_box_color)
-    ax.add_patch(centroid)
-
-
-def draw_responsible_cell(ax, centroid, stride):
-    rect = patches.Rectangle((centroid[0] // stride * stride, centroid[1] // stride * stride), stride, stride,
-                             linewidth=2, edgecolor=blue_color, facecolor='none')
-    ax.add_patch(rect)
 
 
 def boxes_from_yolo_outputs(yolo_outputs, batch_size, model_size, conf_thresh, max_boxes=2, iou_thresh=.5):
@@ -171,123 +142,3 @@ def boxes_from_yolo_outputs(yolo_outputs, batch_size, model_size, conf_thresh, m
     boxes, scores, nums = output_boxes(predictions_for_the_image, model_size, max_boxes, max_boxes, iou_thresh,
                                        conf_thresh)
     return boxes, scores, nums
-
-
-def draw_detected_objects(images, yolo_outputs, model_size, conf_thresh, max_boxes=2, iou_thresh=.5,
-                          draw_cells=False, fig_location=None):
-    """
-    Computes NMS and plots the detected objects.
-    """
-    batch_size = tf.shape(images)[0]
-    boxes, scores, nums = boxes_from_yolo_outputs(yolo_outputs, batch_size, model_size, conf_thresh,
-                                                  max_boxes=max_boxes, iou_thresh=iou_thresh)
-
-    # Use the first scale (just for the plot).
-    outputs = yolo_outputs[0]
-    outputs_shape = tf.shape(outputs)
-    grid_size = outputs_shape[1:3]
-    stride = (model_size[0] / grid_size[0]).numpy()
-
-    for i in range(len(boxes)):
-        print("Drawing boxes with scores:", scores[i][:nums[i]])
-        if fig_location:
-            fig_location = fig_location.format(i)
-
-        if draw_cells:
-            draw_predictions_with_cells(images[i], boxes[i], nums[i], stride, fig_location)
-        else:
-            draw_predictions(images[i], boxes[i], nums[i], fig_location)
-
-
-def draw_grid_detection(images, yolo_outputs, model_size, conf_thresh, fig_location=None):
-    """
-    Draws images and highlights grid boxes where the model is quite certain 
-    that it overlaps an object (the grid box is reponsible for that object prediction).
-
-    Parameters
-    ----------
-    images : TYPE
-        DESCRIPTION.
-    yolo_outputs : TYPE
-        Boxes defined as (x, y, w, h) where x, y are box centers coordinates
-        and w, h their width and height.
-    model_size : TYPE
-        Image size.
-
-    Returns
-    -------
-    None.
-
-    """
-    for i in range(len(images)):
-        fig, ax = image_plot()
-        ax.imshow(images[i], cmap=depth_image_cmap)
-
-        for scale in range(len(yolo_outputs)):
-            outputs = yolo_outputs[scale]
-            outputs_shape = tf.shape(outputs)
-            grid_size = outputs_shape[1:3]
-            stride = model_size[0] / grid_size[0]
-
-            # tf.print("min max pred", tf.reduce_min(outputs[i,...,4]), tf.reduce_max(outputs[i,...,4]))
-
-            # pred_xywh, pred_conf, pred_conf_raw = tf.split(outputs, [4,1,1,], axis=-1)
-            for y in range(grid_size[0]):
-                for x in range(grid_size[1]):
-                    mask = outputs[i, y, x, :, 4:5] > conf_thresh
-                    if np.any(mask):
-                        rect = patches.Rectangle(((x * stride).numpy(), (y * stride).numpy()),
-                                                 stride.numpy(), stride.numpy(), linewidth=1, edgecolor=boxes_color,
-                                                 facecolor='none')
-                        ax.add_patch(rect)
-        plot_adjust(fig, ax)
-        save_show_fig(fig, fig_location, True)
-
-
-def draw_grid(images, yolo_outputs, model_size, fig_location=None):
-    for i in range(len(images)):
-        for scale in range(len(yolo_outputs)):
-            fig, ax = image_plot()
-            ax.imshow(images[i], cmap=depth_image_cmap)
-
-            outputs = yolo_outputs[scale]
-            outputs_shape = tf.shape(outputs)
-            grid_size = outputs_shape[1:3]
-            stride = model_size[0] / grid_size[0]
-
-            for y in range(grid_size[0]):
-                for x in range(grid_size[1]):
-                    rect = patches.Rectangle(((x * stride).numpy(), (y * stride).numpy()),
-                                             stride.numpy(), stride.numpy(), linewidth=1, edgecolor=boxes_color,
-                                             facecolor='none')
-                    ax.add_patch(rect)
-
-            plot_adjust(fig, ax)
-            save_show_fig(fig, fig_location, True)
-            break
-
-
-def tf_load_image(image_file_path, dtype, shape):
-    """
-    Loads an image from file and resizes it with pad to target shape.
-
-    Parameters
-    -------
-    image_file_path
-    dtype
-    shape
-        An array-like of two values [width, height].
-
-
-    Returns
-    -------
-    depth_image
-        A 3-D Tensor of shape [height, width, 1].
-    """
-    depth_image_file_content = tf.io.read_file(image_file_path)
-
-    # loads depth images and converts values to fit in dtype.uint8
-    depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
-
-    depth_image.set_shape([shape[1], shape[0], 1])
-    return depth_image

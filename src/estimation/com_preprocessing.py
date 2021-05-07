@@ -1,13 +1,11 @@
-import tensorflow as tf
-from src.utils.camera import Camera
-from src.utils.plots import plot_depth_image, plot_depth_image_histogram
-import matplotlib.pyplot as plt
-from skimage import filters
-from skimage import exposure
-from scipy import stats
 import numpy as np
-from src.utils.paths import DOCS_DIR
+import tensorflow as tf
+from scipy import stats
+from skimage import filters
+
+from src.utils.camera import Camera
 from src.utils.config import OTSUS_ALLOWANCE_THRESHOLD
+from src.utils.plots import plot_depth_image, plot_depth_image_histogram
 
 
 class ComPreprocessor:

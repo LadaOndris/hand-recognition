@@ -59,9 +59,7 @@ class YoloLoss(tf.keras.losses.Loss):
             It is used in a YOLO network in object detection.
         """
 
-        # Look out for xywh in different units!!!
         pred_xywh = y_pred[..., 0:4]
-        pred_conf = y_pred[..., 4:5]
         raw_conf = y_pred[..., 5:6]
 
         true_xywh = y_true[..., 0:4]
@@ -73,29 +71,6 @@ class YoloLoss(tf.keras.losses.Loss):
         # There is no loss for class labels, since there is a single class
         # and confidence score represenets that class
         return bbox_loss + conf_loss
-
-    def xywh_loss(self, true_conf, pred_xywh, true_xywh):
-        input_size = tf.cast(self.model_input_image_size[0], tf.float32)
-        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
-
-        # wh = (tf.exp(box_shapes) * self.anchors) * stride
-        # strides = self.model_input_image_size[0] / true_xywh.shape[1]
-        # pred_wh_inversed = tf.math.log(pred_xywh[2:] / (strides * self.anchors))
-        # true_wh_inversed = tf.math.log(true_xywh[2:] / (strides * self.anchors))
-
-        xy_loss = true_conf * bbox_loss_scale * tf.keras.backend.square(true_xywh[..., :2] - pred_xywh[..., :2])
-        wh_loss = true_conf * bbox_loss_scale * 0.5 * tf.keras.backend.square(true_xywh[..., 2:] - pred_xywh[..., 2:])
-
-        return xy_loss + wh_loss
-
-    def giou_loss(self, true_conf, pred_xywh, true_xywh):
-        input_size = tf.cast(self.model_input_image_size[0], tf.float32)
-        bbox_loss_scale = 2.0 - true_xywh[..., 2:3] * true_xywh[..., 3:4] / (input_size ** 2)
-        giou = tf.expand_dims(self.bbox_giou(pred_xywh, true_xywh), axis=-1)
-        input_size = tf.cast(self.model_input_image_size, tf.float32)
-        bbox_loss_scale = 2.0 - 1.0 * true_xywh[:, :, :, :, 2:3] * true_xywh[:, :, :, :, 3:4] / (input_size ** 2)
-        giou_loss = true_conf * bbox_loss_scale * (1 - giou)
-        return giou_loss
 
     def iou_loss(self, true_conf, pred_xywh, true_xywh):
         input_size = tf.cast(self.model_input_image_size[0], tf.float32)

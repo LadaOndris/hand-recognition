@@ -1,10 +1,10 @@
+import src.utils.plots as plots
 from src.estimation.common import get_generator_for_dataset_prediction
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric
 from src.utils.camera import Camera
-from src.utils.paths import DOCS_DIR, LOGS_DIR
-import src.utils.plots as plots
+from src.utils.paths import LOGS_DIR
 
 
 def prepare_joints2d(y, generator: DatasetPreprocessor):

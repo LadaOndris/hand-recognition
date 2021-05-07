@@ -1,3 +1,4 @@
+import src.utils.plots_detection
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3 import utils
 from src.detection.yolov3.cfg.cfg_parser import YoloLoader
@@ -19,16 +20,16 @@ def predict_on_handseg(plot_prediction=False, plot_prediction_with_grid=False, p
 
         if plot_image_with_grid:
             fig_location = format_or_none(fig_pattern, 'img_grid')
-            utils.draw_grid(batch_images, yolo_outputs, [416, 416, 1], fig_location=fig_location)
+            src.utils.plots_detection.plot_grid(batch_images, yolo_outputs, [416, 416, 1], fig_location=fig_location)
         if plot_prediction_with_grid:
             fig_location = format_or_none(fig_pattern, 'preds_grid')
-            utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD,
-                                      fig_location=fig_location)
+            src.utils.plots_detection.plot_grid_detection(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD,
+                                                          fig_location=fig_location)
         if plot_prediction:
             fig_location = format_or_none(fig_pattern, 'preds')
-            utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1],
-                                        TEST_YOLO_CONF_THRESHOLD, draw_cells=plot_cells,
-                                        fig_location=fig_location)
+            src.utils.plots_detection.plot_detected_objects(batch_images, yolo_outputs, [416, 416, 1],
+                                                            TEST_YOLO_CONF_THRESHOLD, draw_cells=plot_cells,
+                                                            fig_location=fig_location)
         break
 
 

@@ -1,4 +1,7 @@
 import numpy as np
+import tensorflow as tf
+
+from src.detection.yolov3.utils import bbox_iou
 
 """
 Preprocesses bounding boxes from tf.Dataset and produces y_true.
@@ -42,10 +45,8 @@ class DatasetPreprocessor:
                             self.anchors_per_scale, 5)) for i in range(len(self.output_shapes))]
 
         for image_in_batch, bboxes in enumerate(batch_bboxes):
-            # print(bboxes)
             # find best anchor for each true bbox
-            # (there are 13x13x3 anchors) 
-
+            # (there are 13x13x3 anchors)
             for bbox in bboxes:  # for every true bounding box in the image
                 # bbox is [x1, y1, x2, y2]
                 bbox_wh = bbox[2:] - bbox[:2]
@@ -65,7 +66,6 @@ class DatasetPreprocessor:
                 # for each scale (13x13 and 26x26)
                 for scale_index in range(len(self.output_shapes)):
                     grid_box_xy = np.floor(bbox_xywh_grid_scaled[scale_index, 0:2]).astype(np.int32)
-                    # print(grid_box_xy)
                     # get anchors coordinates for the current 
                     anchors_xywh_scaled = np.zeros((self.anchors_per_scale, 4))
                     # the center of an anchor is the center of a grid box
@@ -75,8 +75,8 @@ class DatasetPreprocessor:
                     anchors_xywh_scaled[:, 2:4] = self.anchors[scale_index]
 
                     # compute IOU for true bbox and anchors
-                    iou_of_this_scale = self.bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis, :],
-                                                      anchors_xywh_scaled)
+                    iou_of_this_scale = bbox_iou(bbox_xywh_grid_scaled[scale_index][np.newaxis, :],
+                                                 anchors_xywh_scaled)
                     iou_for_all_scales.append(iou_of_this_scale)
                     iou_mask = iou_of_this_scale > 0.3
 
@@ -84,8 +84,6 @@ class DatasetPreprocessor:
                     if np.any(iou_mask):
                         x_index, y_index = grid_box_xy
 
-                        # iou_mask = [True, False, False]
-                        # print(y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4].shape)
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, :] = 0
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 0:4] = bbox_xywh
                         y_true[scale_index][image_in_batch, y_index, x_index, iou_mask, 4:5] = 1.0
@@ -104,39 +102,30 @@ class DatasetPreprocessor:
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, :] = 0
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 0:4] = bbox_xywh
                     y_true[best_detect][image_in_batch, y_index, x_index, best_anchor, 4:5] = 1.0
-
-        # print(F"y_true conf sum ({np.sum(y_true[0][...,4:5])}, {np.sum(y_true[1][...,4:5])}):")
-        # print(len(y_true), y_true[0].shape)
         return y_true
 
-    def bbox_iou(self, boxes1, boxes2):
-        """
-        boxes1.shape (n, 4)
-        boxes2.shape (m, 4)
-        
-        Returns
-            Returns an array of iou for each combination of possible intersection.
-        """
-        # convert to numpy arrays
-        boxes1 = np.array(boxes1)
-        boxes2 = np.array(boxes2)
 
-        boxes1_area = boxes1[..., 2] * boxes1[..., 3]  # width * height
-        boxes2_area = boxes2[..., 2] * boxes2[..., 3]  # width * height
+def tf_load_image(image_file_path, dtype, shape):
+    """
+    Loads an image from file and resizes it with pad to target shape.
 
-        # Convert xywh to x1,y1,x2,y2 (top left and bottom right point).
-        boxes1 = np.concatenate([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                                 boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
-        boxes2 = np.concatenate([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                                 boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
+    Parameters
+    -------
+    image_file_path
+    dtype
+    shape
+        An array-like of two values [width, height].
 
-        left_up = np.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = np.minimum(boxes1[..., 2:], boxes2[..., 2:])
 
-        # Find the length of x and y where the rectangles overlap.
-        # If the length is less than 0, they do not overlap.
-        intersection_lengths = np.maximum(right_down - left_up, 0.0)
-        intersection_area = intersection_lengths[..., 0] * intersection_lengths[..., 1]
-        union_area = boxes1_area + boxes2_area - intersection_area
+    Returns
+    -------
+    depth_image
+        A 3-D Tensor of shape [height, width, 1].
+    """
+    depth_image_file_content = tf.io.read_file(image_file_path)
 
-        return np.nan_to_num(intersection_area / union_area)
+    # loads depth images and converts values to fit in dtype.uint8
+    depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
+
+    depth_image.set_shape([shape[1], shape[0], 1])
+    return depth_image

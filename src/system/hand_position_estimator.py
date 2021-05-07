@@ -2,16 +2,18 @@ import argparse
 
 import tensorflow as tf
 
+import src.detection.yolov3.dataset_preprocessing as yolov3_preprocessing
 import src.estimation.configuration as configs
 import src.utils.plots as plots
-from src.detection.yolov3.cfg.cfg_parser import YoloModel
+import src.utils.plots_detection
 from src.datasets.generators import get_source_generator
 from src.detection.yolov3 import utils
+from src.detection.yolov3.cfg.cfg_parser import YoloLoader
 from src.estimation.configuration import Config
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
 from src.estimation.jgrp2o import JGR_J2O
 from src.utils.camera import Camera
-from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
+from src.utils.config import TEST_YOLO_CONF_THRESHOLD
 from src.utils.imaging import tf_resize_image
 from src.utils.paths import DOCS_DIR, LOGS_DIR
 
@@ -29,24 +31,12 @@ class HandPositionEstimator:
         self.plot_estimation = plot_estimation
         self.plot_skeleton = plot_skeleton
         self.resize_mode = 'crop'
-        self.detector = YoloModel.load_from_weights(self.resize_mode)
+        self.detector = YoloLoader.load_from_weights(self.resize_mode)
         self.network = JGR_J2O(n_features=196)
         self.estimator = self.load_estimator()
         self.estimation_preprocessor = DatasetPreprocessor(None, self.network.input_size, self.network.out_size,
                                                            camera=self.camera, config=config)
         self.estimation_fig_location = None
-
-    def load_detector(self, resize_mode):
-        # Load model based on the preference resize mode
-        # because the models were trained with different preprocessing.
-        if resize_mode == 'pad':
-            weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
-        elif resize_mode == 'crop':
-            weights_file = "20210315-143811/train_ckpts/weights.12.h5"  # mode crop
-        weights_path = LOGS_DIR.joinpath(weights_file)
-        model = YoloModel.from_cfg(YOLO_CONFIG_FILE)
-        model.tf_model.load_weights(str(weights_path))
-        return model
 
     def load_estimator(self):
         # Load HPE model and weights
@@ -120,17 +110,25 @@ class HandPositionEstimator:
         joints_uvz = self.estimate(batch_images, boxes)
         return joints_uvz
 
-    def detect_from_source(self, source_generator):
+    def detect_from_source(self, source_generator, num_detections=1, fig_location_pattern=None):
         """
         Reads live2 images from RealSense depth camera, and
         detects hands for each frame.
         """
+        iter_index = 0
         for depth_image in source_generator:
+            fig_location = self._format_or_none(fig_location_pattern, iter_index)
             depth_image = self.resize_image_and_depth(depth_image)
             batch_images = tf.expand_dims(depth_image, axis=0)
-            self.detect(batch_images)
+            self.detect(batch_images, num_detections, fig_location)
+            iter_index += 1
 
-    def detect(self, images):
+    def _format_or_none(self, fig_location_pattern, index):
+        if fig_location_pattern is None:
+            return None
+        return str(fig_location_pattern).format(index)
+
+    def detect(self, images, num_detections=1, fig_location=None):
         """
 
         Parameters
@@ -147,10 +145,11 @@ class HandPositionEstimator:
 
         boxes, scores, nums = utils.boxes_from_yolo_outputs(yolo_outputs, self.detector.batch_size,
                                                             self.detector.input_shape,
-                                                            TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7, max_boxes=1)
+                                                            TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7,
+                                                            max_boxes=num_detections)
         if self.plot_detection:
-            utils.draw_predictions(images[0], boxes[0], nums[0],
-                                   fig_location=DOCS_DIR.joinpath('images/deteceted_hand_for_hpe.png'))
+            src.utils.plots_detection.plot_predictions(images[0], boxes[0], nums[0],
+                                                       fig_location=fig_location)
         return boxes
 
     def estimate(self, images, boxes):
@@ -186,7 +185,7 @@ class HandPositionEstimator:
         Depth image
         """
         # load image
-        depth_image = utils.tf_load_image(file_path, dtype=tf.uint16, shape=self.camera.image_size)
+        depth_image = yolov3_preprocessing.tf_load_image(file_path, dtype=tf.uint16, shape=self.camera.image_size)
         return depth_image
 
     def resize_image_and_depth(self, image):
@@ -240,10 +239,11 @@ def get_estimator(camera):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=str, action='store', required=True)
-    parser.add_argument('--detect', type=bool, action='store_true', default=False)
-    parser.add_argument('--estimate', type=bool, action='store_true', default=False)
+    parser.add_argument('--detect', action='store_true', default=False)
+    parser.add_argument('--estimate', action='store_true', default=False)
     parser.add_argument('--camera', type=str, action='store', default='SR305')
     parser.add_argument('--plot', type=bool, action='store', default=True)
+    parser.add_argument('--num-detections', action='store', type=int, default=1)
     args = parser.parse_args()
 
     image_source = get_source_generator(args.source)
@@ -253,8 +253,11 @@ if __name__ == '__main__':
         raise ValueError('Only one of these options can be specified: --detect, --estimate')
 
     if args.detect:
+        fig_location_pattern = DOCS_DIR.joinpath('images/evaluation/detection/live_{}.pdf')
         estimator.plot_detection = args.plot
-        estimator.detect_from_source(image_source)
+        estimator.detect_from_source(image_source, args.num_detections, fig_location_pattern)
     if args.estimate:
+        if args.num_detections != 1:
+            raise ValueError('Estimation allows only a single detection!')
         estimator.plot_estimation = args.plot
         estimator.estimate_from_source(image_source)

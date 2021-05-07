@@ -1,8 +1,8 @@
-from tensorflow.keras.layers import Input, Conv2D, ReLU, BatchNormalization, Dense, \
-    MaxPooling2D, UpSampling2D
-from tensorflow.keras import Model
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras import Model
+from tensorflow.keras.layers import BatchNormalization, Conv2D, Dense, Input, MaxPooling2D, ReLU, UpSampling2D
+
 from src.utils.config import JGRJ2O_WEIGHT_DECAY
 from src.utils.imaging import resize_bilinear_nearest_batch
 

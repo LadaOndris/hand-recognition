@@ -50,21 +50,25 @@ containing definitions for a gesture with opened palm with fingers outstretched
 and apart.
 `python3 src/system/gesture_recognizer.py --source live --dir test --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
-The system plots figures similar to the following:
-![live_gesture1.png](docs/readme/live_gesture1.png){ width="100px" }
-
-<img src="./docs/readme/live_gesture1.png" alt="live_gesture1" width="200"/>
+The system plots figures similar to the following:  
+<img src="./docs/readme/live_gesture1.png" alt="live_gesture1" width="220"/>  
+<img src="./docs/readme/live_nongesture.png" alt="live_nongesture" width="220"/>  
 
 ### Hand detection
 
 To detect hands from images captured with SR305 camera, which is the default camera:
 `python3 src/system/hand_position_estimator.py --detect --source live`
 
+<img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>  
+<img src="./docs/readme/live_detection2.png" alt="live_detection" width="220"/>  
+
 ### Hand pose estimation
 
 To estimate hand poses from images captured with SR305 camera:
 `python3 src/system/hand_position_estimator.py --estimate --source live`
-
+  
+<img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>  
+<img src="./docs/readme/live_estimation2.png" alt="live_estimation" width="220"/>  
 
 ### Training of models
 
