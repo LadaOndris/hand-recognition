@@ -104,7 +104,15 @@ To evaluate the trained JGR-P2O model on the MSRA dataset:
 ### Source files
 
     src
-    ├── acceptance                 #
+    ├── acceptance               # Gesture acceptance module (gesture recognition algorithm)
+    ├── datasets                 # Dataset related code (pipelines, plots, generation)
+    ├── detection                # Detection methods - Tiny YOLOv3, RDF
+    ├── estimation               # JGR-P2O estimation model and preprocessing
+    ├── metacentrum              # Scripts for training in Metacentrum
+    ├── system                   # Access point to gesture recognition system 
+    │                              (database_scanner, gesture_recognizer, hand_position_estimator)
+    └── utils                    # Camera, logs, plots, live capture, config
+
 
 ## License
 
