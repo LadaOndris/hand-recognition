@@ -1,6 +1,7 @@
 import src.estimation.configuration as configs
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
+from src.utils.live import generate_live_images
 from src.utils.paths import BIGHAND_DATASET_DIR, CUSTOM_DATASET_DIR, DOCS_DIR
 
 
@@ -40,16 +41,16 @@ def plot_estimation_on_custom_dataset():
 
     # Alphabet
     for j in range(1, 11):
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}00.png")))
-        estimator.inference_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}50.png")))
+        estimator.estimate_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}00.png")))
+        estimator.estimate_from_file(str(CUSTOM_DATASET_DIR.joinpath(F"20210326-232751/{j}50.png")))
 
 
 def save_estimations_on_bighand():
     files = get_bighand_image_files()
     fig_filenames = get_figures_filenames(files)
     for file, fig_filename in zip(files, fig_filenames):
-        estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(file)),
-                                      fig_location=DOCS_DIR.joinpath(F"images/estimation/{fig_filename}"))
+        estimator.estimate_from_file(str(BIGHAND_DATASET_DIR.joinpath(file)),
+                                     fig_location=DOCS_DIR.joinpath(F"images/estimation/{fig_filename}"))
 
 
 def get_bighand_image_files():
@@ -71,7 +72,7 @@ def get_figures_filenames(image_files):
 def plot_estimation_on_bighand():
     for i in range(3):
         for j in range(0, 9):
-            estimator.inference_from_file(str(BIGHAND_DATASET_DIR.joinpath(
+            estimator.estimate_from_file(str(BIGHAND_DATASET_DIR.joinpath(
                 F"Subject_1/226 300/image_D000{i}{j}000.png")))
 
 
@@ -91,6 +92,5 @@ if __name__ == '__main__':
     #     plot_estimation_on_bighand()
     # else:
     #     plot_estimation_on_custom_dataset()
-    # estimator.detect_live()
-    estimator.inference_live(save_folder=DOCS_DIR.joinpath('images/estimation/live3'))
-    pass
+    live_image_generator = generate_live_images()
+    estimator.estimate_from_source(live_image_generator)

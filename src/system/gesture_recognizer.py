@@ -7,12 +7,11 @@ import tensorflow as tf
 import src.estimation.configuration as configs
 import src.utils.plots as plots
 from src.acceptance.predict import GestureAccepter
-from src.datasets.custom.dataset import CustomDataset, CustomDatasetGenerator
 from src.system.database_reader import UsecaseDatabaseReader
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
 from src.utils.live import generate_live_images
-from src.utils.paths import CUSTOM_DATASET_DIR
+from src.datasets.generators import get_source_generator
 
 
 class GestureRecognizer:
@@ -36,7 +35,7 @@ class GestureRecognizer:
             start_time = time()
             if tf.rank(image_array) == 4:
                 image_array = image_array[0]
-            joints_uvz = self.estimator.inference_from_image(image_array)
+            joints_uvz = self.estimator.estimate_from_image(image_array)
             # Detection failed, continue to next image
             if joints_uvz is None:
                 continue
@@ -93,7 +92,7 @@ class GestureRecognizer:
         for i in range(dataset.num_batches):
             image_array_batch, true_labels_batch = next(dataset.dataset_iterator)
             for image_array, true_label in zip(image_array_batch, true_labels_batch.numpy()):
-                joints_uvz = self.estimator.inference_from_image(image_array)
+                joints_uvz = self.estimator.estimate_from_image(image_array)
                 # Detection failed, skip
                 if joints_uvz is None:
                     continue
@@ -118,33 +117,20 @@ def recognize_live():
     live_acceptance.start(generator)
 
 
-def get_custom_dataset_generator():
-    ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=1)
-    generator = CustomDatasetGenerator(ds)
-    return generator
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', type=str, action='store', default=None, required=True)
+    parser.add_argument('--source', type=str, action='store', required=True)
     parser.add_argument('--error-threshold', type=int, action='store', default=120, required=True)
     parser.add_argument('--orientation-threshold', type=int, action='store', default=90)
     parser.add_argument('--camera', type=str, action='store', default='SR305')
     parser.add_argument('--plot', type=bool, action='store', default=True)
     parser.add_argument('--plot-feedback', type=bool, action='store', default=True)
-    parser.add_argument('--live', type=bool, action='store_true')
-    parser.add_argument('--custom-dataset', type=bool, action='store_true')
     args = parser.parse_args()
 
-    if args.live:
-        generator = generate_live_images()
-    elif args.custom_dataset:
-        generator = get_custom_dataset_generator()
-    else:
-        print('No image source was specified. Allowed options are "--live" and "--custom-dataset".')
-
+    image_source = get_source_generator(args.source)
     live_acceptance = GestureRecognizer(error_thresh=args.error_threshold,
                                         orientation_thresh=args.orientation_threshold,
                                         database_subdir=args.dir, plot_feedback=args.plot_feedback,
                                         plot_result=args.plot, camera=args.camera)
-    live_acceptance.start(generator)
+    live_acceptance.start(image_source)

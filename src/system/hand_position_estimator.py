@@ -1,7 +1,11 @@
+import argparse
+
 import tensorflow as tf
 
+import src.estimation.configuration as configs
 import src.utils.plots as plots
-from src.core.cfg.cfg_parser import Model
+from src.detection.yolov3.cfg.cfg_parser import Model
+from src.datasets.generators import get_source_generator
 from src.detection.yolov3 import utils
 from src.estimation.configuration import Config
 from src.estimation.dataset_preprocessing import DatasetPreprocessor
@@ -9,7 +13,6 @@ from src.estimation.jgrp2o import JGR_J2O
 from src.utils.camera import Camera
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.imaging import tf_resize_image
-from src.utils.live import generate_live_images
 from src.utils.paths import DOCS_DIR, LOGS_DIR
 
 
@@ -72,26 +75,25 @@ class HandPositionEstimator:
         model.load_weights(str(weights_path))
         return model
 
-    def inference_from_file(self, file_path: str, fig_location=None):
+    def estimate_from_file(self, file_path: str, fig_location=None):
         """
         Detect a hand from a single image.
         """
         self.estimation_fig_location = fig_location
         image = self.read_image(file_path)
-        return self.inference_from_image(image)
+        return self.estimate_from_image(image)
 
-    def inference_live(self, save_folder=None):
+    def estimate_from_source(self, source_generator, save_folder=None):
         i = 0
-        fig_location = None
-        live_image_generator = generate_live_images()
-        for depth_image in live_image_generator:
+        for depth_image in source_generator:
             if save_folder is not None:
                 fig_location = save_folder.joinpath(F"{i}.png")
                 self.estimation_fig_location = fig_location
-            joints = self.inference_from_image(depth_image)
+            joints = self.estimate_from_image(depth_image)
+            yield joints
             i += 1
 
-    def inference_from_image(self, image):
+    def estimate_from_image(self, image):
         """
         Performs hand detection and pose estimation on the given image.
 
@@ -118,15 +120,12 @@ class HandPositionEstimator:
         joints_uvz = self.estimate(batch_images, boxes)
         return joints_uvz
 
-    def detect_live(self):
+    def detect_from_source(self, source_generator):
         """
         Reads live2 images from RealSense depth camera, and
         detects hands for each frame.
         """
-        # create live2 image generator
-        live_image_generator = generate_live_images()
-
-        for depth_image in live_image_generator:
+        for depth_image in source_generator:
             depth_image = self.resize_image_and_depth(depth_image)
             batch_images = tf.expand_dims(depth_image, axis=0)
             self.detect(batch_images)
@@ -229,3 +228,33 @@ def preprocess_image_for_detection(images):
     images = tf.cast(images, dtype=dtype)
     images = tf.image.convert_image_dtype(images, dtype=tf.uint8)
     return images
+
+
+def get_estimator(camera):
+    camera = Camera(camera)
+    config = configs.PredictCustomDataset()
+    estimator = HandPositionEstimator(camera, config=config)
+    return estimator
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', type=str, action='store', required=True)
+    parser.add_argument('--detect', type=bool, action='store_true', default=False)
+    parser.add_argument('--estimate', type=bool, action='store_true', default=False)
+    parser.add_argument('--camera', type=str, action='store', default='SR305')
+    parser.add_argument('--plot', type=bool, action='store', default=True)
+    args = parser.parse_args()
+
+    image_source = get_source_generator(args.source)
+    estimator = get_estimator(args.camera)
+
+    if args.detect and args.estimate:
+        raise ValueError('Only one of these options can be specified: --detect, --estimate')
+
+    if args.detect:
+        estimator.plot_detection = args.plot
+        estimator.detect_from_source(image_source)
+    if args.estimate:
+        estimator.plot_estimation = args.plot
+        estimator.estimate_from_source(image_source)

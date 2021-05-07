@@ -166,4 +166,4 @@ if __name__ == '__main__':
     # generate_bounding_boxes(print_images=False, save_to_file=False,
     #                        bboxes_filename='bounding_boxes.txt')
     # show_images_from_handseg_dataset(num=3, dataset_path=handseg_path,
-    #                                 save_fig_loc=base_path + 'documentation/images/handseg_samples.png')
+    #                                 save_fig_loc=base_path + 'docs/images/handseg_samples.png')

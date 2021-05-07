@@ -33,7 +33,7 @@ class UsecaseDatabaseScanner:
     def _scan_from_generator(self, generator, file, scan_period):
         for image in generator:
             time_start = time.time()
-            joints_uvz = self.estimator.inference_from_image(image)
+            joints_uvz = self.estimator.estimate_from_image(image)
             if joints_uvz is None:
                 continue
             joints_xyz = self.camera.pixel_to_world(joints_uvz)

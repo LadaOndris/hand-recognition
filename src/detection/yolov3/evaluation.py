@@ -3,7 +3,7 @@ import tensorflow as tf
 from sklearn.metrics import precision_recall_curve
 
 import src.utils.plots as plots
-from src.core.cfg.cfg_parser import Model
+from src.detection.yolov3.cfg.cfg_parser import Model
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3 import utils
 from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor

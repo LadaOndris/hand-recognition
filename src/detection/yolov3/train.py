@@ -3,8 +3,8 @@ from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
 from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
 from src.detection.yolov3.yolo_loss import YoloLoss
-from src.core.cfg.cfg_parser import Model
-from src.utils.config import YOLO_CONFIG_FILE, YOLO_CONFIG_FILE_RECT, TRAIN_YOLO_IOU_IGNORE_THRES
+from src.detection.yolov3.cfg.cfg_parser import Model
+from src.utils.config import YOLO_CONFIG_FILE, TRAIN_YOLO_IOU_IGNORE_THRES
 from src.utils.paths import HANDSEG_DATASET_DIR
 import src.utils.logs as logs_utils
 

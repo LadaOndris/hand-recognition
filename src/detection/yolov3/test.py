@@ -1,6 +1,5 @@
-import os
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
-from src.core.cfg.cfg_parser import Model
+from src.detection.yolov3.cfg.cfg_parser import Model
 from src.detection.yolov3 import utils
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
 from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR
@@ -22,7 +21,7 @@ def predict():
 
         # utils.draw_grid(batch_images, yolo_outputs, [416, 416, 1])
         # utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], conf_threshold)
-        fig_location = ROOT_DIR.joinpath("documentation/images/yolo_detection_handseg_{}.pdf")
+        fig_location = ROOT_DIR.joinpath("docs/images/yolo_detection_handseg_{}.pdf")
         utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1],
                                     TEST_YOLO_CONF_THRESHOLD, draw_cells=False,
                                     fig_location=fig_location)

@@ -99,7 +99,7 @@ def non_max_suppression(inputs, model_size, max_output_size,
     bboxes, confs, other = tf.split(inputs, [4, 1, -1], axis=-1)
     # bboxes = bboxes / model_size[0]
     # tf.print(tf.reduce_mean(bboxes))
-    bboxes = tf.expand_dims(bboxes, axis=2)  # the third dimension is 1 according to documentation
+    bboxes = tf.expand_dims(bboxes, axis=2)  # the third dimension is 1 according to docs
 
     boxes, scores, classes, num_valid_boxes = tf.image.combined_non_max_suppression(
         boxes=bboxes,
@@ -175,7 +175,7 @@ def draw_predictions_with_cells(index, image, boxes, nums, stride):
     ax.yaxis.set_visible(False)
     fig.tight_layout()
     plt.show()
-    # fig.savefig(F"../../../documentation/images/yolo_prediction_with_cell_{index}.pdf", bbox_inches='tight')
+    # fig.savefig(F"../../../docs/images/yolo_prediction_with_cell_{index}.pdf", bbox_inches='tight')
 
 
 def draw_prediction_box(ax, x, y, w, h):
@@ -295,7 +295,7 @@ def draw_grid(images, yolo_outputs, model_size):
             ax.yaxis.set_visible(False)
             fig.tight_layout()
             plt.show()  # plot grid for each scale
-            # fig.savefig(F"../../../documentation/images/yolo_grid_{i}.pdf", bbox_inches='tight')
+            # fig.savefig(F"../../../docs/images/yolo_grid_{i}.pdf", bbox_inches='tight')
             break
 
 

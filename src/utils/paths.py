@@ -8,7 +8,7 @@ ROOT_DIR = _ROOT_PATH
 LOGS_DIR = _ROOT_PATH.joinpath('logs')
 SAVED_MODELS_DIR = _ROOT_PATH.joinpath('saved_models')
 SRC_DIR = _ROOT_PATH.joinpath('src')
-DOCS_DIR = _ROOT_PATH.joinpath('documentation')
+DOCS_DIR = _ROOT_PATH.joinpath('docs')
 OTHER_DIR = _ROOT_PATH.joinpath('other')
 
 HANDSEG_DATASET_DIR = _ROOT_PATH.joinpath("datasets/handseg")
