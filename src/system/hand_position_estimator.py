@@ -4,7 +4,7 @@ import tensorflow as tf
 
 import src.estimation.configuration as configs
 import src.utils.plots as plots
-from src.detection.yolov3.cfg.cfg_parser import Model
+from src.detection.yolov3.cfg.cfg_parser import YoloModel
 from src.datasets.generators import get_source_generator
 from src.detection.yolov3 import utils
 from src.estimation.configuration import Config
@@ -29,7 +29,7 @@ class HandPositionEstimator:
         self.plot_estimation = plot_estimation
         self.plot_skeleton = plot_skeleton
         self.resize_mode = 'crop'
-        self.detector = self.load_detector(self.resize_mode)
+        self.detector = YoloModel.load_from_weights(self.resize_mode)
         self.network = JGR_J2O(n_features=196)
         self.estimator = self.load_estimator()
         self.estimation_preprocessor = DatasetPreprocessor(None, self.network.input_size, self.network.out_size,
@@ -44,7 +44,7 @@ class HandPositionEstimator:
         elif resize_mode == 'crop':
             weights_file = "20210315-143811/train_ckpts/weights.12.h5"  # mode crop
         weights_path = LOGS_DIR.joinpath(weights_file)
-        model = Model.from_cfg(YOLO_CONFIG_FILE)
+        model = YoloModel.from_cfg(YOLO_CONFIG_FILE)
         model.tf_model.load_weights(str(weights_path))
         return model
 

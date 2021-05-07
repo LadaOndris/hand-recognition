@@ -1,31 +1,18 @@
 import os
 import re
+from typing import Dict, List, Tuple
+
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, Input, ZeroPadding2D, BatchNormalization, Conv2D, LeakyReLU, \
-    UpSampling2D, MaxPool2D
-from typing import Tuple, Dict, List
-from src.utils.config import YOLO_CONFIG_FILE
+from tensorflow.keras.layers import BatchNormalization, Conv2D, Input, Layer, LeakyReLU, MaxPool2D, UpSampling2D, \
+    ZeroPadding2D
+
 from src.detection.yolov3.yolo_layer import YoloLayer
+from src.detection.yolov3.yolo_model import YoloModel
+from src.utils.config import RESIZE_MODE_CROP, RESIZE_MODE_PAD, YOLO_CONFIG_FILE
+from src.utils.paths import LOGS_DIR
 
 
-class Model:
-
-    def __init__(self):
-        self.yolo_output_shapes = None
-        self.tf_model = None
-        self.learning_rate = 1e-3
-        self.anchors = []
-        self.yolo_out_preds = []
-        self.yolo_output_shapes = []
-        self.input_shape = None
-
-    @classmethod
-    def from_cfg(cls, file):
-        parser = CfgParser()
-        return parser.parse(file)
-
-
-class CfgParser:
+class YoloLoader:
 
     def __init__(self):
         self._supported_layers = {
@@ -41,8 +28,36 @@ class CfgParser:
         self.throw_error_on_unknown_attr = True
         return
 
-    def parse(self, cfg_file_path: str, custom_layers=Dict[str, Tuple[Layer, List[str]]],
-              throw_error_on_unknown_attr=True) -> Model:
+    @classmethod
+    def load_from_weights(cls, resize_mode, weights_path=None):
+        """
+        Loads Tiny YOLOv3 from weights. Initializes a new YoloModel instance
+        Parameters
+        ----------
+        resize_mode     How to treat rectangular images. Allowed options: 'crop', 'pad'.
+        weights_path    Uses default weights if not specified.
+
+        Returns
+        -------
+        yolo_model  An isntance of YoloModel class.
+        """
+        # Load model based on the preference resize mode
+        # because the models were trained with different preprocessing.
+        if weights_path is None:
+            if resize_mode == RESIZE_MODE_PAD:
+                weights_file = "20201016-125612/train_ckpts/ckpt_10"  # mode pad
+            elif resize_mode == RESIZE_MODE_CROP:
+                weights_file = "20210315-143811/train_ckpts/weights.12.h5"  # mode crop
+            else:
+                raise ValueError('Invalid resize option!')
+            weights_path = LOGS_DIR.joinpath(weights_file)
+        loader = YoloLoader()
+        model = loader.parse_cfg(YOLO_CONFIG_FILE)
+        model.tf_model.load_weights(str(weights_path))
+        return model
+
+    def parse_cfg(self, cfg_file_path: str, custom_layers=Dict[str, Tuple[Layer, List[str]]],
+                  throw_error_on_unknown_attr=True) -> YoloModel:
         """
         Parses cfg file and returns a model.
 
@@ -163,7 +178,7 @@ class CfgParser:
         batch_size = int(net_block['batch'])
         learning_rate = float(net_block['learning_rate'])
 
-        self.model = Model()
+        self.model = YoloModel()
         self.model.input_shape = input_shape
         self.model.batch_size = batch_size
         self.model.learning_rate = learning_rate
@@ -261,6 +276,6 @@ class CfgParser:
 
 
 if __name__ == '__main__':
-    parser = CfgParser()
-    model = parser.parse(YOLO_CONFIG_FILE, throw_error_on_unknown_attr=False)
+    parser = YoloLoader()
+    model = parser.parse_cfg(YOLO_CONFIG_FILE, throw_error_on_unknown_attr=False)
     model.tf_model.summary()

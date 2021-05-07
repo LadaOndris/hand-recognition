@@ -1,32 +1,44 @@
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.cfg.cfg_parser import Model
 from src.detection.yolov3 import utils
-from src.utils.config import TEST_YOLO_CONF_THRESHOLD, YOLO_CONFIG_FILE
-from src.utils.paths import ROOT_DIR, LOGS_DIR, HANDSEG_DATASET_DIR
+from src.detection.yolov3.cfg.cfg_parser import YoloLoader
+from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
+from src.utils.config import RESIZE_MODE, TEST_YOLO_CONF_THRESHOLD
+from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR
 
 
-def predict():
-    model = Model.from_cfg(YOLO_CONFIG_FILE)
+def predict_on_handseg(plot_prediction=False, plot_prediction_with_grid=False, plot_image_with_grid=False,
+                       plot_cells=False, fig_pattern=None):
+    model = YoloLoader.load_from_weights(RESIZE_MODE)
+    handseg = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.99, batch_size=model.batch_size,
+                                   shuffle=False, model_input_shape=model.input_shape)
+    preprocessor = DatasetPreprocessor(handseg.test_batch_iterator,
+                                       model.input_shape, model.yolo_output_shapes, model.anchors)
 
-    model.tf_model.load_weights(LOGS_DIR.joinpath("20201016-125612/train_ckpts/ckpt_10"))
-    # loaded_model = tf.keras.models.load_model("overfitted_model_conf_only", custom_objects={'YoloLoss':YoloLoss},
-    # compile=False)
-
-    handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.8, batch_size=model.batch_size,
-                                           shuffle=False)
-    # yolo_outputs = loaded_model.predict(dataset_bboxes, batch_size=16, steps=1, verbose=1)
-
-    for batch_images, batch_bboxes in handseg_dataset.test_batch_iterator:
+    for batch_images, batch_bboxes in preprocessor:
         yolo_outputs = model.tf_model.predict(batch_images)
 
-        # utils.draw_grid(batch_images, yolo_outputs, [416, 416, 1])
-        # utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], conf_threshold)
-        fig_location = ROOT_DIR.joinpath("docs/images/yolo_detection_handseg_{}.pdf")
-        utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1],
-                                    TEST_YOLO_CONF_THRESHOLD, draw_cells=False,
-                                    fig_location=fig_location)
+        if plot_image_with_grid:
+            fig_location = format_or_none(fig_pattern, 'img_grid')
+            utils.draw_grid(batch_images, yolo_outputs, [416, 416, 1], fig_location=fig_location)
+        if plot_prediction_with_grid:
+            fig_location = format_or_none(fig_pattern, 'preds_grid')
+            utils.draw_grid_detection(batch_images, yolo_outputs, [416, 416, 1], TEST_YOLO_CONF_THRESHOLD,
+                                      fig_location=fig_location)
+        if plot_prediction:
+            fig_location = format_or_none(fig_pattern, 'preds')
+            utils.draw_detected_objects(batch_images, yolo_outputs, [416, 416, 1],
+                                        TEST_YOLO_CONF_THRESHOLD, draw_cells=plot_cells,
+                                        fig_location=fig_location)
         break
 
 
+def format_or_none(pattern, str):
+    if pattern is None:
+        return None
+    return pattern.format(str)
+
+
 if __name__ == '__main__':
-    predict()
+    fig_location_pattern = str(DOCS_DIR.joinpath('figures/architecture/yolo_{}.pdf'))
+    predict_on_handseg(plot_prediction=True, plot_image_with_grid=True, plot_prediction_with_grid=True,
+                       plot_cells=True, fig_pattern=fig_location_pattern)

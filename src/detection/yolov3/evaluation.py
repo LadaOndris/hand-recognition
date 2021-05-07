@@ -3,18 +3,29 @@ import tensorflow as tf
 from sklearn.metrics import precision_recall_curve
 
 import src.utils.plots as plots
-from src.detection.yolov3.cfg.cfg_parser import Model
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3 import utils
+from src.detection.yolov3.cfg.cfg_parser import YoloLoader
 from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
-from src.utils.config import YOLO_CONFIG_FILE
+from src.utils.config import RESIZE_MODE
 from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR, LOGS_DIR
 
 
 def evaluate(weights_path):
-    model = Model.from_cfg(YOLO_CONFIG_FILE)
-    model.tf_model.load_weights(weights_path)
+    """
+    Runs evaluation on the HandSeg dataset.
+    Returns merged y_true and y_pred from the Tiny YOLOv3 model.
 
+    Parameters
+    ----------
+    weights_path    Model's weights.
+
+    Returns
+    -------
+    y_pred
+    y_true
+    """
+    model = YoloLoader.load_from_weights(RESIZE_MODE, weights_path=weights_path)
     handseg = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.99, batch_size=model.batch_size,
                                    shuffle=False, model_input_shape=model.input_shape)
     test_dataset_generator = DatasetPreprocessor(handseg.test_batch_iterator,

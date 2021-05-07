@@ -11,7 +11,8 @@ to determine the hands' skeleton, which is used for gesture classification.
 
 ## Prerequisites
 
-Python 3.7.10
+Python 3.7.10  
+Intel RealSense depth camera (e.g., SR305)
 
 ## Installation
 
@@ -50,6 +51,9 @@ and apart.
 `python3 src/system/gesture_recognizer.py --source live --dir test --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
 The system plots figures similar to the following:
+![live_gesture1.png](docs/readme/live_gesture1.png){ width="100px" }
+
+<img src="./docs/readme/live_gesture1.png" alt="live_gesture1" width="200"/>
 
 ### Hand detection
 
