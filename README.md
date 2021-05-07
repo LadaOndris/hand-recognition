@@ -60,7 +60,7 @@ To detect hands from images captured with SR305 camera, which is the default cam
 `python3 src/system/hand_position_estimator.py --detect --source live`
 
 <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
-<img src="./docs/readme/live_detection2.png" alt="live_detection" width="220"/>
+<img src="./docs/readme/live_detection2.png" alt="live_detection2" width="220"/>
 
 ### Hand pose estimation
 
@@ -68,7 +68,7 @@ To estimate hand poses from images captured with SR305 camera:
 `python3 src/system/hand_position_estimator.py --estimate --source live`
   
 <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
-<img src="./docs/readme/live_estimation2.png" alt="live_estimation" width="220"/>
+<img src="./docs/readme/live_estimation2.png" alt="live_estimation2" width="220"/>
 
 ### Training of models
 
