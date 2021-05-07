@@ -1,0 +1,94 @@
+The following files describes every captured sequence.
+These sequence are used as a custom dataset to evaluate the system as a whole.
+Two gestures are used as target, everything else as non-target.
+
+===================================
+Subject 0
+-----------------------------------
+0.1 = fingers stretched and far apart with image plane rotation
+20210326-230536 - right hand
+20210326-230610 - left hand
+
+0.2 = fingers stretched and far apart with varying distance
+20210326-230652 - right hand
+
+0.3 = fingers stretched and far apart with heavy background (objects on the desk)
+20210326-233307 - left hand
+
+-----------------------------------
+Similar to 0, but slightly wrong.
+1.1 = one finger is wrong
+20210326-231436 - left hand
+
+1.2 = gesture valid, but bad angle
+20210326-231510 - both hands
+
+1.3 = fingers far apart, but not stretched
+20210326-231615 - right hand
+
+1.4 = valid gesture, but hand is not the closest object
+20210326-231700 - my body is closer, right hand
+20210326-231831 - a desk is closer, right hand
+
+
+1.5 = fingers stretched, but not far apart (not all of them at least)
+20210326-231929 - right hand
+
+-----------------------------------
+2.1 = number two with image rotation
+20210326-232115 - left hand
+20210326-232147 - right hand
+
+-----------------------------------
+Similar to 2, but slightly wrong.
+3.1 = fingers not apart
+20210326-232414 - left hand
+3.2 = thumb not closed (showing number three instead)
+20210326-232457 - left hand
+
+
+-----------------------------------
+4 = non target gesture sequences
+4.1 Alphabet-like
+20210326-232751 - right hand
+
+4.2 Random with heavy background (objects on the desk)
+20210326-233053 - left hand
+
+4.3
+
+===================================
+Subject 1
+1 - gesture 1
+20210429-184059 - right hand
+20210429-184345 - left hand
+2 - gesture 2
+20210429-184932 - right hand
+20210429-185005 - left hand
+0 - random gesture
+20210429-185243 - right hand
+20210429-185354 - left hand
+
+===================================
+Subject 2
+1 - gesture 1
+20210429-201220 - right hand
+20210429-201239 - left hand
+2 - gesture 2
+20210429-201311 - right hand
+20210429-201323 - left hand
+0 - random gesture
+20210429-201411 - right hand
+20210429-201436 - left hand
+
+===================================
+Subject 3
+1 - gesture 1
+20210429-222055 - right hand
+20210429-222115 - left hand
+2 - gesture 2
+20210429-222138 - right hand
+20210429-222156 - left hand
+0 - random gesture
+20210429-222220 - right hand
+20210429-222235 - left hand
