@@ -29,4 +29,4 @@ estimator = get_estimator(args.camera)
 estimator.plot_detection = args.plot
 detect_generator = estimator.detect_from_source(image_source, args.num_detections)
 for boxes in detect_generator:
-    print(boxes)
+    print('Bounding boxes:', boxes.numpy())

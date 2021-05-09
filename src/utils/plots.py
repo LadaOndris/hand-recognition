@@ -15,12 +15,24 @@ depth_image_cmap = 'gist_yarg'
 
 
 def plotlive(func):
+    """
+    A decorator that updates the current figure
+    instead of plotting into a new one.
+    It requires that the figure is created before calling
+    the plot function that is decorated.
+    The figure should be passed as a parameter to the plot function.
+    """
     plt.ion()
 
     @functools.wraps(func)
     def new_func(*args, **kwargs):
         # Clear current axis
-        plt.clf()
+        # plt.cla()
+
+        # Clear all axes in the current figure.
+        axes = plt.gcf().get_axes()
+        for axis in axes:
+            axis.cla()
 
         result = func(*args, **kwargs)
 
@@ -108,14 +120,24 @@ def plot_skeleton_with_jre(image, joints, jres, label=None, show_fig=True, fig_l
 
 
 def plot_skeleton_with_jre_subplots():
+    """
+    Creates a new figure for plotting the result
+    of gesture recognition.
+    The left axis contains the estimated hand pose,
+    and the right axis displays colorbar.
+    """
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6.5, 5),
                              gridspec_kw={"width_ratios": [5.0 / 6, 1.5 / 6]})
+    bar_axis = axes[1]
+    ax_inset = inset_axes(bar_axis, width="100%", height="100%", loc='upper center',
+                          bbox_to_anchor=(0, 0.35, 0.15, 0.4), bbox_transform=bar_axis.transAxes)
+    axes = [axes[0], axes[1], ax_inset]
     return fig, axes
 
 
 def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None, norm_vec=None, mean_vec=None):
     hand_axis = axes[0]
-    bar_axis = axes[1]
+    bar_axis = axes[2]
     _plot_depth_image(hand_axis, image)
     _plot_hand_skeleton_2d(hand_axis, joints, wrist_index=0, scatter=False)
     _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors=jres, color='blue')
@@ -124,7 +146,7 @@ def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None, norm_vec
     if label is not None:
         hand_axis.set_title(label)
 
-    for ax in axes:
+    for ax in axes[:2]:
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
         ax.set_axis_off()
@@ -165,15 +187,12 @@ def _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors, color=
     cmap = cmap_subset(cm.get_cmap('Reds'), 0.4, 1.0)
     hand_axis.scatter(joints[..., 0], joints[..., 1],
                       c=joint_errors, cmap=cmap, s=scaled_errors, alpha=1, zorder=100)
-    ax_inset = inset_axes(bar_axis, width="100%", height="100%", loc='upper center',
-                          bbox_to_anchor=(0, 0.35, 0.15, 0.4), bbox_transform=bar_axis.transAxes)
-    cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=ax_inset, format='%.2f')
+    cbar = fig.colorbar(cm.ScalarMappable(cmap=cmap), cax=bar_axis, format='%.2f')
     colorbar_tick_labels = np.linspace(min_err, max_err, 5, dtype=float)
     colorbar_tick_labels = np.round(colorbar_tick_labels, 1)
     cbar.set_ticks(np.linspace(0, 1, 5))
     cbar.set_ticklabels(colorbar_tick_labels)
-    cbar.ax.set_ylabel('Joint relation error [mm]', labelpad=15)
-    # cbar.ax.xaxis.set_label_position('top')
+    cbar.ax.set_ylabel('Joint relation error [mm]', labelpad=15, fontsize=18)
 
 
 def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True,
@@ -478,24 +497,3 @@ def save_show_fig(fig, fig_location, show_figure):
         fig.savefig(fig_location)
     if show_figure:
         fig.show()
-
-# class Plotter:
-#
-#     def __init__(self, func):
-#         self.func = func
-#         self.fig = None
-#         self.ax = None
-#         plt.ion()
-#
-#     def plot(self, *args, **kwargs):
-#
-#
-#     def start(self, figsize):
-#         plt.ion()
-#         self.fig, self.ax = plt.subplots(1, figsize)
-#
-#     def draw(self):
-#
-#     def finish(self):
-#         plt.ioff()
-#         plt.show()
