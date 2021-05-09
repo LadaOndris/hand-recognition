@@ -12,7 +12,7 @@ to determine the hands' skeleton, which is used for gesture classification.
 ## Prerequisites
 
 Python 3.7.10  
-Intel RealSense depth camera (e.g., SR305)
+Intel RealSense depth camera (e.g., SR305) - only for live capture
 
 ## Installation
 
@@ -35,6 +35,23 @@ To detect hands from images captured with SR305 camera, which is the default cam
     <img src="./docs/readme/live_detection2.png" alt="live_detection2" width="220"/>
 </p> 
 
+```
+usage: detect.py [-h] --source SOURCE [--camera CAMERA] [--plot PLOT]
+                 [--num-detections NUM_DETECTIONS]
+
+required arguments:
+  --source SOURCE       The source of images (allowed options: live, dataset)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --camera CAMERA       The camera model in use for live capture (default:
+                        SR305)
+  --plot PLOT           Whether to plot the result of detection (default: true)
+  --num-detections NUM_DETECTIONS
+                        The maximum number of bounding boxes for hand
+                        detection (default: 1)
+```
+
 ### Hand pose estimation
 
 To estimate hand poses from images captured with SR305 camera:  
@@ -44,6 +61,18 @@ To estimate hand poses from images captured with SR305 camera:
     <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
     <img src="./docs/readme/live_estimation2.png" alt="live_estimation2" width="220"/>
 </p>
+
+```
+usage: estimate.py [-h] --source SOURCE [--camera CAMERA] [--plot PLOT]
+
+required arguments:
+  --source SOURCE  The source of images (allowed options: live, dataset)
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --camera CAMERA  The camera model in use for live capture (default: SR305)
+  --plot PLOT      Whether to plot the result of estimation (default: true)
+```
 
 ### System's usage
 
@@ -57,6 +86,24 @@ from live images or from the custom dataset is demonstrated in
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
 ```python3 database.py --dir gestures --label 1 --scan-period 1 --camera SR305```
+
+```
+usage: database.py [-h] --dir DIR --label LABEL [--scan-period SCAN_PERIOD]
+                   [--camera CAMERA] [--plot PLOT]
+
+required arguments:
+  --dir DIR             The name of the directory that should contain the
+                        user-captured gesture database
+  --label LABEL         The label of the gesture that is to be captured
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --scan-period SCAN_PERIOD
+                        Intervals between each capture in seconds (default: 1)
+  --camera CAMERA       The camera model in use for live capture (default:
+                        SR305)
+  --plot PLOT           Plot the captured poses - recommended (default: true)
+```
 
 #### Real-time gesture recognition
 
@@ -77,6 +124,36 @@ The system plots figures similar to the following:
     <img src="./docs/readme/live_gesture1.png" alt="live_gesture1" width="220"/>
     <img src="./docs/readme/live_nongesture.png" alt="live_nongesture" width="220"/>
 </p>
+
+```
+usage: recognize.py [-h] --dir DIR --source SOURCE --error-threshold
+                    ERROR_THRESHOLD
+                    [--orientation-threshold ORIENTATION_THRESHOLD]
+                    [--camera CAMERA] [--plot PLOT]
+                    [--plot-feedback PLOT_FEEDBACK]
+                    [--plot-orientation PLOT_ORIENTATION]
+
+required arguments:
+  --dir DIR             The name of the directory containg the user-captured
+                        gesture database
+  --source SOURCE       The source of images (allowed options: live, dataset)
+  --error-threshold ERROR_THRESHOLD
+                        The pose threshold (JRE threshold)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --orientation-threshold ORIENTATION_THRESHOLD
+                        The orientation threshold in angles in the range
+                        (maximum: 90, default: 90)
+  --camera CAMERA       The camera model in use for live capture (default:
+                        SR305)
+  --plot PLOT           Whether to plot anything.
+  --plot-feedback PLOT_FEEDBACK
+                        Whether to display the colorbar with JRE errors
+  --plot-orientation PLOT_ORIENTATION
+                        Whether to display a vector depicting the hand's
+                        orientation
+```
 
 ### Training of models
 

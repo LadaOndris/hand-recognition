@@ -21,23 +21,28 @@ def get_configs(dataset_name: str):
     return train_conf, test_conf
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, action='store', default=None, required=True,
-                    help='The dataset to be used for training (allowed options: msra, bighand)')
-parser.add_argument('--evaluate', type=str, action='store', default=None,
-                    help='The dataset to be used for evaluation (allowed options: msra, bighand)')
-parser.add_argument('--model', type=str, action='store', default=None,
-                    help='The weights to load the model from (default: none)')
-parser.add_argument('--features', type=int, action='store', default=196,
-                    help='The number of features (channels) throughout the network (default: 196)')
-parser.add_argument('--batch-size', type=int, action='store', default=64,
-                    help='The number of samples in a batch')
-parser.add_argument('--learning-rate', type=float, action='store', default=0.0001,
-                    help='Learning rate')
-parser.add_argument('--learning-decay-rate', type=float, action='store', default=0.93,
-                    help='A decay of learning rate after each epoch')
-parser.add_argument('--ignore-otsus-threshold', type=float, action='store', default=0.01,
-                    help='A theshold for ignoring Otsus thresholding method')
+parser = argparse.ArgumentParser(add_help=False)
+required = parser.add_argument_group('required arguments')
+optional = parser.add_argument_group('optional arguments')
+optional.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                      help='show this help message and exit')
+
+required.add_argument('--dataset', type=str, action='store', default=None, required=True,
+                      help='The dataset to be used for training (allowed options: msra, bighand)')
+optional.add_argument('--evaluate', type=str, action='store', default=None,
+                      help='The dataset to be used for evaluation (allowed options: msra, bighand)')
+optional.add_argument('--model', type=str, action='store', default=None,
+                      help='The weights to load the model from (default: none)')
+optional.add_argument('--features', type=int, action='store', default=196,
+                      help='The number of features (channels) throughout the network (default: 196)')
+optional.add_argument('--batch-size', type=int, action='store', default=64,
+                      help='The number of samples in a batch')
+optional.add_argument('--learning-rate', type=float, action='store', default=0.0001,
+                      help='Learning rate')
+optional.add_argument('--learning-decay-rate', type=float, action='store', default=0.93,
+                      help='A decay of learning rate after each epoch')
+optional.add_argument('--ignore-otsus-threshold', type=float, action='store', default=0.01,
+                      help='A theshold for ignoring Otsus thresholding method')
 args = parser.parse_args()
 
 train_cfg, test_cfg = get_configs(args.dataset)

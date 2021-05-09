@@ -15,7 +15,7 @@ from src.utils.camera import Camera
 class GestureRecognizer:
 
     def __init__(self, error_thresh: int, orientation_thresh: int, database_subdir: str, camera_name: str,
-                 plot_result=True, plot_feedback=False, plot_orientation=False):
+                 plot_result=True, plot_feedback=False, plot_orientation=True):
         self.jre_thresh = error_thresh
         self.orientation_thresh = orientation_thresh
         self.plot_result = plot_result
