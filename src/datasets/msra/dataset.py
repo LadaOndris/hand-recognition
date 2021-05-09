@@ -1,13 +1,17 @@
-from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
-from src.utils.plots import plot_two_hands_diff, plot_joints_2d
-from src.acceptance.base import hand_orientation, vectors_angle, fingers_length
-from src.utils.camera import Camera
-import sklearn
-import numpy as np
 import glob
-import struct
 import os
+import struct
+from typing import Tuple
+
+import numpy as np
+import sklearn
 import tensorflow as tf
+
+from src.acceptance.base import fingers_length, hand_orientation, joint_relation_errors, transform_orientation_to_2d, \
+    vectors_angle
+from src.utils.camera import Camera
+from src.utils.paths import DOCS_DIR, MSRAHANDGESTURE_DATASET_DIR
+from src.utils.plots import plot_image_with_skeleton, plot_skeleton_with_jre
 
 
 def read_image(file_path: str):
@@ -168,9 +172,9 @@ def plot_hands():
     idx = 8
     idx2 = idx + 301
     joints1_2d = cam.world_to_pixel(joints[idx])
-    plot_joints_2d(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2], show_fig=False)
+    plot_image_with_skeleton(images[idx], joints1_2d[..., :2] - bbox_coords[idx, ..., :2], show_fig=False)
     joints2_2d = cam.world_to_pixel(joints2[idx])
-    plot_joints_2d(images2[idx], joints2_2d[..., :2] - bbox_coords2[idx, ..., :2], show_fig=False)
+    plot_image_with_skeleton(images2[idx], joints2_2d[..., :2] - bbox_coords2[idx, ..., :2], show_fig=False)
 
     hand1 = (images[idx], bbox_coords[idx], joints[idx])
     hand2 = (images2[idx2], bbox_coords2[idx2], joints2[idx2])
@@ -231,6 +235,53 @@ def finger_lengths_for_iter(batch_iterator, batches):
         lengths_arrays.append(lengths)
     lengths = np.concatenate(lengths_arrays)
     return lengths
+
+
+def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                        hand2: Tuple[np.ndarray, np.ndarray, np.ndarray],
+                        cam: Camera,
+                        show_norm=False, show_joint_errors=False,
+                        fig_location=None, show_fig=True):
+    """
+    Plots an image with a skeleton of the first hand and
+    shows major differences from the second hand.
+
+    Parameters
+    ----------
+    hand1 A tuple of three ndarrays: image, bbox, joints
+    hand2 A tuple of three ndarrays: image, bbox, joints
+    show_norm   bool True if vectors of the hand orientations should be displayed.
+    show_diffs  bool True if differences between the hand poses should be displayed.
+    """
+    # plot the first skeleton
+    # plot the second skeleton
+    # compute the error between these skeletons
+    # aggregate the errors for each joint
+    # display the error for each joint
+    image1, bbox1, joints1 = hand1
+    image2, bbox2, joints2 = hand2
+
+    if show_joint_errors:
+        errors = joint_relation_errors(np.expand_dims(joints1, axis=0), np.expand_dims(joints2, axis=0))[0, 0, :]
+    else:
+        errors = None
+    joints1_2d = cam.world_to_pixel(joints1)
+    # The image is cropped. Amend the joint coordinates to match the depth image
+    joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
+
+    if show_norm:
+        mean, norm = _compute_orientation(joints1, bbox1, cam)
+    else:
+        mean = None
+        norm = None
+    plot_skeleton_with_jre(image1, joints1_2d, errors, mean_vec=mean, norm_vec=norm,
+                           fig_location=fig_location, show_fig=show_fig)
+
+
+def _compute_orientation(joints, bbox, cam: Camera):
+    norm, mean = hand_orientation(joints)
+    norm2d, mean2d = transform_orientation_to_2d(norm, mean, bbox, cam)
+    return mean2d, norm2d
 
 
 if __name__ == '__main__':

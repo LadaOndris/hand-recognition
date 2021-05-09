@@ -1,14 +1,11 @@
 import functools
-from typing import Tuple
 
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from src.acceptance.base import hand_orientation, joint_relation_errors
 from src.utils.camera import Camera
 
 depth_image_cmap = 'gist_yarg'
@@ -45,6 +42,9 @@ def plotlive(func):
 
 
 def plot_depth_image(image, fig_location=None, figsize=(3, 3)):
+    """
+    Plots the depth image in a new figure.
+    """
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     ax.xaxis.set_visible(False)
@@ -54,66 +54,23 @@ def plot_depth_image(image, fig_location=None, figsize=(3, 3)):
     save_show_fig(fig, fig_location, show_figure=True)
 
 
-class FixZorderCollection(Poly3DCollection):
-    _zorder = -1
-
-    @property
-    def zorder(self):
-        return self._zorder
-
-    @zorder.setter
-    def zorder(self, value):
-        pass
-
-
-def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
-                        hand2: Tuple[np.ndarray, np.ndarray, np.ndarray],
-                        cam: Camera,
-                        show_norm=False, show_joint_errors=False,
-                        fig_location=None, show_fig=True):
-    """
-    Plots an image with a skeleton of the first hand and
-    shows major differences from the second hand.
-
-    Parameters
-    ----------
-    hand1 A tuple of three ndarrays: image, bbox, joints
-    hand2 A tuple of three ndarrays: image, bbox, joints
-    show_norm   bool True if vectors of the hand orientations should be displayed.
-    show_diffs  bool True if differences between the hand poses should be displayed.
-    """
-    # plot the first skeleton
-    # plot the second skeleton
-    # compute the error between these skeletons
-    # aggregate the errors for each joint
-    # display the error for each joint
-    image1, bbox1, joints1 = hand1
-    image2, bbox2, joints2 = hand2
-
-    if show_joint_errors:
-        errors = joint_relation_errors(np.expand_dims(joints1, axis=0), np.expand_dims(joints2, axis=0))[0, 0, :]
-    else:
-        errors = None
-    joints1_2d = cam.world_to_pixel(joints1)
-    # The image is cropped. Amend the joint coordinates to match the depth image
-    joints1_2d = joints1_2d[..., :2] - bbox1[..., :2]
-
-    if show_norm:
-        mean, norm = _compute_orientation(joints1, bbox1, cam)
-    else:
-        mean = None
-        norm = None
-    plot_skeleton_with_jre(image1, joints1_2d, errors, mean_vec=mean, norm_vec=norm,
-                           fig_location=fig_location, show_fig=show_fig)
-
-
 @plotlive
-def plot_skeleton_with_jre_live(fig, axes, image, joints, jres, label=None, norm_vec=None, mean_vec=None):
+def plot_skeleton_with_jre_live(fig, axes, image, joints, jres, label=None,
+                                norm_vec=None, mean_vec=None):
+    """
+    Plots the depth image, hand's skeleton, and a colorbar
+    for the user, showing Joint Relation Errors.
+    Replaces the contents of the currently active plot.
+    """
     _plot_skeleton_with_jre(fig, axes, image, joints, jres, label, norm_vec, mean_vec)
 
 
 def plot_skeleton_with_jre(image, joints, jres, label=None, show_fig=True, fig_location=None,
                            norm_vec=None, mean_vec=None):
+    """
+    Creates a new figure into which it plots the depth image,
+    hand's skeleton, and a colorbar for the user, showing Joint Relation Errors.
+    """
     fig, axes = plot_skeleton_with_jre_subplots()
     _plot_skeleton_with_jre(fig, axes, image, joints, jres, label, norm_vec, mean_vec)
     save_show_fig(fig, fig_location, show_fig)
@@ -135,12 +92,17 @@ def plot_skeleton_with_jre_subplots():
     return fig, axes
 
 
-def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None, norm_vec=None, mean_vec=None):
+def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None,
+                            norm_vec=None, mean_vec=None):
+    """
+    Plots the depth image, hand's skeleton, and a colorbar
+    for the user, showing Joint Relation Errors.
+    """
     hand_axis = axes[0]
     bar_axis = axes[2]
     _plot_depth_image(hand_axis, image)
-    _plot_hand_skeleton_2d(hand_axis, joints, wrist_index=0, scatter=False)
-    _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors=jres, color='blue')
+    _plot_hand_skeleton(hand_axis, joints, wrist_index=0, scatter=False)
+    _plot_joint_errors(fig, hand_axis, bar_axis, joints, joint_errors=jres)
     if norm_vec is not None and mean_vec is not None:
         _plot_hand_orientation(hand_axis, mean_vec, norm_vec)
     if label is not None:
@@ -152,20 +114,11 @@ def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None, norm_vec
         ax.set_axis_off()
 
 
-def _compute_orientation(joints, bbox, cam: Camera):
-    norm, mean = hand_orientation(joints)
-    norm2d, mean2d = transform_orientation_to_2d(norm, mean, bbox, cam)
-    return mean2d, norm2d
-
-
-def transform_orientation_to_2d(norm3d, mean3d, bbox, cam: Camera):
-    norm2d, mean2d = cam.world_to_pixel(np.stack([mean3d + 20 * norm3d, mean3d]))
-    norm2d = norm2d[..., :2] - bbox[..., :2]
-    mean2d = mean2d[..., :2] - bbox[..., :2]
-    return norm2d, mean2d
-
-
 def _plot_hand_orientation(ax, mean, norm):
+    """
+    Plots an arrow (a vector) from the 'mean' position
+    in the direction of the 'norm' vector.
+    """
     ax.arrow(mean[0], mean[1], dx=norm[0] - mean[0], dy=norm[1] - mean[1],
              color='orange', head_length=5, shape='full', head_width=4, zorder=1000,
              width=1)
@@ -178,7 +131,11 @@ def cmap_subset(cmap, min, max):
         cmap(np.linspace(min, max, 256)))
 
 
-def _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors, color='r'):
+def _plot_joint_errors(fig, hand_axis, bar_axis, joints, joint_errors):
+    """
+    Plots a colorbar in the given axis, displaying the
+    range of Joint Relation Errors.
+    """
     plt.rcParams.update({"font.size": 18})
     min_err, max_err = joint_errors.min(), joint_errors.max()
     min_s, max_s = min_err * 4, max_err * 4  # 20., 200.
@@ -195,8 +152,11 @@ def _plot_joint_errors_2d(fig, hand_axis, bar_axis, joints, joint_errors, color=
     cbar.ax.set_ylabel('Joint relation error [mm]', labelpad=15, fontsize=18)
 
 
-def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True,
-                           finger_colors='rmcgb', linewidth=2, linestyle='solid'):
+def _plot_hand_skeleton(ax, joints, wrist_index=0, s=20, alpha=1, marker='o', scatter=True,
+                        finger_colors='rmcgb', linewidth=2, linestyle='solid'):
+    """
+    Plots the hand's skeleton from joints in image coordinates.
+    """
     joints = np.squeeze(joints)  # get rid of surplus dimensions
     if joints.ndim != 2:
         raise ValueError(F"joints.ndim should be 2, but is {joints.ndim}")
@@ -211,140 +171,84 @@ def _plot_hand_skeleton_2d(ax, joints, wrist_index=0, s=20, alpha=1, marker='o',
                        alpha=alpha)
         xs = np.concatenate([wrist_joint[0:1], finger_joints[:, 0]])
         ys = np.concatenate([wrist_joint[1:2], finger_joints[:, 1]])
-        # if joints.shape[-1] == 3:
-        #     zs = np.concatenate([wrist_joint[2:3], finger_joints[:, 2]])
-        #     ax.plot(xs, ys, zs=zs, c=finger_colors[i])
-        # else:
         ax.plot(xs, ys, c=finger_colors[i], linewidth=linewidth, linestyle=linestyle)
 
 
-def plot_norm(joints_3d):
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-
-    ax.scatter(joints_3d[..., 0], joints_3d[..., 1], zs=joints_3d[..., 2])
-    norm, mean = hand_orientation(joints_3d)
-    ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
-              pivot='tail', length=np.std(joints_3d), arrow_length_ratio=0.1)
-
-    ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
-    fig.tight_layout()
-    plt.show()
-
-
-def plot_joints(image, bbox, joints, show_norm=False):
-    left, top, right, bottom = bbox
-    width = right - left
-    height = bottom - top
-
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-    y = np.linspace(top, bottom, height)
-    x = np.linspace(left, right, width)
-    xx, yy = np.meshgrid(x, y)
-
-    image3d = np.stack([xx, yy, image], axis=2)
-    image3d[..., 2] = np.where(image3d[..., 2] == 0, np.max(image), image3d[..., 2])
-
-    for i in range(len(ax.collections)):
-        ax.collections[i].__class__ = FixZorderCollection
-
-    _plot_hand_skeleton_2d(ax, joints, wrist_index=0, scatter=False)
-    _plot_joint_errors_2d(fig, ax, joints)
-
-    if show_norm:
-        norm, mean = hand_orientation(joints)
-        ax.quiver(mean[0], mean[1], mean[2], norm[0], norm[1], norm[2],
-                  pivot='tail', length=np.std(joints), arrow_length_ratio=0.1)
-
-    ax.view_init(azim=-90.0, elev=-90.0)  # aligns the 3d coord with the camera view
-    fig.tight_layout()
-    plt.show()
-
-
-def plot_joints_only(joints):
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-
-    ax.scatter(joints[..., 0], joints[..., 1], joints[..., 2], marker='o', s=20, c="red", alpha=1)
-
-    # ax.view_init(azim=0.0, elev=0.0)
-    # ax.dist = 0
-
-    # ax.xaxis.set_visible(False)
-    # ax.yaxis.set_visible(False)
-
-    ax.set_xlim([0, 360])
-    ax.set_ylim([0, 360])
-    fig.tight_layout()
-    plt.show()
-
-
 def _plot_depth_image(ax, image):
+    """
+    Plot a depth image in an existing axis.
+    """
     ax.imshow(image, cmap=depth_image_cmap)
 
 
 @plotlive
 def _plot_depth_image_live(ax, image):
+    """
+    Plot a depth image in an existing axis
+    by replacing its previous content.
+    """
     ax.imshow(image, cmap=depth_image_cmap)
 
 
-def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4, 3)):
+def plot_image_with_skeleton(image, joints2d, show_fig=True, fig_location=None, figsize=(4, 3)):
+    """
+    Plots the depth image and the skeleton in a new figure.
+    """
     fig, ax = plt.subplots(1, figsize=figsize)
-    _plot_joints_2d(fig, ax, image, joints2d)
+    _plot_image_with_skeleton(fig, ax, image, joints2d)
     save_show_fig(fig, fig_location, show_fig)
 
 
 @plotlive
-def plot_joints_2d_live(fig, ax, image, joints2d):
-    _plot_joints_2d(fig, ax, image, joints2d)
+def plot_image_with_skeleton_live(fig, ax, image, joints2d):
+    """
+    Plots the depth image and the skeleton in an existing figure
+    by replacing its content.
+    """
+    _plot_image_with_skeleton(fig, ax, image, joints2d)
 
 
-def _plot_joints_2d(fig, ax, image, joints2d):
+def _plot_image_with_skeleton(fig, ax, image, joints2d):
+    """
+    Plots the depth image and the skeleton in an existing figure.
+    """
     _plot_depth_image(ax, image)
-    _plot_hand_skeleton_2d(ax, joints2d)
+    _plot_hand_skeleton(ax, joints2d)
     ax.set_axis_off()
     fig.tight_layout()
 
 
 def plot_joints_with_annotations(image, joints_pred, joints_true, show_fig=True, fig_location=None, figsize=(4, 3)):
+    """
+    Plots a depth image with predicted and ground truth skeletons.
+    """
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
-    first_color = np.full(shape=[5], fill_value="orange")
-    second_color = np.full(shape=[5], fill_value="red")
-    _plot_hand_skeleton_2d(ax, joints_true, scatter=False, linewidth=2, linestyle=(0, (2, 2)))
-    _plot_hand_skeleton_2d(ax, joints_pred, scatter=False, linewidth=2)
+    _plot_hand_skeleton(ax, joints_true, scatter=False, linewidth=2, linestyle=(0, (2, 2)))
+    _plot_hand_skeleton(ax, joints_pred, scatter=False, linewidth=2)
     ax.set_axis_off()
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
 
 
 def plot_skeleton_with_label(image, joints2d, label, show_fig=True, fig_location=None, figsize=(4, 3)):
-    width, height = image.shape[1], image.shape[0]
+    """
+    Plots a depth image with skeleton and
+    a label above the axis.
+    """
     fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
-    _plot_hand_skeleton_2d(ax, joints2d)
+    _plot_hand_skeleton(ax, joints2d)
     ax.set_title(label)
     ax.set_axis_off()
     fig.tight_layout()
     save_show_fig(fig, fig_location, show_fig)
 
 
-def plot_joints_2d_from_3d(image, joints3d, cam: Camera, show_norm=False):
-    fig, ax = plt.subplots(1)
-    _plot_depth_image(ax, image)
-    # project joint coords through pinhole camera
-    joints2d = cam.world_to_pixel(joints3d)
-    _plot_hand_skeleton_2d(ax, joints2d)
-    if show_norm:
-        norm, mean = hand_orientation(joints3d)
-        norm_2d, mean_2d = cam.world_to_pixel(np.stack([mean + norm, mean]))
-        ax.quiver(mean_2d[0], mean_2d[1], norm_2d[0], norm_2d[1], pivot='tail')
-    fig.tight_layout()
-    plt.show()
-
-
 def plot_proportion_below_threshold(proportions, show_figure=True, fig_location=None):
+    """
+    Plots the Proportion of joints below threshold metric.
+    """
     if np.max(proportions) <= 1:
         proportions *= 100
     fig, ax = plt.subplots(1, 1)
@@ -357,6 +261,9 @@ def plot_proportion_below_threshold(proportions, show_figure=True, fig_location=
 
 
 def plot_depth_image_histogram(image, show_fig=True, fig_location=None):
+    """
+    Plots a histogram of depth values in the image.
+    """
     plt.rcParams.update({"font.size": 24})
     fig = plt.figure(figsize=(10, 7))
     min, max = np.min(image), np.max(image)
@@ -371,6 +278,9 @@ def plot_depth_image_histogram(image, show_fig=True, fig_location=None):
 
 
 def plot_image_comparison(original, filtered, filter_name):
+    """
+    Plots two depth images next to each other.
+    """
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(8, 4), sharex=True,
                                    sharey=True)
     _plot_depth_image(ax1, original)
@@ -383,6 +293,11 @@ def plot_image_comparison(original, filtered, filter_name):
 
 
 def plot_bounding_cube(image, bcube, cam: Camera, fig_location=None, show_fig=True):
+    """
+    Projects a bounding cube in 3d coordinates
+    onto the given depth image.
+    """
+
     def get_four_points(P, dx, dy):
         P = np.array(P)
         P1 = P.copy()
@@ -424,6 +339,9 @@ def plot_bounding_cube(image, bcube, cam: Camera, fig_location=None, show_fig=Tr
 
 
 def plot_scores(x, y, labels=None, fig_location=None, show_fig=True):
+    """
+    Plots evaluation metrics dependent on a threshold.
+    """
     figsize = (8, 6)
     plt.style.use('seaborn-whitegrid')
     plt.rcParams.update({"font.size": 24})

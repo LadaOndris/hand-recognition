@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-import utils
+import src.detection.yolov3.utils as utils
 
 
 def get_positives_and_negatives(y_true, y_pred, conf_threshold):

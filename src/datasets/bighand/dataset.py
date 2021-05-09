@@ -136,5 +136,5 @@ if __name__ == '__main__':
     for image, joints in zip(batch_images, batch_labels):
         image = tf.squeeze(image)
         joints2d = cam.world_to_pixel(joints)
-        plots.plot_joints_2d(image, joints2d)
+        plots.plot_image_with_skeleton(image, joints2d)
         pass

@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.spatial
 
+from src.utils.camera import Camera
+
 
 def _upper_tri(A):
     """
@@ -277,6 +279,13 @@ def fingers_length_from_distance_matrix(distance_matrix):
     finger_distances = np.reshape(joint_distances, [-1, 5, 3])
     finger_lengths = np.sum(finger_distances, axis=2)
     return finger_lengths
+
+
+def transform_orientation_to_2d(norm3d, mean3d, bbox, cam: Camera):
+    norm2d, mean2d = cam.world_to_pixel(np.stack([mean3d + 20 * norm3d, mean3d]))
+    norm2d = norm2d[..., :2] - bbox[..., :2]
+    mean2d = mean2d[..., :2] - bbox[..., :2]
+    return norm2d, mean2d
 
 
 if __name__ == '__main__':

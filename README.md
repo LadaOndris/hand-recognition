@@ -36,17 +36,19 @@ To detect hands from images captured with SR305 camera, which is the default cam
 </p> 
 
 ```
-usage: detect.py [-h] --source SOURCE [--camera CAMERA] [--plot PLOT]
+usage: detect.py [-h] [--camera CAMERA] [--plot PLOT]
                  [--num-detections NUM_DETECTIONS]
+                 source
 
-required arguments:
-  --source SOURCE       The source of images (allowed options: live, dataset)
+positional arguments:
+  source                The source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help            show this help message and exit
   --camera CAMERA       The camera model in use for live capture (default:
                         SR305)
-  --plot PLOT           Whether to plot the result of detection (default: true)
+  --plot PLOT           Whether to plot the result of detection (default:
+                        true)
   --num-detections NUM_DETECTIONS
                         The maximum number of bounding boxes for hand
                         detection (default: 1)
@@ -63,15 +65,15 @@ To estimate hand poses from images captured with SR305 camera:
 </p>
 
 ```
-usage: estimate.py [-h] --source SOURCE [--camera CAMERA] [--plot PLOT]
+usage: estimate.py [-h] [--camera CAMERA] [--plot PLOT] source
 
-required arguments:
-  --source SOURCE  The source of images (allowed options: live, dataset)
+positional arguments:
+  source           The source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help       show this help message and exit
   --camera CAMERA  The camera model in use for live capture (default: SR305)
-  --plot PLOT      Whether to plot the result of estimation (default: true)
+  --plot PLOT      Whether to plot the estimation (default: true)
 ```
 
 ### System's usage
@@ -88,13 +90,14 @@ period of one second and SR305 camera:
 ```python3 database.py --dir gestures --label 1 --scan-period 1 --camera SR305```
 
 ```
-usage: database.py [-h] --dir DIR --label LABEL [--scan-period SCAN_PERIOD]
-                   [--camera CAMERA] [--plot PLOT]
+usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
+                   [--plot PLOT]
+                   directory label
 
-required arguments:
-  --dir DIR             The name of the directory that should contain the
+positional arguments:
+  directory             The name of the directory that should contain the
                         user-captured gesture database
-  --label LABEL         The label of the gesture that is to be captured
+  label                 The label of the gesture that is to be captured
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -126,22 +129,22 @@ The system plots figures similar to the following:
 </p>
 
 ```
-usage: recognize.py [-h] --dir DIR --source SOURCE --error-threshold
-                    ERROR_THRESHOLD
+usage: recognize.py [-h] [--error-threshold ERROR_THRESHOLD]
                     [--orientation-threshold ORIENTATION_THRESHOLD]
                     [--camera CAMERA] [--plot PLOT]
                     [--plot-feedback PLOT_FEEDBACK]
                     [--plot-orientation PLOT_ORIENTATION]
+                    dir source
 
-required arguments:
-  --dir DIR             The name of the directory containg the user-captured
+positional arguments:
+  dir                   The name of the directory containg the user-captured
                         gesture database
-  --source SOURCE       The source of images (allowed options: live, dataset)
-  --error-threshold ERROR_THRESHOLD
-                        The pose threshold (JRE threshold)
+  source                The source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help            show this help message and exit
+  --error-threshold ERROR_THRESHOLD
+                        The pose threshold (JRE threshold)
   --orientation-threshold ORIENTATION_THRESHOLD
                         The orientation threshold in angles (maximum: 90,
                         default: 90)

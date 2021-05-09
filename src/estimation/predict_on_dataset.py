@@ -51,7 +51,7 @@ def plot_estimators_predictions(y_pred, generator: DatasetPreprocessor):
     joints2d = prepare_joints2d(y_pred, generator)
 
     for image, joints in zip(generator.cropped_imgs, joints2d):
-        plots.plot_joints_2d(image.to_tensor(), joints, figsize=(3, 3))
+        plots.plot_image_with_skeleton(image.to_tensor(), joints, figsize=(3, 3))
 
 
 def plot_predictions_with_annotations(y_pred, y_true, generator: DatasetPreprocessor, camera: Camera):

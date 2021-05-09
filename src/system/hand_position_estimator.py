@@ -219,10 +219,10 @@ class HandPositionEstimator:
             image = self.estimation_preprocessor.cropped_imgs[0].to_tensor()
 
             if self.estimation_fig_location is None:
-                plots.plot_joints_2d_live(self.fig, self.ax, image, joints2d[0])
+                plots.plot_image_with_skeleton_live(self.fig, self.ax, image, joints2d[0])
             else:
-                plots.plot_joints_2d(image, joints2d[0], fig_location=self.estimation_fig_location,
-                                     figsize=(4, 4))
+                plots.plot_image_with_skeleton(image, joints2d[0], fig_location=self.estimation_fig_location,
+                                               figsize=(4, 4))
         return uvz_pred
 
     def _read_image(self, file_path: str):
