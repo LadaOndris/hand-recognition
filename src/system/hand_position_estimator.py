@@ -34,6 +34,10 @@ class HandPositionEstimator:
                                                            camera=self.camera, config=config)
         self.estimation_fig_location = None
 
+        if self.plot_estimation or self.plot_detection:
+            # Prepare the plot for live plotting
+            self.fig, self.ax = src.detection.plots.image_plot()
+
     def load_estimator(self):
         # Load HPE model and weights
         # Trained on the BigHand dataset - ideal for live recognition
@@ -79,10 +83,9 @@ class HandPositionEstimator:
             Yields the positions of the hand's joints.
         """
         i = 0
-        if self.plot_estimation:
-            # Prepare the plot for live plotting
-            self.fig, self.ax = src.detection.plots.image_plot()
         for depth_image in source_generator:
+            if tf.rank(depth_image) == 4:
+                depth_image = tf.squeeze(depth_image, axis=0)
             if save_folder is not None:
                 fig_location = save_folder.joinpath(F"{i}.png")
                 self.estimation_fig_location = fig_location
@@ -137,10 +140,9 @@ class HandPositionEstimator:
             Returns bounding boxes represented by two [u, v] coordinates.
         """
         iter_index = 0
-        if self.plot_detection:
-            # Prepare the plot for live plotting
-            self.fig, self.ax = src.detection.plots.image_plot()
         for depth_image in source_generator:
+            if tf.rank(depth_image) == 4:
+                depth_image = tf.squeeze(depth_image, axis=0)
             fig_location = self._string_format_or_none(fig_location_pattern, iter_index)
             depth_image = self._resize_image_and_depth(depth_image)
             batch_images = tf.expand_dims(depth_image, axis=0)

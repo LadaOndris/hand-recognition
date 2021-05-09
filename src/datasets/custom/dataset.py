@@ -19,6 +19,7 @@ class CustomDataset:
         self.right_hand_only = right_hand_only
 
         sequence_annotations = self._get_sequence_annotations()
+        sequence_annotations = self._get_only_existing_annotations(sequence_annotations)
         filepaths, labels = self._get_line_annotations(sequence_annotations)
         self.num_batches = int(len(filepaths) // batch_size)
         self.dataset = self._build_dataset(filepaths, labels)
@@ -35,13 +36,26 @@ class CustomDataset:
             annotations = annotations[right_hand & ~left_hand]
         return annotations
 
+    def _get_only_existing_annotations(self, annotations):
+        folder_names = annotations[..., 0]
+        existance = []
+        for folder in folder_names:
+            exists = self._exists_annotation_folder(folder)
+            existance.append(exists)
+        existance = np.array(existance)
+        return annotations[existance]
+
+    def _exists_annotation_folder(self, annotation_folder):
+        annot_path = self._get_full_path(annotation_folder)
+        return annot_path.exists()
+
     def _get_line_annotations(self, annotations):
         folder_names = annotations[..., 0]
         gesture_label = annotations[..., 1]
         file_names = []
         file_labels = []
         for i in range(annotations.shape[0]):
-            folder_path = self.dataset_path.joinpath(folder_names[i])
+            folder_path = self._get_full_path(folder_names[i])
             files = np.array(list(folder_path.iterdir()), dtype=str)
             labels = np.full(shape=[files.shape[0]], fill_value=gesture_label[i], dtype=str)
             file_names.append(files)
@@ -49,6 +63,9 @@ class CustomDataset:
         file_names = np.concatenate(file_names)
         file_labels = np.concatenate(file_labels)
         return file_names, file_labels
+
+    def _get_full_path(self, annotation_folder):
+        return self.dataset_path.joinpath(annotation_folder)
 
     def _build_dataset(self, images, labels):
         ds = tf.data.Dataset.from_tensor_slices((images, labels))

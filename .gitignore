@@ -20,6 +20,6 @@ datasets/nyu_hand_dataset_rdf/
 datasets/bighand/
 !datasets/bighand/README.md
 datasets/cvpr15_MSRAHandGestureDB/*
-datasets/custom
+datasets/custom2
 datasets/*.tar
 

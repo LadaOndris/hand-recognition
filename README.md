@@ -25,10 +25,14 @@ TensorFlow has a wrong dependency. It may otherwise print warnings and not funct
 
 ## Usage examples
 
+The following examples use mostly 'live' option as the source of images.
+You can use the 'dataset' option instead. Altough most of the custom dataset is not part of the 
+repository, as its size too big, a few images were included for demonstration purposes.
+
 ### Hand detection
 
 To detect hands from images captured with SR305 camera, which is the default camera:  
-`python3 detect.py --source live --num-detections 2`
+`python3 detect.py live --num-detections 2`
 
 <p float="left">
     <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
@@ -57,7 +61,7 @@ optional arguments:
 ### Hand pose estimation
 
 To estimate hand poses from images captured with SR305 camera:  
-`python3 estimate.py --source live`
+`python3 estimate.py live`
 
 <p float="left">
     <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
@@ -87,17 +91,18 @@ from live images or from the custom dataset is demonstrated in
 
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
-```python3 database.py --dir gestures --label 1 --scan-period 1 --camera SR305```
+```python3 database.py gestures 1 --scan-period 1 --camera SR305```
 
 ```
 usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
                    [--plot PLOT]
-                   directory label
+                   directory label count
 
 positional arguments:
   directory             The name of the directory that should contain the
                         user-captured gesture database
   label                 The label of the gesture that is to be captured
+  count                 The number of samples to scan
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -106,21 +111,21 @@ optional arguments:
   --camera CAMERA       The camera model in use for live capture (default:
                         SR305)
   --plot PLOT           Plot the captured poses - recommended (default: true)
+
 ```
 
 #### Real-time gesture recognition
 
-To start the gesture recognition system using gesture database stored in 
-the `gestures` directory:  
-`python3 recognize.py --source live --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
-
-To start the gesture recognition from the evaluation dataset:  
-`python3 recognize.py --source dataset --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
-
-**For demonstration**, a directory named "test" is already present,
+**For demonstration**, the directory named "gestures" is already present,
 containing definitions for a gesture with opened palm with fingers outstretched
 and apart.  
-`python3 recognize.py --source live --dir test --error-threshold 120 --orientation-threshold 60 --camera SR305`
+
+To start the gesture recognition system using gesture database stored in 
+the `gestures` directory:  
+`python3 recognize.py live gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
+
+To start the gesture recognition from the evaluation dataset:  
+`python3 recognize.py dataset gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
 The system plots figures similar to the following:  
 <p float="left">
@@ -164,14 +169,7 @@ To train the Tiny YOLOv3 on the HandSeg dataset:
 ```python3 train_yolov3.py```
 
 To train the JGR-P2O model on the Bighand dataset from existing weights:  
-`python3 train_jgrp2o.py --train bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
-
-See --help for other allowed options.
-
-### Evaluation of models
-
-To evaluate the trained JGR-P2O model on the MSRA dataset:  
-`python3 src/estimation/evaluation.py --dataset msra --model logs/20210421-221853/train_ckpts/weights.22.h5 --features 128`
+`python3 train_jgrp2o.py bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
 
 See --help for other allowed options.
 

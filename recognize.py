@@ -1,6 +1,6 @@
 import argparse
 
-from src.acceptance.predict import GestureAcceptanceResult
+from src.acceptance.gesture_acceptance_result import GestureAcceptanceResult
 from src.datasets.generators import get_source_generator
 from src.system.gesture_recognizer import GestureRecognizer
 
@@ -9,16 +9,17 @@ def print_result(result: GestureAcceptanceResult):
     if not result.is_gesture_valid:
         result.gesture_label = 'None'
 
-    print(F"Gesture: {result.gesture_label}, "
-          F"JRE: {result.gesture_jre}, "
-          F"Orient. diff: {result.angle_difference}")
+    print(F"Gesture: {result.gesture_label}\t"
+          F"JRE: {result.gesture_jre}\t"
+          F"Orient. diff: {result.angle_difference:.2f}")
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('dir', type=str, action='store',
-                    help='The name of the directory containg the user-captured gesture database')
 parser.add_argument('source', type=str, action='store',
                     help='The source of images (allowed options: live, dataset)')
+parser.add_argument('directory', type=str, action='store',
+                    help='The name of the directory containg the user-captured gesture database')
+
 parser.add_argument('--error-threshold', type=int, action='store', default=120,
                     help='The pose threshold (JRE threshold)')
 parser.add_argument('--orientation-threshold', type=int, action='store', default=90,
@@ -36,7 +37,7 @@ args = parser.parse_args()
 image_source = get_source_generator(args.source)
 live_acceptance = GestureRecognizer(error_thresh=args.error_threshold,
                                     orientation_thresh=args.orientation_threshold,
-                                    database_subdir=args.dir,
+                                    database_subdir=args.directory,
                                     plot_result=args.plot,
                                     plot_feedback=args.plot_feedback,
                                     plot_orientation=args.plot_orientation,

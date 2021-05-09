@@ -19,7 +19,7 @@ class UsecaseDatabaseScanner:
         config = configs.PredictCustomDataset()
         self.estimator = HandPositionEstimator(self.camera, config=config, plot_estimation=plot_estimation)
 
-    def scan_into_subdir(self, gesture_label, scan_period=1):
+    def scan_into_subdir(self, gesture_label, num_samples, scan_period=1):
         """
         Scans images in intervals specified by 'scan_period',
         and saves estimated joints into a new file with current timestamp
@@ -28,10 +28,13 @@ class UsecaseDatabaseScanner:
         file_path = self._prepare_file(gesture_label)
         generator = generate_live_images()
         with open(file_path, 'a+') as file:
-            self._scan_from_generator(generator, file, scan_period)
+            self._scan_from_generator(generator, file, scan_period, num_samples)
 
-    def _scan_from_generator(self, generator, file, scan_period):
+    def _scan_from_generator(self, generator, file, scan_period, num_samples):
+        count = 0
         for image in generator:
+            if count == num_samples:
+                break
             time_start = time.time()
             joints_uvz = self.estimator.estimate_from_image(image)
             if joints_uvz is None:
@@ -39,6 +42,7 @@ class UsecaseDatabaseScanner:
             joints_xyz = self.camera.pixel_to_world(joints_uvz)
             self._save_joints_to_file(file, joints_xyz)
             self._wait_till_period(time_start, scan_period)
+            count += 1
 
     def _prepare_file(self, gesture_label):
         if '_' in gesture_label:

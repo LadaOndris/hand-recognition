@@ -6,7 +6,7 @@ import tensorflow as tf
 import src.estimation.configuration as configs
 import src.utils.plots as plots
 from src.acceptance.base import hand_orientation, joint_relation_errors, vectors_angle
-from src.acceptance.predict import GestureAcceptanceResult
+from src.acceptance.gesture_acceptance_result import GestureAcceptanceResult
 from src.system.database.reader import UsecaseDatabaseReader
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
@@ -100,19 +100,19 @@ class GestureRecognizer:
         aggregated_errors = np.sum(result.joints_jre, axis=-1)
         result.predicted_gesture_idx = np.argmin(aggregated_errors, axis=-1)
         result.predicted_gesture = self.gesture_database[result.predicted_gesture_idx, ...]
-        result.gesture_jre = aggregated_errors[..., result.predicted_gesture_idx]
+        result.gesture_jre = tf.squeeze(aggregated_errors[..., result.predicted_gesture_idx])
 
         result.orientation, result.orientation_joints_mean = hand_orientation(keypoints)
         result.expected_orientation, _ = hand_orientation(result.predicted_gesture)
         angle_difference = np.rad2deg(vectors_angle(result.expected_orientation, result.orientation))
         result.angle_difference = self._fit_angle_for_both_hands(angle_difference)
-        result.gesture_label = self._get_gesture_labels(result.predicted_gesture_idx)
+        result.gesture_label = self._get_gesture_labels(result.predicted_gesture_idx)[0]
         result.is_gesture_valid = result.gesture_jre <= self.jre_thresh and \
                                   result.angle_difference <= self.orientation_thresh
         return result
 
     def _get_gesture_label(self, result: GestureAcceptanceResult):
-        label = result.gesture_label[0]
+        label = result.gesture_label
         if result.is_gesture_valid:
             return F"Gesture {label}"
         else:
