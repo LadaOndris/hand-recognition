@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import BatchNormalization, Conv2D, Dense, Input, MaxPooling2D, ReLU, UpSampling2D
 
-from src.utils.config import JGRJ2O_WEIGHT_DECAY
 from src.utils.imaging import resize_bilinear_nearest_batch
 
 
@@ -53,14 +52,14 @@ class ResnetBlock(tf.keras.layers.Layer):
 
 def conv(filters, kernel_size, strides=(1, 1), padding='valid', use_bias=True):
     initializer = tf.keras.initializers.TruncatedNormal(0.0, 0.01)
-    regularizer = tf.keras.regularizers.L1L2(l2=JGRJ2O_WEIGHT_DECAY)
+    regularizer = tf.keras.regularizers.L1L2(l2=0.00005)
     return Conv2D(filters, kernel_size, strides=strides, padding=padding, kernel_initializer=initializer,
                   kernel_regularizer=regularizer, use_bias=use_bias)
 
 
 def bn():
     initializer = tf.keras.initializers.TruncatedNormal(1.0, 0.01)
-    regularizer = tf.keras.regularizers.L1L2(l2=JGRJ2O_WEIGHT_DECAY)
+    regularizer = tf.keras.regularizers.L1L2(l2=0.00005)
     return BatchNormalization(gamma_initializer=initializer, gamma_regularizer=regularizer)
 
 

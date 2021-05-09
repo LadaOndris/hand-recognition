@@ -6,15 +6,15 @@ import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, Conv2D, Input, Layer, LeakyReLU, MaxPool2D, UpSampling2D, \
     ZeroPadding2D
 
-from src.detection.yolov3.yolo_layer import YoloLayer
-from src.detection.yolov3.yolo_model import YoloModel
-from src.utils.config import RESIZE_MODE_CROP, RESIZE_MODE_PAD, YOLO_CONFIG_FILE
-from src.utils.paths import LOGS_DIR
+from src.detection.yolov3.architecture.yolo_layer import YoloLayer
+from src.detection.yolov3.architecture.model import YoloModel
+from src.utils.imaging import RESIZE_MODE_CROP, RESIZE_MODE_PAD
+from src.utils.paths import LOGS_DIR, YOLO_CONFIG_FILE
 
 
 class YoloLoader:
 
-    def __init__(self):
+    def __init__(self, batch_size):
         self._supported_layers = {
             'net': ['learning_rate', 'batch', 'width', 'height', 'channels'],
             'convolutional': ['filters', 'size', 'stride', 'pad', 'activation', 'batch_normalize'],
@@ -24,12 +24,13 @@ class YoloLoader:
             'shortcut': ['from'],
             'yolo': ['classes', 'mask', 'anchors']
         }
+        self.batch_size = batch_size
         self._custom_layers = {}
         self.throw_error_on_unknown_attr = True
         return
 
     @classmethod
-    def load_from_weights(cls, resize_mode, weights_path=None):
+    def load_from_weights(cls, resize_mode, batch_size, weights_path=None):
         """
         Loads Tiny YOLOv3 from weights. Initializes a new YoloModel instance
         Parameters
@@ -51,7 +52,7 @@ class YoloLoader:
             else:
                 raise ValueError('Invalid resize option!')
             weights_path = LOGS_DIR.joinpath(weights_file)
-        loader = YoloLoader()
+        loader = YoloLoader(batch_size)
         model = loader.parse_cfg(YOLO_CONFIG_FILE)
         model.tf_model.load_weights(str(weights_path))
         return model
@@ -175,16 +176,13 @@ class YoloLoader:
 
     def _setup_input_layer(self, net_block):
         input_shape = (int(net_block['width']), int(net_block['height']), int(net_block['channels']))
-        batch_size = int(net_block['batch'])
-        learning_rate = float(net_block['learning_rate'])
 
         self.model = YoloModel()
         self.model.input_shape = input_shape
-        self.model.batch_size = batch_size
-        self.model.learning_rate = learning_rate
         self.model.anchors = []
+        self.model.batch_size = self.batch_size
 
-        self.inputs = self.input_layer = Input(shape=input_shape, batch_size=batch_size)
+        self.inputs = self.input_layer = Input(shape=input_shape, batch_size=self.batch_size)
         self.outputs = []
 
     def _create_layer_convolutional(self, block, i: int):
@@ -276,6 +274,6 @@ class YoloLoader:
 
 
 if __name__ == '__main__':
-    parser = YoloLoader()
+    parser = YoloLoader(batch_size=32)
     model = parser.parse_cfg(YOLO_CONFIG_FILE, throw_error_on_unknown_attr=False)
     model.tf_model.summary()

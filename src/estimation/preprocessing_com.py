@@ -4,15 +4,16 @@ from scipy import stats
 from skimage import filters
 
 from src.utils.camera import Camera
-from src.utils.config import OTSUS_ALLOWANCE_THRESHOLD
 from src.utils.plots import plot_depth_image, plot_depth_image_histogram
 
 
 class ComPreprocessor:
 
-    def __init__(self, camera: Camera, thresholding=True, use_center_of_image=False):
+    def __init__(self, camera: Camera, thresholding=True, use_center_of_image=False,
+                 otsus_allowance_threshold=0.01):
         self.camera = camera
         self.thresholding = thresholding
+        self.otsus_allowance_threshold = otsus_allowance_threshold
         if use_center_of_image:
             self.com_function = self.center_of_image
         else:
@@ -189,7 +190,7 @@ class ComPreprocessor:
                 plot_depth_image_histogram(image_above_min_numpy, True)
                 print(F"{threshold_frequency}/{peak_frequency}={float(threshold_frequency) / peak_frequency}")
 
-            if float(threshold_frequency) / peak_frequency < OTSUS_ALLOWANCE_THRESHOLD:
+            if float(threshold_frequency) / peak_frequency < self.otsus_allowance_threshold:
                 # image_np[image_np > threshold_depth] = 0
                 image = tf.where(image > threshold_depth, 0, image)
                 image = tf.convert_to_tensor(image)

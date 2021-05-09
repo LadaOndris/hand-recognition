@@ -1,38 +1,44 @@
-import argparse
-from time import time
+import typing
 
 import numpy as np
 import tensorflow as tf
 
 import src.estimation.configuration as configs
 import src.utils.plots as plots
-from src.acceptance.predict import GestureAccepter
-from src.system.database_reader import UsecaseDatabaseReader
+from src.acceptance.base import hand_orientation, joint_relation_errors, vectors_angle
+from src.acceptance.predict import GestureAcceptanceResult
+from src.system.database.reader import UsecaseDatabaseReader
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
-from src.utils.live import generate_live_images
-from src.datasets.generators import get_source_generator
 
 
 class GestureRecognizer:
 
-    def __init__(self, error_thresh, database_subdir, orientation_thresh, camera,
+    def __init__(self, error_thresh: int, orientation_thresh: int, database_subdir: str, camera_name: str,
                  plot_result=True, plot_feedback=False, plot_orientation=False):
+        self.jre_thresh = error_thresh
+        self.orientation_thresh = orientation_thresh
         self.plot_result = plot_result
         self.plot_feedback = plot_feedback
         self.plot_orientation = plot_orientation
-        self.camera = Camera(camera)
+
+        self.camera = Camera(camera_name)
         config = configs.PredictCustomDataset()
         self.estimator = HandPositionEstimator(self.camera, config=config)
         self.database_reader = UsecaseDatabaseReader()
         self.database_reader.load_from_subdir(database_subdir)
-        self.gesture_accepter = GestureAccepter(self.database_reader, error_thresh, orientation_thresh)
+        self.gesture_database = self.database_reader.hand_poses
 
-    def start(self, image_generator):
+    def start(self, image_generator, generator_includes_labels=False) -> \
+            typing.Generator[GestureAcceptanceResult, None, None]:
         image_idx = 0
         norm, mean = None, None
+        # Prepare figure for live plotting
+        fig, axes = plots.plot_skeleton_with_jre_subplots()
         for image_array in image_generator:
-            start_time = time()
+            # If the generator also returns labels, expand the tuple
+            if generator_includes_labels:
+                image_array, gesture_label = image_array
             if tf.rank(image_array) == 4:
                 image_array = image_array[0]
             joints_uvz = self.estimator.estimate_from_image(image_array)
@@ -40,97 +46,82 @@ class GestureRecognizer:
             if joints_uvz is None:
                 continue
             joints_xyz = self.camera.pixel_to_world(joints_uvz)
-            self.gesture_accepter.accept_gesture(joints_xyz)
-            if self.gesture_accepter.gesture_invalid:
-                gesture_label = 'None'
-                print(F"JRE: {self.gesture_accepter.gesture_jre}, "
-                      F"Orient. diff: {self.gesture_accepter.angle_difference}")
-            else:
-                gesture_label = self._get_gesture_labels()[0]
-                gesture_label = F"Gesture {gesture_label}"
-                print(F"Label: {gesture_label}, "
-                      F"JRE: {self.gesture_accepter.gesture_jre}, "
-                      F"Orient. diff: {self.gesture_accepter.angle_difference}")
+            acceptance_result = self.accept_gesture(joints_xyz)
+            if generator_includes_labels:
+                acceptance_result.expected_gesture_label = gesture_label.numpy()
             # plot the hand position with gesture label
             image_subregion = self.estimator.get_cropped_image()
             joints_subregion = self.estimator.convert_to_cropped_coords(joints_uvz)
             if self.plot_result:
+                gesture_label = self._get_gesture_label(acceptance_result)
                 if self.plot_feedback:
-                    jres = self.gesture_accepter.get_jres()
-                    # fig_path = DOCS_DIR.joinpath(F"images/evaluation/live_{image_idx}.png")
+                    # get JREs
+                    jres = acceptance_result.joints_jre[:, acceptance_result.predicted_gesture_idx]
+
                     if self.plot_orientation:
-                        norm, mean = self._get_orientation_vectors_in_2d()
-                    plots.plot_skeleton_with_jre(image_subregion, joints_subregion, jres,
-                                                 label=gesture_label, fig_location=None,
-                                                 norm_vec=norm, mean_vec=mean)
+                        norm, mean = self._get_orientation_vectors_in_2d(acceptance_result)
+
+                    plots.plot_skeleton_with_jre_live(
+                        fig, axes, image_subregion, joints_subregion, jres,
+                        label=gesture_label, norm_vec=norm, mean_vec=mean)
                 else:
                     plots.plot_skeleton_with_label(image_subregion, joints_subregion, gesture_label)
             image_idx += 1
-            end_time = time()
-            print('Evaluation time: ', end_time - start_time)
+            yield acceptance_result
 
-    def _get_orientation_vectors_in_2d(self):
-        mean3d = self.gesture_accepter.orientation_joints_mean
-        norm3d = self.gesture_accepter.orientation
+    def accept_gesture(self, keypoints: np.ndarray) -> GestureAcceptanceResult:
+        """
+        Compares given keypoints to the ones stored in the database
+        and decides whether the hand satisfies some of the defined gestures.
+        Basically performs gesture recognition from the hand's skeleton.
+
+        Parameters
+        ----------
+        keypoints ndarray of 21 keypoints, shape (batch_size, joints, coords)
+        """
+        result = GestureAcceptanceResult()
+        result.joints_jre = joint_relation_errors(keypoints, self.gesture_database)
+        aggregated_errors = np.sum(result.joints_jre, axis=-1)
+        result.predicted_gesture_idx = np.argmin(aggregated_errors, axis=-1)
+        result.predicted_gesture = self.gesture_database[result.predicted_gesture_idx, ...]
+        result.gesture_jre = aggregated_errors[..., result.predicted_gesture_idx]
+
+        result.orientation, result.orientation_joints_mean = hand_orientation(keypoints)
+        result.expected_orientation, _ = hand_orientation(result.predicted_gesture)
+        angle_difference = np.rad2deg(vectors_angle(result.expected_orientation, result.orientation))
+        result.angle_difference = self._fit_angle_for_both_hands(angle_difference)
+        result.gesture_label = self._get_gesture_labels(result.predicted_gesture_idx)
+        result.is_gesture_valid = result.gesture_jre <= self.jre_thresh and \
+                                  result.angle_difference <= self.orientation_thresh
+        return result
+
+    def _get_gesture_label(self, result: GestureAcceptanceResult):
+        label = result.gesture_label[0]
+        if result.is_gesture_valid:
+            return F"Gesture {label}"
+        else:
+            return "None"
+
+    def _fit_angle_for_both_hands(self, angle):
+        """
+        Do not allow angle above 90 because it is unknown
+        which hand is in the image.
+        """
+        if angle > 90:
+            return 180 - angle
+        else:
+            return angle
+
+    def _get_orientation_vectors_in_2d(self, result: GestureAcceptanceResult):
+        mean3d = result.orientation_joints_mean
+        norm3d = result.orientation
         norm2d, mean2d = self.camera.world_to_pixel(
             np.stack([mean3d + 20 * norm3d, mean3d]))
         mean_cropped = tf.squeeze(self.estimator.convert_to_cropped_coords(mean2d))
         norm_cropped = tf.squeeze(self.estimator.convert_to_cropped_coords(norm2d))
         return norm_cropped, mean_cropped
 
-    def _get_gesture_labels(self):
-        gesture_indices = self.gesture_accepter.predicted_gesture_idx
+    def _get_gesture_labels(self, gesture_indices):
+        gesture_indices = gesture_indices
         gesture_labels = self.database_reader.get_label_by_index(gesture_indices)
         return gesture_labels
-
-    def produce_jres(self, dataset):
-        jres = []
-        angles = []
-        pred_labels = []
-        true_labels = []
-        # num_batches = max(dataset.num_batches, 125)
-        for i in range(dataset.num_batches):
-            image_array_batch, true_labels_batch = next(dataset.dataset_iterator)
-            for image_array, true_label in zip(image_array_batch, true_labels_batch.numpy()):
-                joints_uvz = self.estimator.estimate_from_image(image_array)
-                # Detection failed, skip
-                if joints_uvz is None:
-                    continue
-                joints_xyz = self.camera.pixel_to_world(joints_uvz)
-                self.gesture_accepter.accept_gesture(joints_xyz)
-                pred_label = self._get_gesture_labels()
-
-                jres.append(self.gesture_accepter.gesture_jre)
-                angles.append(self.gesture_accepter.angle_difference)
-                pred_labels.append(pred_label)
-                true_labels.append(true_label.decode())  # That's an inappropriate decode!
-        jres = np.concatenate(jres)
-        pred_labels = np.concatenate(pred_labels)
-        true_labels = np.stack(true_labels, axis=0)
-        return jres, angles, pred_labels, true_labels
-
-
-def recognize_live():
-    generator = generate_live_images()
-    live_acceptance = GestureRecognizer(error_thresh=120, orientation_thresh=60,
-                                        database_subdir='test', plot_feedback=True, plot_result=False, camera='sr305')
-    live_acceptance.start(generator)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', type=str, action='store', default=None, required=True)
-    parser.add_argument('--source', type=str, action='store', required=True)
-    parser.add_argument('--error-threshold', type=int, action='store', default=120, required=True)
-    parser.add_argument('--orientation-threshold', type=int, action='store', default=90)
-    parser.add_argument('--camera', type=str, action='store', default='SR305')
-    parser.add_argument('--plot', type=bool, action='store', default=True)
-    parser.add_argument('--plot-feedback', type=bool, action='store', default=True)
-    args = parser.parse_args()
-
-    image_source = get_source_generator(args.source)
-    live_acceptance = GestureRecognizer(error_thresh=args.error_threshold,
-                                        orientation_thresh=args.orientation_threshold,
-                                        database_subdir=args.dir, plot_feedback=args.plot_feedback,
-                                        plot_result=args.plot, camera=args.camera)
-    live_acceptance.start(image_source)

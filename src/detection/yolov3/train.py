@@ -1,29 +1,31 @@
 import tensorflow as tf
-from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
-from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
-from src.detection.yolov3.metrics import YoloConfPrecisionMetric, YoloConfRecallMetric, YoloBoxesIoU
-from src.detection.yolov3.yolo_loss import YoloLoss
-from src.detection.yolov3.cfg.cfg_parser import YoloLoader
-from src.utils.config import YOLO_CONFIG_FILE, TRAIN_YOLO_IOU_IGNORE_THRES
-from src.utils.paths import HANDSEG_DATASET_DIR
+
 import src.utils.logs as logs_utils
+from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
+from src.detection.yolov3.architecture.loader import YoloLoader
+from src.detection.yolov3.architecture.loss import YoloLoss
+from src.detection.yolov3.metrics import YoloBoxesIoU, YoloConfPrecisionMetric, YoloConfRecallMetric
+from src.detection.yolov3.preprocessing import DatasetPreprocessor
+from src.utils.config import TRAIN_YOLO_IOU_IGNORE_THRES
+from src.utils.paths import HANDSEG_DATASET_DIR, YOLO_CONFIG_FILE
 
 
-def train():
+def train(batch_size, learning_rate, train_size=0.8, decay_rate=0.94):
     model = YoloLoader.parse_cfg(YOLO_CONFIG_FILE)
     yolo_out_shapes = model.yolo_output_shapes
 
-    handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.8, model_input_shape=model.input_shape,
-                                           batch_size=model.batch_size)
+    handseg_dataset = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=train_size,
+                                           model_input_shape=model.input_shape,
+                                           batch_size=batch_size)
     train_dataset_generator = DatasetPreprocessor(handseg_dataset.train_batch_iterator,
                                                   model.input_shape, yolo_out_shapes, model.anchors)
     test_dataset_generator = DatasetPreprocessor(handseg_dataset.test_batch_iterator,
                                                  model.input_shape, yolo_out_shapes, model.anchors)
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=model.learning_rate,
+        initial_learning_rate=learning_rate,
         decay_steps=handseg_dataset.num_train_batches,
-        decay_rate=0.94,
+        decay_rate=decay_rate,
         staircase=True)
     optimizer = tf.optimizers.Adam(learning_rate=lr_schedule)
     metrics = [YoloConfPrecisionMetric(), YoloConfRecallMetric(), YoloBoxesIoU()]
@@ -47,7 +49,3 @@ def train():
                        validation_steps=handseg_dataset.num_test_batches)
 
     model.tf_model.save_weights(logs_utils.compose_model_path(prefix='handseg_'))
-
-
-if __name__ == '__main__':
-    train()

@@ -1,13 +1,13 @@
-import argparse
+import time
 
+import numpy as np
+
+import src.estimation.configuration as configs
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
-from src.utils.paths import USECASE_DATASET_DIR
 from src.utils.live import generate_live_images
-import numpy as np
-from src.utils.logs import make_dir, get_current_timestamp
-import time
-import src.estimation.configuration as configs
+from src.utils.logs import get_current_timestamp, make_dir
+from src.utils.paths import USECASE_DATASET_DIR
 
 
 class UsecaseDatabaseScanner:
@@ -63,16 +63,3 @@ class UsecaseDatabaseScanner:
         if duration * 1.01 < period_in_seconds:
             sleep_till_period = period_in_seconds - duration
             time.sleep(sleep_till_period)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', type=str, action='store', default=None, required=True)
-    parser.add_argument('--label', type=str, action='store', default=None, required=True)
-    parser.add_argument('--scan-period', type=float, action='store', default=1.0)
-    parser.add_argument('--camera', type=str, action='store', default='SR305')
-    parser.add_argument('--plot', type=bool, action='store', default=True)
-    args = parser.parse_args()
-
-    scanner = UsecaseDatabaseScanner(args.dir, camera=Camera(args.camera), plot_estimation=args.plot)
-    scanner.scan_into_subdir(args.label, scan_period=args.scan_period)

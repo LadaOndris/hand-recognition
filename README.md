@@ -25,6 +25,26 @@ TensorFlow has a wrong dependency. It may otherwise print warnings and not funct
 
 ## Usage examples
 
+### Hand detection
+
+To detect hands from images captured with SR305 camera, which is the default camera:  
+`python3 detect.py --source live --num-detections 2`
+
+<p float="left">
+    <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
+    <img src="./docs/readme/live_detection2.png" alt="live_detection2" width="220"/>
+</p> 
+
+### Hand pose estimation
+
+To estimate hand poses from images captured with SR305 camera:  
+`python3 estimate.py --source live`
+
+<p float="left">
+    <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
+    <img src="./docs/readme/live_estimation2.png" alt="live_estimation2" width="220"/>
+</p>
+
 ### System's usage
 
 The system requires that the user defines the gesture to be recognized, which
@@ -36,21 +56,21 @@ from live images or from the custom dataset is demonstrated in
 
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
-```python3 src/system/database_scanner.py --dir gestures --label 1 --scan-period 1 --camera SR305```
+```python3 database.py --dir gestures --label 1 --scan-period 1 --camera SR305```
 
 #### Real-time gesture recognition
 
 To start the gesture recognition system using gesture database stored in 
 the `gestures` directory:  
-`python3 src/system/gesture_recognizer.py --source live --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
+`python3 recognize.py --source live --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
 To start the gesture recognition from the evaluation dataset:  
-`python3 src/system/gesture_recognizer.py --source dataset --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
+`python3 recognize.py --source dataset --dir gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
 **For demonstration**, a directory named "test" is already present,
 containing definitions for a gesture with opened palm with fingers outstretched
 and apart.  
-`python3 src/system/gesture_recognizer.py --source live --dir test --error-threshold 120 --orientation-threshold 60 --camera SR305`
+`python3 recognize.py --source live --dir test --error-threshold 120 --orientation-threshold 60 --camera SR305`
 
 The system plots figures similar to the following:  
 <p float="left">
@@ -58,35 +78,19 @@ The system plots figures similar to the following:
     <img src="./docs/readme/live_nongesture.png" alt="live_nongesture" width="220"/>
 </p>
 
-### Hand detection
-
-To detect hands from images captured with SR305 camera, which is the default camera:  
-`python3 src/system/hand_position_estimator.py --detect --source live`
-
-<p float="left">
-    <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
-    <img src="./docs/readme/live_detection2.png" alt="live_detection2" width="220"/>
-</p>
-
-### Hand pose estimation
-
-To estimate hand poses from images captured with SR305 camera:  
-`python3 src/system/hand_position_estimator.py --estimate --source live`
-
-<p float="left">
-    <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
-    <img src="./docs/readme/live_estimation2.png" alt="live_estimation2" width="220"/>
-</p>
-
 ### Training of models
 
+To train the Tiny YOLOv3 on the HandSeg dataset:
+```python3 train_yolov3.py```
+
 To train the JGR-P2O on the Bighand dataset:  
-```python3 src/estimation/train.py --train bighand```
+```python3 train_jgrp2o.py --train bighand```
 
 To train the JGR-P2O model on the Bighand dataset from existing weights:  
-`python3 src/estimation/train.py --train bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
+`python3 train_jgrp2o.py --train bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
 
 The number of features is set to 196 by default. Set the `--features` flag if required otherwise.
+
 
 ### Evaluation of models
 

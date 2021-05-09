@@ -4,11 +4,21 @@ from matplotlib import patches as patches, pyplot as plt
 
 from src.detection.yolov3.utils import blue_color, boxes_color, boxes_from_yolo_outputs, depth_image_cmap, \
     prediction_box_color
-from src.utils.plots import save_show_fig
+from src.utils.plots import plotlive, save_show_fig
 
 
 def plot_predictions(image, boxes, nums, fig_location):
     fig, ax = image_plot()
+    _plot_predictions(fig, ax, image, boxes, nums)
+    save_show_fig(fig, fig_location, True)
+
+
+@plotlive
+def plot_predictions_live(fig, ax, image, boxes, nums):
+    _plot_predictions(fig, ax, image, boxes, nums)
+
+
+def _plot_predictions(fig, ax, image, boxes, nums):
     ax.imshow(image, cmap=depth_image_cmap)
 
     for i in range(nums):
@@ -17,7 +27,6 @@ def plot_predictions(image, boxes, nums, fig_location):
         plot_prediction_box(ax, x, y, w, h)
 
     plot_adjust(fig, ax)
-    save_show_fig(fig, fig_location, True)
 
 
 def plot_adjust(fig, ax):

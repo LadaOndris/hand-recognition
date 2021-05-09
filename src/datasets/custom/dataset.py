@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 import src.utils.plots as plots
-from src.detection.yolov3.dataset_preprocessing import tf_load_image
+from src.utils.imaging import read_image_from_file
 from src.utils.paths import CUSTOM_DATASET_DIR
 
 
@@ -60,7 +60,7 @@ class CustomDataset:
         return ds
 
     def _prepare_sample(self, image_path, label):
-        image = tf_load_image(image_path, dtype=tf.uint16, shape=[640, 480])
+        image = read_image_from_file(image_path, dtype=tf.uint16, shape=[640, 480])
         return image, label
 
     def __iter__(self):

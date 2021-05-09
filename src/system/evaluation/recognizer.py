@@ -7,10 +7,45 @@ from src.system.gesture_recognizer import GestureRecognizer
 from src.utils.paths import CUSTOM_DATASET_DIR, DOCS_DIR, OTHER_DIR
 
 
+def perform_gesture_recognition(recognizer: GestureRecognizer, dataset):
+    """
+
+    Parameters
+    ----------
+    recognizer
+    dataset
+
+    Returns
+    -------
+    jres
+    angles
+    pred_labels
+    true_labels
+    """
+
+    jres = []
+    angles = []
+    pred_labels = []
+    true_labels = []
+
+    recognize_generator = recognizer.start(dataset, generator_includes_labels=True)
+    for result in recognize_generator:
+        jres.append(result.gesture_jre)
+        angles.append(result.angle_difference)
+        pred_labels.append(result.gesture_label)
+        true_labels.append(result.expected_gesture_label[0].decode())  # That's an inappropriate decode!
+
+    jres = np.concatenate(jres)
+    pred_labels = np.concatenate(pred_labels)
+    true_labels = np.stack(true_labels, axis=0)
+    return jres, angles, pred_labels, true_labels
+
+
 def save_produced_metrics_on_custom_dataset(file_name):
-    ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=8, left_hand_only=True)
-    live_acceptance = GestureRecognizer(error_thresh=200, orientation_thresh=50, database_subdir='test')
-    jres, angles, pred_labels, true_labels = live_acceptance.produce_jres(ds)
+    ds = CustomDataset(CUSTOM_DATASET_DIR, batch_size=1, left_hand_only=True)
+    gesture_recognizer = GestureRecognizer(error_thresh=200, orientation_thresh=50, database_subdir='test',
+                                           camera_name='sr305')
+    jres, angles, pred_labels, true_labels = perform_gesture_recognition(gesture_recognizer, ds)
     custom_dataset_jre_path = OTHER_DIR.joinpath(file_name)
     np.savez(custom_dataset_jre_path, jres=jres, angles=angles, pred_labels=pred_labels, true_labels=true_labels)
 
@@ -103,7 +138,7 @@ if __name__ == '__main__':
     start = time.time()
 
     # Evaluate the gesture recognition system and save the metrics to a file
-    # save_produced_metrics_on_custom_dataset(filename)
+    save_produced_metrics_on_custom_dataset('test.npz')
 
     # Plot the metrics
     plot_evaluation_metrics_from_file('custom_dataset_jres.npz')

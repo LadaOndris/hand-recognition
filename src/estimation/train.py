@@ -1,25 +1,46 @@
-import argparse
-import glob
-import os
-
 import tensorflow as tf
 
+import src.estimation.configuration as configs
 import src.utils.logs as logs_utils
-from src.estimation.common import get_train_and_test_generator
-from src.estimation.evaluation import evaluate
-from src.estimation.jgrp2o import JGR_J2O
-from src.estimation.losses import CoordinateLoss, OffsetLoss
-from src.utils.config import JGRJ2O_LEARNING_RATE, JGRJ2O_LR_DECAY, JGRJ2O_TRAIN_BATCH_SIZE
+from src.datasets.bighand.dataset import BighandDataset
+from src.datasets.msra.dataset import MSRADataset
+from src.estimation.architecture.jgrp2o import JGR_J2O
+from src.estimation.architecture.losses import CoordinateLoss, OffsetLoss
+from src.estimation.configuration import Config
+from src.estimation.preprocessing import DatasetPreprocessor
+from src.utils.camera import Camera
+from src.utils.paths import BIGHAND_DATASET_DIR, MSRAHANDGESTURE_DATASET_DIR
 
 
-def train(dataset_name: str, weights_path: str, model_features=128):
+def get_train_and_test_generator(dataset_name: str, network, train_config: configs.Config,
+                                 test_config: configs.Config) -> (DatasetPreprocessor, DatasetPreprocessor):
+    cam = Camera(dataset_name)
+
+    def get_preprocessor(dataset, config):
+        return DatasetPreprocessor(iter(dataset), network.input_size, network.out_size,
+                                   camera=cam, config=config)
+
+    if dataset_name == 'bighand':
+        ds = BighandDataset(BIGHAND_DATASET_DIR, test_subject="Subject_8", batch_size=train_config.batch_size,
+                            shuffle=True)
+    elif dataset_name == 'msra':
+        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=train_config.batch_size, shuffle=True)
+    else:
+        raise ValueError(F"Invalid dataset: {dataset_name}")
+
+    train_ds_gen = get_preprocessor(ds.train_dataset, train_config)
+    test_ds_gen = get_preprocessor(ds.test_dataset, test_config)
+    return ds, train_ds_gen, test_ds_gen
+
+
+def train(dataset_name: str, weights_path: str, config: Config, model_features=128):
     network = JGR_J2O(n_features=model_features)
     model = network.graph()
     print(model.summary(line_length=120))
     if weights_path is not None:
         model.load_weights(weights_path)
 
-    dataset, train_ds_gen, test_ds_gen = get_train_and_test_generator(dataset_name, network, JGRJ2O_TRAIN_BATCH_SIZE)
+    dataset, train_ds_gen, test_ds_gen = get_train_and_test_generator(dataset_name, network, config)
     monitor_loss = 'val_loss'
     if dataset.num_test_batches == 0:
         test_ds_gen = None
@@ -39,9 +60,9 @@ def train(dataset_name: str, weights_path: str, model_features=128):
         steps_per_epoch = 1024
 
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=JGRJ2O_LEARNING_RATE,
+        initial_learning_rate=config.learning_rate,
         decay_steps=steps_per_epoch,
-        decay_rate=JGRJ2O_LR_DECAY,
+        decay_rate=config.learning_decay_rate,
         staircase=True)
     adam = tf.keras.optimizers.Adam(learning_rate=lr_schedule, beta_1=0.98)
     model.compile(optimizer=adam, loss=[CoordinateLoss(), OffsetLoss()])
@@ -60,28 +81,3 @@ def train(dataset_name: str, weights_path: str, model_features=128):
     # checkpoints are located in the log_dir
     # the saved model is located in the model_filepath
     return log_dir, str(model_filepath)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--train', type=str, action='store', default=None)
-    parser.add_argument('--evaluate', type=str, action='store', default=None)
-    parser.add_argument('--model', type=str, action='store', default=None)
-    parser.add_argument('--features', type=int, action='store', default=196)
-    args = parser.parse_args()
-
-    if args.train is not None:
-        log_dir, model_filepath = train(args.train, args.model, model_features=args.features)
-
-    if (args.evaluate is not None) and (args.train is not None):
-        if model_filepath is not None and os.path.isfile(model_filepath):
-            path = model_filepath
-        else:
-            ckpts_pattern = os.path.join(str(log_dir), 'train_ckpts/*')
-            ckpts = glob.glob(ckpts_pattern)
-            path = max(ckpts, key=os.path.getctime)
-        if path is not None:
-            thresholds, mje = evaluate(args.evaluate, path, args.features)
-            tf.print("MJE:", mje)
-        else:
-            raise ValueError("No checkpoints available")

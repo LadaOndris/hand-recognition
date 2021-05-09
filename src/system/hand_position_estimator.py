@@ -1,21 +1,17 @@
-import argparse
-
 import tensorflow as tf
 
-import src.detection.yolov3.dataset_preprocessing as yolov3_preprocessing
-import src.estimation.configuration as configs
+import src.detection.plots
+import src.utils.imaging
 import src.utils.plots as plots
-import src.utils.plots_detection
-from src.datasets.generators import get_source_generator
 from src.detection.yolov3 import utils
-from src.detection.yolov3.cfg.cfg_parser import YoloLoader
+from src.detection.yolov3.architecture.loader import YoloLoader
+from src.estimation.architecture.jgrp2o import JGR_J2O
 from src.estimation.configuration import Config
-from src.estimation.dataset_preprocessing import DatasetPreprocessor
-from src.estimation.jgrp2o import JGR_J2O
+from src.estimation.preprocessing import DatasetPreprocessor
 from src.utils.camera import Camera
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD
-from src.utils.imaging import tf_resize_image
-from src.utils.paths import DOCS_DIR, LOGS_DIR
+from src.utils.imaging import read_image_from_file, set_depth_unit, tf_resize_image
+from src.utils.paths import LOGS_DIR
 
 
 class HandPositionEstimator:
@@ -31,7 +27,7 @@ class HandPositionEstimator:
         self.plot_estimation = plot_estimation
         self.plot_skeleton = plot_skeleton
         self.resize_mode = 'crop'
-        self.detector = YoloLoader.load_from_weights(self.resize_mode)
+        self.detector = YoloLoader.load_from_weights(self.resize_mode, batch_size=1)
         self.network = JGR_J2O(n_features=196)
         self.estimator = self.load_estimator()
         self.estimation_preprocessor = DatasetPreprocessor(None, self.network.input_size, self.network.out_size,
@@ -40,27 +36,8 @@ class HandPositionEstimator:
 
     def load_estimator(self):
         # Load HPE model and weights
-
-        # weights_path = LOGS_DIR.joinpath('20210329-032745/train_ckpts/weights.04.h5')  # bighand
-        # weights_path = LOGS_DIR.joinpath('20210316-035251/train_ckpts/weights.18.h5')  # msra
-        # weights_path = LOGS_DIR.joinpath("20210330-024055/train_ckpts/weights.52.h5")  # bighand
-        # weights_path = LOGS_DIR.joinpath("20210402-112810/train_ckpts/weights.14.h5")  # bighand from 52.h5
-        # weights_path = LOGS_DIR.joinpath("20210403-011340/train_ckpts/weights.15.h5")  # bighand from 52.h5
-        # weights_path = LOGS_DIR.joinpath("20210403-212844/train_ckpts/weights.10.h5")  # bighand smaller LR
-        # weights_path = LOGS_DIR.joinpath("20210404-133121/train_ckpts/weights.14.h5")  # bighand smaller LR, augmentation, otsus thesh 0.03
-        # weights_path = LOGS_DIR.joinpath("20210404-175716/train_ckpts/weights.02.h5")  # bighand smaller LR, augmentation, otsus thesh 0.01
-        # weights_path = LOGS_DIR.joinpath("20210405-223012/train_ckpts/weights.20.h5")  # augmentation, LR = e-4
-        # weights_path = LOGS_DIR.joinpath("20210407-172950/train_ckpts/weights.18.h5")
-        # weights_path = LOGS_DIR.joinpath("20210409-033315/train_ckpts/weights.20.h5")  # batch size 32
-        # weights_path = LOGS_DIR.joinpath("20210409-031509/train_ckpts/weights.12.h5")  # batch size 64
-        # weights_path = LOGS_DIR.joinpath("20210414-190122/train_ckpts/weights.13.h5")
-        # weights_path = LOGS_DIR.joinpath("20210415-233335/train_ckpts/weights.13.h5")
-        # weights_path = LOGS_DIR.joinpath("20210417-020242/train_ckpts/weights.13.h5")
-        # weights_path = LOGS_DIR.joinpath("20210418-122635/train_ckpts/weights.08.h5")
-        # weights_path = LOGS_DIR.joinpath("20210418-200105/train_ckpts/weights.12.h5")
-        # weights_path = LOGS_DIR.joinpath("20210423-220702/train_ckpts/weights.13.h5")
-        weights_path = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")  # bighand
-
+        # Trained on the BigHand dataset - ideal for live recognition
+        weights_path = LOGS_DIR.joinpath("20210426-125059/train_ckpts/weights.25.h5")
         model = self.network.graph()
         model.load_weights(str(weights_path))
         return model
@@ -70,11 +47,14 @@ class HandPositionEstimator:
         Detect a hand from a single image.
         """
         self.estimation_fig_location = fig_location
-        image = self.read_image(file_path)
+        image = self._read_image(file_path)
         return self.estimate_from_image(image)
 
     def estimate_from_source(self, source_generator, save_folder=None):
         i = 0
+        if self.plot_estimation:
+            # Prepare the plot for live plotting
+            self.fig, self.ax = src.detection.plots.image_plot()
         for depth_image in source_generator:
             if save_folder is not None:
                 fig_location = save_folder.joinpath(F"{i}.png")
@@ -100,14 +80,14 @@ class HandPositionEstimator:
         image = tf.convert_to_tensor(image)
         if tf.rank(image) != 3:
             raise Exception("Invalid image rank, expected 3")
-        resized_image = self.resize_image_and_depth(image)
+        resized_image = self._resize_image_and_depth(image)
         batch_images = tf.expand_dims(resized_image, axis=0)
-        boxes = self.detect(batch_images)
+        boxes = self._detect(batch_images)
 
         # If detection failed
         if tf.experimental.numpy.allclose(boxes, 0):
             return None
-        joints_uvz = self.estimate(batch_images, boxes)
+        joints_uvz = self._estimate(batch_images, boxes)
         return joints_uvz
 
     def detect_from_source(self, source_generator, num_detections=1, fig_location_pattern=None):
@@ -116,24 +96,39 @@ class HandPositionEstimator:
         detects hands for each frame.
         """
         iter_index = 0
+        if self.plot_detection:
+            # Prepare the plot for live plotting
+            self.fig, self.ax = src.detection.plots.image_plot()
         for depth_image in source_generator:
-            fig_location = self._format_or_none(fig_location_pattern, iter_index)
-            depth_image = self.resize_image_and_depth(depth_image)
+            fig_location = self._string_format_or_none(fig_location_pattern, iter_index)
+            depth_image = self._resize_image_and_depth(depth_image)
             batch_images = tf.expand_dims(depth_image, axis=0)
-            self.detect(batch_images, num_detections, fig_location)
+            boxes = self._detect(batch_images, num_detections, fig_location)
+            yield boxes
             iter_index += 1
 
-    def _format_or_none(self, fig_location_pattern, index):
+    def get_cropped_image(self):
+        return self.estimation_preprocessor.cropped_imgs[0].to_tensor()
+
+    def convert_to_cropped_coords(self, joints_uvz):
+        joints_subregion = self.estimation_preprocessor.convert_coords_to_local(joints_uvz)
+        return joints_subregion
+
+    def _string_format_or_none(self, fig_location_pattern, index):
         if fig_location_pattern is None:
             return None
         return str(fig_location_pattern).format(index)
 
-    def detect(self, images, num_detections=1, fig_location=None):
+    def _detect(self, images, num_detections=1, fig_location=None):
         """
 
         Parameters
         ----------
         images
+        num_detections
+            The number of predicted boxes.
+        fig_location
+            Path including a file name for saving the figure.
 
         Returns
         -------
@@ -148,11 +143,13 @@ class HandPositionEstimator:
                                                             TEST_YOLO_CONF_THRESHOLD, iou_thresh=.7,
                                                             max_boxes=num_detections)
         if self.plot_detection:
-            src.utils.plots_detection.plot_predictions(images[0], boxes[0], nums[0],
-                                                       fig_location=fig_location)
+            if fig_location is None:
+                src.detection.plots.plot_predictions_live(self.fig, self.ax, images[0], boxes[0], nums[0])
+            else:
+                src.detection.plots.plot_predictions(images[0], boxes[0], nums[0], fig_location)
         return boxes
 
-    def estimate(self, images, boxes):
+    def _estimate(self, images, boxes):
         boxes = tf.cast(boxes, dtype=tf.int32)
         normalized_images = self.estimation_preprocessor.preprocess(images, boxes[:, 0, :])
         y_pred = self.estimator.predict(normalized_images)
@@ -162,21 +159,15 @@ class HandPositionEstimator:
         if self.plot_estimation:
             joints2d = self.estimation_preprocessor.convert_coords_to_local(uvz_pred)
             image = self.estimation_preprocessor.cropped_imgs[0].to_tensor()
-            if self.plot_skeleton:
+
+            if self.estimation_fig_location is None:
+                plots.plot_joints_2d_live(self.fig, self.ax, image, joints2d[0])
+            else:
                 plots.plot_joints_2d(image, joints2d[0], fig_location=self.estimation_fig_location,
                                      figsize=(4, 4))
-            else:
-                plots.plot_depth_image(images, fig_location=self.estimation_fig_location)
         return uvz_pred
 
-    def get_cropped_image(self):
-        return self.estimation_preprocessor.cropped_imgs[0].to_tensor()
-
-    def convert_to_cropped_coords(self, joints_uvz):
-        joints_subregion = self.estimation_preprocessor.convert_coords_to_local(joints_uvz)
-        return joints_subregion
-
-    def read_image(self, file_path: str):
+    def _read_image(self, file_path: str):
         """
         Reads image from file.
 
@@ -185,10 +176,10 @@ class HandPositionEstimator:
         Depth image
         """
         # load image
-        depth_image = yolov3_preprocessing.tf_load_image(file_path, dtype=tf.uint16, shape=self.camera.image_size)
+        depth_image = read_image_from_file(file_path, dtype=tf.uint16, shape=self.camera.image_size)
         return depth_image
 
-    def resize_image_and_depth(self, image):
+    def _resize_image_and_depth(self, image):
         """
         Resizes to size matching the detector's input shape.
         The unit of image pixels are set as milimeters.
@@ -197,17 +188,6 @@ class HandPositionEstimator:
                                 resize_mode=self.resize_mode)
         image = set_depth_unit(image, 0.001, self.camera.depth_unit)
         return image
-
-
-def set_depth_unit(images, target_depth_unit, previous_depth_unit):
-    """
-    Converts image pixel values to the specified unit.
-    """
-    dtype = images.dtype
-    images = tf.cast(images, dtype=tf.float32)
-    images *= previous_depth_unit / target_depth_unit
-    images = tf.cast(images, dtype=dtype)
-    return images
 
 
 def preprocess_image_for_detection(images):
@@ -227,37 +207,3 @@ def preprocess_image_for_detection(images):
     images = tf.cast(images, dtype=dtype)
     images = tf.image.convert_image_dtype(images, dtype=tf.uint8)
     return images
-
-
-def get_estimator(camera):
-    camera = Camera(camera)
-    config = configs.PredictCustomDataset()
-    estimator = HandPositionEstimator(camera, config=config)
-    return estimator
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--source', type=str, action='store', required=True)
-    parser.add_argument('--detect', action='store_true', default=False)
-    parser.add_argument('--estimate', action='store_true', default=False)
-    parser.add_argument('--camera', type=str, action='store', default='SR305')
-    parser.add_argument('--plot', type=bool, action='store', default=True)
-    parser.add_argument('--num-detections', action='store', type=int, default=1)
-    args = parser.parse_args()
-
-    image_source = get_source_generator(args.source)
-    estimator = get_estimator(args.camera)
-
-    if args.detect and args.estimate:
-        raise ValueError('Only one of these options can be specified: --detect, --estimate')
-
-    if args.detect:
-        fig_location_pattern = DOCS_DIR.joinpath('images/evaluation/detection/live_{}.pdf')
-        estimator.plot_detection = args.plot
-        estimator.detect_from_source(image_source, args.num_detections, fig_location_pattern)
-    if args.estimate:
-        if args.num_detections != 1:
-            raise ValueError('Estimation allows only a single detection!')
-        estimator.plot_estimation = args.plot
-        estimator.estimate_from_source(image_source)

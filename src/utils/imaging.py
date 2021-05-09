@@ -1,7 +1,7 @@
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import numpy as np
+
+RESIZE_MODE_CROP = 'crop'
+RESIZE_MODE_PAD = 'pad'
 
 
 def resize_images(cropped_imgs, target_size):
@@ -34,9 +34,9 @@ def tf_resize_image(depth_image, shape, resize_mode: str):
     # depth_image = tf.image.convert_image_dtype(depth_image, dtype=tf.uint8)
     # resize image
     type = depth_image.dtype
-    if resize_mode == 'pad':
+    if resize_mode == RESIZE_MODE_PAD:
         depth_image = tf.image.resize_with_pad(depth_image, shape[0], shape[1])
-    elif resize_mode == 'crop':
+    elif resize_mode == RESIZE_MODE_CROP:
         height, width, channels = depth_image.shape
         if height > width:
             offset = tf.cast((height - width) / 2, tf.int32)
@@ -187,6 +187,44 @@ def resize_bilinear_nearest_batch(images_in, shape):
     resized = tf.where(mask_is_zero, nearest, bilinear)
 
     return tf.reshape(resized, [batch_size, height, width, 1])
+
+
+def set_depth_unit(images, target_depth_unit, previous_depth_unit):
+    """
+    Converts image pixel values to the specified unit.
+    """
+    dtype = images.dtype
+    images = tf.cast(images, dtype=tf.float32)
+    images *= previous_depth_unit / target_depth_unit
+    images = tf.cast(images, dtype=dtype)
+    return images
+
+
+def read_image_from_file(image_file_path, dtype, shape):
+    """
+    Loads an image from file, sets the corresponding dtype
+    and shape.
+
+    Parameters
+    -------
+    image_file_path
+    dtype
+    shape
+        An array-like of two values [width, height].
+
+
+    Returns
+    -------
+    depth_image
+        A 3-D Tensor of shape [height, width, 1].
+    """
+    depth_image_file_content = tf.io.read_file(image_file_path)
+
+    # loads depth images and converts values to fit in dtype.uint8
+    depth_image = tf.io.decode_image(depth_image_file_content, channels=1, dtype=dtype)
+
+    depth_image.set_shape([shape[1], shape[0], 1])
+    return depth_image
 
 
 if __name__ == "__main__":

@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-from src.estimation.com_preprocessing import ComPreprocessor
 from src.estimation.configuration import Config
+from src.estimation.preprocessing_com import ComPreprocessor
 from src.utils.camera import Camera
 from src.utils.imaging import resize_bilinear_nearest_batch, resize_images
 
@@ -41,7 +41,8 @@ class DatasetPreprocessor:
         self.bboxes = None  # These are used to position the cropped coordinates into global picture
         self.resize_coeffs = None  # These are used to invert image resizing
         self.cropped_imgs = None
-        self.com_preprocessor = ComPreprocessor(self.camera, config.thresholding, config.use_center_of_image)
+        self.com_preprocessor = ComPreprocessor(self.camera, config.thresholding, config.use_center_of_image,
+                                                config.ignore_threshold_otsus)
 
     def __iter__(self):
         return self

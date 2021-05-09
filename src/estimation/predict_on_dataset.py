@@ -1,10 +1,32 @@
+import src.estimation.configuration as configs
 import src.utils.plots as plots
-from src.estimation.common import get_generator_for_dataset_prediction
-from src.estimation.dataset_preprocessing import DatasetPreprocessor
-from src.estimation.jgrp2o import JGR_J2O
+from src.datasets.bighand.dataset import BighandDataset
+from src.datasets.msra.dataset import MSRADataset
+from src.estimation.architecture.jgrp2o import JGR_J2O
 from src.estimation.metrics import MeanJointErrorMetric
+from src.estimation.preprocessing import DatasetPreprocessor
 from src.utils.camera import Camera
-from src.utils.paths import LOGS_DIR
+from src.utils.paths import BIGHAND_DATASET_DIR, LOGS_DIR, MSRAHANDGESTURE_DATASET_DIR
+
+
+def get_generator_for_dataset_prediction(dataset_name: str, network, batch_size: int,
+                                         augment: bool) -> DatasetPreprocessor:
+    cam = Camera(dataset_name)
+    if dataset_name == 'bighand':
+        config = configs.PredictBighandConfig()
+        config.augment = augment
+        ds = BighandDataset(BIGHAND_DATASET_DIR, batch_size=batch_size, shuffle=True)
+        gen = DatasetPreprocessor(iter(ds.train_dataset), network.input_size,
+                                  network.out_size, camera=cam, config=config)
+    elif dataset_name == 'msra':
+        config = configs.PredictMsraConfig()
+        config.augment = augment
+        ds = MSRADataset(MSRAHANDGESTURE_DATASET_DIR, batch_size=batch_size, shuffle=True)
+        gen = DatasetPreprocessor(iter(ds.train_dataset), network.input_size, network.out_size,
+                                  camera=cam, config=config)
+    else:
+        raise ValueError(F"Invalid dataset: {dataset_name}")
+    return gen
 
 
 def prepare_joints2d(y, generator: DatasetPreprocessor):

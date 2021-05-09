@@ -5,13 +5,13 @@ from sklearn.metrics import precision_recall_curve
 import src.utils.plots as plots
 from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3 import utils
-from src.detection.yolov3.cfg.cfg_parser import YoloLoader
-from src.detection.yolov3.dataset_preprocessing import DatasetPreprocessor
-from src.utils.config import RESIZE_MODE
+from src.detection.yolov3.architecture.loader import YoloLoader
+from src.detection.yolov3.preprocessing import DatasetPreprocessor
+from src.utils.imaging import RESIZE_MODE, RESIZE_MODE_CROP
 from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR, LOGS_DIR
 
 
-def evaluate(weights_path):
+def evaluate(weights_path, batch_size=32):
     """
     Runs evaluation on the HandSeg dataset.
     Returns merged y_true and y_pred from the Tiny YOLOv3 model.
@@ -25,8 +25,8 @@ def evaluate(weights_path):
     y_pred
     y_true
     """
-    model = YoloLoader.load_from_weights(RESIZE_MODE, weights_path=weights_path)
-    handseg = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.99, batch_size=model.batch_size,
+    model = YoloLoader.load_from_weights(RESIZE_MODE_CROP, weights_path=weights_path, batch_size=batch_size)
+    handseg = HandsegDatasetBboxes(HANDSEG_DATASET_DIR, train_size=0.99, batch_size=batch_size,
                                    shuffle=False, model_input_shape=model.input_shape)
     test_dataset_generator = DatasetPreprocessor(handseg.test_batch_iterator,
                                                  model.input_shape, model.yolo_output_shapes, model.anchors)
@@ -48,7 +48,7 @@ def evaluate(weights_path):
         if batch_idx == handseg.num_test_batches:
             break
         if batch_idx % 10 == 0:
-            print(F"Evaluating images {batch_idx}/{handseg.num_test_batches}, batch size = {model.batch_size}")
+            print(F"Evaluating images {batch_idx}/{handseg.num_test_batches}, batch size = {batch_size}")
     return y_pred, y_true
 
 

@@ -6,8 +6,11 @@ class Config:
         self.cube_size = 200,
         self.refine_iters = 4
         self.thresholding = True
-        self.ignore_threshold_otsus = 0.01
         self.use_center_of_image = True
+        self.ignore_threshold_otsus = 0.01
+
+        self.learning_rate = None
+        self.learning_decay_rate = None
 
 
 class MsraConfig(Config):
@@ -123,4 +126,3 @@ class PredictCustomDataset(Config):
         self.augment = False
         self.refine_iters = 0
         self.thresholding = True
-        self.ignore_threshold_otsus = 0.01

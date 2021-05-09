@@ -1,7 +1,8 @@
-import pyrealsense2 as rs
-import numpy as np
 import matplotlib.pyplot as plt
-from src.utils.plots import _plot_depth_image
+import numpy as np
+import pyrealsense2 as rs
+
+from src.utils.plots import _plot_depth_image_live
 
 
 def generate_live_images():
@@ -25,7 +26,6 @@ def generate_live_images():
 def print_live_images(num=None):
     generator = generate_live_images()
 
-    plt.ion()
     fig, ax = plt.subplots()
     i = 0
     while True:
@@ -34,12 +34,7 @@ def print_live_images(num=None):
         i += 1
 
         depth_image = next(generator)
-        _plot_depth_image(ax, depth_image)
-        plt.draw()
-        plt.pause(0.05)
-        plt.cla()
-    plt.ioff()
-    plt.show()
+        _plot_depth_image_live(ax, depth_image)
 
 
 def intrinsic_parameters():

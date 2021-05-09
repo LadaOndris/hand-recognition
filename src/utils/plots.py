@@ -1,3 +1,4 @@
+import functools
 from typing import Tuple
 
 import matplotlib.colors as colors
@@ -11,6 +12,24 @@ from src.acceptance.base import hand_orientation, joint_relation_errors
 from src.utils.camera import Camera
 
 depth_image_cmap = 'gist_yarg'
+
+
+def plotlive(func):
+    plt.ion()
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        # Clear current axis
+        plt.clf()
+
+        result = func(*args, **kwargs)
+
+        plt.draw()
+        plt.pause(0.01)
+
+        return result
+
+    return new_func
 
 
 def plot_depth_image(image, fig_location=None, figsize=(3, 3)):
@@ -76,10 +95,25 @@ def plot_two_hands_diff(hand1: Tuple[np.ndarray, np.ndarray, np.ndarray],
                            fig_location=fig_location, show_fig=show_fig)
 
 
+@plotlive
+def plot_skeleton_with_jre_live(fig, axes, image, joints, jres, label=None, norm_vec=None, mean_vec=None):
+    _plot_skeleton_with_jre(fig, axes, image, joints, jres, label, norm_vec, mean_vec)
+
+
 def plot_skeleton_with_jre(image, joints, jres, label=None, show_fig=True, fig_location=None,
                            norm_vec=None, mean_vec=None):
+    fig, axes = plot_skeleton_with_jre_subplots()
+    _plot_skeleton_with_jre(fig, axes, image, joints, jres, label, norm_vec, mean_vec)
+    save_show_fig(fig, fig_location, show_fig)
+
+
+def plot_skeleton_with_jre_subplots():
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6.5, 5),
                              gridspec_kw={"width_ratios": [5.0 / 6, 1.5 / 6]})
+    return fig, axes
+
+
+def _plot_skeleton_with_jre(fig, axes, image, joints, jres, label=None, norm_vec=None, mean_vec=None):
     hand_axis = axes[0]
     bar_axis = axes[1]
     _plot_depth_image(hand_axis, image)
@@ -94,7 +128,6 @@ def plot_skeleton_with_jre(image, joints, jres, label=None, show_fig=True, fig_l
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
         ax.set_axis_off()
-    save_show_fig(fig, fig_location, show_fig)
 
 
 def _compute_orientation(joints, bbox, cam: Camera):
@@ -232,13 +265,27 @@ def _plot_depth_image(ax, image):
     ax.imshow(image, cmap=depth_image_cmap)
 
 
+@plotlive
+def _plot_depth_image_live(ax, image):
+    ax.imshow(image, cmap=depth_image_cmap)
+
+
 def plot_joints_2d(image, joints2d, show_fig=True, fig_location=None, figsize=(4, 3)):
     fig, ax = plt.subplots(1, figsize=figsize)
+    _plot_joints_2d(fig, ax, image, joints2d)
+    save_show_fig(fig, fig_location, show_fig)
+
+
+@plotlive
+def plot_joints_2d_live(fig, ax, image, joints2d):
+    _plot_joints_2d(fig, ax, image, joints2d)
+
+
+def _plot_joints_2d(fig, ax, image, joints2d):
     _plot_depth_image(ax, image)
     _plot_hand_skeleton_2d(ax, joints2d)
     ax.set_axis_off()
     fig.tight_layout()
-    save_show_fig(fig, fig_location, show_fig)
 
 
 def plot_joints_with_annotations(image, joints_pred, joints_true, show_fig=True, fig_location=None, figsize=(4, 3)):
@@ -431,3 +478,24 @@ def save_show_fig(fig, fig_location, show_figure):
         fig.savefig(fig_location)
     if show_figure:
         fig.show()
+
+# class Plotter:
+#
+#     def __init__(self, func):
+#         self.func = func
+#         self.fig = None
+#         self.ax = None
+#         plt.ion()
+#
+#     def plot(self, *args, **kwargs):
+#
+#
+#     def start(self, figsize):
+#         plt.ion()
+#         self.fig, self.ax = plt.subplots(1, figsize)
+#
+#     def draw(self):
+#
+#     def finish(self):
+#         plt.ioff()
+#         plt.show()
