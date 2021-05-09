@@ -27,7 +27,7 @@ required.add_argument('--source', type=str, action='store', required=True,
 required.add_argument('--error-threshold', type=int, action='store', default=120, required=True,
                       help='The pose threshold (JRE threshold)')
 optional.add_argument('--orientation-threshold', type=int, action='store', default=90,
-                      help='The orientation threshold in angles in the range (maximum: 90, default: 90)')
+                      help='The orientation threshold in angles (maximum: 90, default: 90)')
 optional.add_argument('--camera', type=str, action='store', default='SR305',
                       help='The camera model in use for live capture (default: SR305)')
 optional.add_argument('--plot', type=bool, action='store', default=True,

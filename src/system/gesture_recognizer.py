@@ -31,6 +31,22 @@ class GestureRecognizer:
 
     def start(self, image_generator, generator_includes_labels=False) -> \
             typing.Generator[GestureAcceptanceResult, None, None]:
+        """
+        Starts gesture recognition. It uses images supplied by
+        image_generator.
+
+        Parameters
+        ----------
+        image_generator : generator
+            The source of images.
+        generator_includes_labels : bool
+            Whether the generator also returns labels.
+
+        Returns
+        -------
+        Generator[GestureAcceptanceResult]
+            Yields instances of the GestureAcceptanceResult class.
+        """
         image_idx = 0
         norm, mean = None, None
         # Prepare figure for live plotting

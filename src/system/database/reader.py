@@ -10,6 +10,17 @@ class UsecaseDatabaseReader:
         self.labels = None
 
     def load_from_subdir(self, subdir: str):
+        """
+        Reads gesture in a subdir directory located in
+        the USECASE_DATASET_DIR directory.
+        Saves the loaded poses and its labels internally
+        in hand_poses and labels fields.
+
+        Parameters
+        ----------
+        subdir  :   str
+            Directory containing target gestures.
+        """
         if len(subdir) == 0:
             raise Exception("Invalid argument 'subdir'")
         annotation_files = self._find_annotation_files(subdir)
@@ -47,6 +58,19 @@ class UsecaseDatabaseReader:
         return hand_poses, labels
 
     def get_label_by_index(self, hand_pose_index):
+        """
+        Gets the corresponding label to the hand pose
+        by its index.
+
+        Parameters
+        ----------
+        hand_pose_index : int
+            Index of the gesture in the hand_poses database.
+
+        Returns
+        -------
+        gesture_label
+        """
         if self.labels is None:
             raise Exception("No hand poses are loaded")
         if hand_pose_index < 0 or hand_pose_index >= np.shape(self.labels)[0]:

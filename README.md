@@ -143,8 +143,8 @@ required arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --orientation-threshold ORIENTATION_THRESHOLD
-                        The orientation threshold in angles in the range
-                        (maximum: 90, default: 90)
+                        The orientation threshold in angles (maximum: 90,
+                        default: 90)
   --camera CAMERA       The camera model in use for live capture (default:
                         SR305)
   --plot PLOT           Whether to plot anything.
@@ -157,23 +157,20 @@ optional arguments:
 
 ### Training of models
 
-To train the Tiny YOLOv3 on the HandSeg dataset:
+To train the Tiny YOLOv3 on the HandSeg dataset:  
 ```python3 train_yolov3.py```
-
-To train the JGR-P2O on the Bighand dataset:  
-```python3 train_jgrp2o.py --train bighand```
 
 To train the JGR-P2O model on the Bighand dataset from existing weights:  
 `python3 train_jgrp2o.py --train bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
 
-The number of features is set to 196 by default. Set the `--features` flag if required otherwise.
-
+See --help for other allowed options.
 
 ### Evaluation of models
 
 To evaluate the trained JGR-P2O model on the MSRA dataset:  
 `python3 src/estimation/evaluation.py --dataset msra --model logs/20210421-221853/train_ckpts/weights.22.h5 --features 128`
 
+See --help for other allowed options.
 
 ## Project structure
 
@@ -192,7 +189,7 @@ To evaluate the trained JGR-P2O model on the MSRA dataset:
 
     datasets
     ├── bighand                     # Hand pose estimation dataset (not preprocessed)
-    ├── cvpr15_MSRAHandGestureDB    # Hand pose estimatino dataset (is preprocesed)
+    ├── cvpr15_MSRAHandGestureDB    # Hand pose estimatino dataset (is preprocessed)
     ├── handseg150k                 # Hand segmentation dataset (both hands)
     ├── simple_boxes                # Generated toy object detection dataset
     ├── custom                      # Created dataset for the evaluation of gesture recognition

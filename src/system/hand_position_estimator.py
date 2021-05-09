@@ -44,13 +44,40 @@ class HandPositionEstimator:
 
     def estimate_from_file(self, file_path: str, fig_location=None):
         """
-        Detect a hand from a single image.
+        Estimate the hand's pose from a single depth image stored in a file.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to the image.
+        fig_location
+            A file path defining the location to which save the plot.
+
+        Returns
+        -------
+        joints_locations
         """
         self.estimation_fig_location = fig_location
         image = self._read_image(file_path)
         return self.estimate_from_image(image)
 
     def estimate_from_source(self, source_generator, save_folder=None):
+        """
+        Estimate the hand's pose from images produced by
+        the given source_generator.
+
+        Parameters
+        ----------
+        source_generator
+            A generator producing depth images.
+        save_folder
+            A folder to save the created plots into.
+
+        Returns
+        -------
+        Generator[joints_locations]
+            Yields the positions of the hand's joints.
+        """
         i = 0
         if self.plot_estimation:
             # Prepare the plot for live plotting
@@ -65,7 +92,7 @@ class HandPositionEstimator:
 
     def estimate_from_image(self, image):
         """
-        Performs hand detection and pose estimation on the given image.
+        Estimates the hand's pose from the given depth image.
 
         Parameters
         ----------
@@ -75,7 +102,7 @@ class HandPositionEstimator:
 
         Returns
         -------
-
+        joints_locations
         """
         image = tf.convert_to_tensor(image)
         if tf.rank(image) != 3:
@@ -90,10 +117,24 @@ class HandPositionEstimator:
         joints_uvz = self._estimate(batch_images, boxes)
         return joints_uvz
 
-    def detect_from_source(self, source_generator, num_detections=1, fig_location_pattern=None):
+    def detect_from_source(self, source_generator, num_detections: int = 1, fig_location_pattern=None):
         """
-        Reads live2 images from RealSense depth camera, and
-        detects hands for each frame.
+        Detects hands in depth images provided by the
+        source_generator. Returns only num_detections.
+
+        Parameters
+        ----------
+        source_generator
+            The source of images.
+        num_detections : int
+            The number of bounding boxes to produce.
+        fig_location_pattern
+            File path pattern for saving the plot.
+
+        Returns
+        -------
+        bounding_boxes
+            Returns bounding boxes represented by two [u, v] coordinates.
         """
         iter_index = 0
         if self.plot_detection:
@@ -108,9 +149,26 @@ class HandPositionEstimator:
             iter_index += 1
 
     def get_cropped_image(self):
+        """
+        Returns only the cropped subimage used for hand pose estimation.
+        """
         return self.estimation_preprocessor.cropped_imgs[0].to_tensor()
 
     def convert_to_cropped_coords(self, joints_uvz):
+        """
+        Converts the given image coordinates into
+        coordinates defined by the cropped image that is used
+        for hand pose estimation.
+
+        Parameters
+        ----------
+        joints_uvz
+            Pixel coordinates of the joints' locations.
+
+        Returns
+        -------
+        converted_joints
+        """
         joints_subregion = self.estimation_preprocessor.convert_coords_to_local(joints_uvz)
         return joints_subregion
 
