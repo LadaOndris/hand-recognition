@@ -90,6 +90,8 @@ class HandPositionEstimator:
                 fig_location = save_folder.joinpath(F"{i}.png")
                 self.estimation_fig_location = fig_location
             joints = self.estimate_from_image(depth_image)
+            if joints is None:
+                continue
             yield joints
             i += 1
 
@@ -114,8 +116,7 @@ class HandPositionEstimator:
         batch_images = tf.expand_dims(resized_image, axis=0)
         boxes = self._detect(batch_images)
 
-        # If detection failed
-        if tf.experimental.numpy.allclose(boxes, 0):
+        if self._detection_failed(boxes):
             return None
         joints_uvz = self._estimate(batch_images, boxes)
         return joints_uvz
@@ -248,6 +249,9 @@ class HandPositionEstimator:
                                 resize_mode=self.resize_mode)
         image = set_depth_unit(image, 0.001, self.camera.depth_unit)
         return image
+
+    def _detection_failed(self, boxes):
+        return tf.experimental.numpy.allclose(boxes, 0)
 
 
 def preprocess_image_for_detection(images):
