@@ -6,10 +6,10 @@ from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
 
 
-def get_estimator(camera: str) -> HandPositionEstimator:
+def get_estimator(camera: str, plot: bool) -> HandPositionEstimator:
     camera = Camera(camera)
     config = configs.PredictCustomDataset()
-    estimator = HandPositionEstimator(camera, config=config)
+    estimator = HandPositionEstimator(camera, config=config, plot_detection=plot)
     return estimator
 
 
@@ -25,8 +25,7 @@ parser.add_argument('--num-detections', action='store', type=int, default=1,
 args = parser.parse_args()
 
 image_source = get_source_generator(args.source)
-estimator = get_estimator(args.camera)
-estimator.plot_detection = args.plot
+estimator = get_estimator(args.camera, args.plot)
 detect_generator = estimator.detect_from_source(image_source, args.num_detections)
 for boxes in detect_generator:
     print('Bounding boxes:', boxes.numpy())

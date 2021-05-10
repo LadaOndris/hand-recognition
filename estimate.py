@@ -6,10 +6,10 @@ from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
 
 
-def get_estimator(camera: str) -> HandPositionEstimator:
+def get_estimator(camera: str, plot: bool) -> HandPositionEstimator:
     camera = Camera(camera)
     config = configs.PredictCustomDataset()
-    estimator = HandPositionEstimator(camera, config=config)
+    estimator = HandPositionEstimator(camera, config=config, plot_estimation=plot)
     return estimator
 
 
@@ -23,8 +23,7 @@ parser.add_argument('--plot', type=bool, action='store', default=True,
 args = parser.parse_args()
 
 image_source = get_source_generator(args.source)
-estimator = get_estimator(args.camera)
-estimator.plot_estimation = args.plot
+estimator = get_estimator(args.camera, args.plot)
 estimation_generator = estimator.estimate_from_source(image_source)
 for joints in estimation_generator:
     print('Joints\' coordinates:\n', joints.numpy())
