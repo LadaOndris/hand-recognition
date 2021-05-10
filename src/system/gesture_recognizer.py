@@ -49,8 +49,10 @@ class GestureRecognizer:
         """
         image_idx = 0
         norm, mean = None, None
-        # Prepare figure for live plotting
-        fig, axes = plots.plot_skeleton_with_jre_subplots()
+
+        # Prepare figure for live plotting, but only if we are really going to plot.
+        if self.plot_result:
+            fig, axes = plots.plot_skeleton_with_jre_subplots()
         for image_array in image_generator:
             # If the generator also returns labels, expand the tuple
             if generator_includes_labels:

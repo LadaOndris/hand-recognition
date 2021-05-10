@@ -16,31 +16,34 @@ def print_result(result: GestureAcceptanceResult):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('source', type=str, action='store',
-                    help='The source of images (allowed options: live, dataset)')
+                    help='the source of images (allowed options: live, dataset)')
 parser.add_argument('directory', type=str, action='store',
-                    help='The name of the directory containg the user-captured gesture database')
+                    help='the name of the directory containg the user-captured gesture database')
 
 parser.add_argument('--error-threshold', type=int, action='store', default=120,
-                    help='The pose threshold (JRE threshold)')
+                    help='the pose (JRE) threshold (default: 120)')
 parser.add_argument('--orientation-threshold', type=int, action='store', default=90,
-                    help='The orientation threshold in angles (maximum: 90, default: 90)')
+                    help='the orientation threshold in angles (maximum: 90, default: 90)')
 parser.add_argument('--camera', type=str, action='store', default='SR305',
-                    help='The camera model in use for live capture (default: SR305)')
-parser.add_argument('--plot', type=bool, action='store', default=True,
-                    help='Whether to plot anything.')
-parser.add_argument('--plot-feedback', type=bool, action='store', default=True,
-                    help='Whether to display the colorbar with JRE errors')
-parser.add_argument('--plot-orientation', type=bool, action='store', default=True,
-                    help='Whether to display a vector depicting the hand\'s orientation')
+                    help='the camera model in use for live capture (default: SR305)')
+parser.add_argument('--plot', action='store_true', default=False,
+                    help='whether to plot the result of gesture recognition (default: False)')
+parser.add_argument('--hide-feedback', action='store_true', default=False,
+                    help='whether to hide the colorbar with JRE errors (default: False)')
+parser.add_argument('--hide-orientation', action='store_true', default=False,
+                    help='whether to hide the vector depicting the hand\'s orientation (default: False)')
 args = parser.parse_args()
+
+plot_feedback = not args.hide_feedback
+plot_orientation = not args.hide_orientation
 
 image_source = get_source_generator(args.source)
 live_acceptance = GestureRecognizer(error_thresh=args.error_threshold,
                                     orientation_thresh=args.orientation_threshold,
                                     database_subdir=args.directory,
                                     plot_result=args.plot,
-                                    plot_feedback=args.plot_feedback,
-                                    plot_orientation=args.plot_orientation,
+                                    plot_feedback=plot_feedback,
+                                    plot_orientation=plot_orientation,
                                     camera_name=args.camera)
 recognizer = live_acceptance.start(image_source)
 for result in recognizer:

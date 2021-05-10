@@ -122,10 +122,10 @@ and apart.
 
 To start the gesture recognition system using gesture database stored in 
 the `gestures` directory:  
-`python3 recognize.py live gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
+`python3 recognize.py live gestures --plot`
 
 To start the gesture recognition from the evaluation dataset:  
-`python3 recognize.py dataset gestures --error-threshold 120 --orientation-threshold 60 --camera SR305`
+`python3 recognize.py dataset gestures --plot`
 
 The system plots figures similar to the following:  
 <p float="left">
@@ -134,33 +134,32 @@ The system plots figures similar to the following:
 </p>
 
 ```
-usage: recognize.py [-h] [--error-threshold ERROR_THRESHOLD]
+sage: recognize.py [-h] [--error-threshold ERROR_THRESHOLD]
                     [--orientation-threshold ORIENTATION_THRESHOLD]
-                    [--camera CAMERA] [--plot PLOT]
-                    [--plot-feedback PLOT_FEEDBACK]
-                    [--plot-orientation PLOT_ORIENTATION]
-                    dir source
+                    [--camera CAMERA] [--plot] [--hide-feedback]
+                    [--hide-orientation]
+                    source directory
 
 positional arguments:
-  dir                   The name of the directory containg the user-captured
+  source                the source of images (allowed options: live, dataset)
+  directory             the name of the directory containg the user-captured
                         gesture database
-  source                The source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help            show this help message and exit
   --error-threshold ERROR_THRESHOLD
-                        The pose threshold (JRE threshold)
+                        the pose (JRE) threshold (default: 120)
   --orientation-threshold ORIENTATION_THRESHOLD
-                        The orientation threshold in angles (maximum: 90,
+                        the orientation threshold in angles (maximum: 90,
                         default: 90)
-  --camera CAMERA       The camera model in use for live capture (default:
+  --camera CAMERA       the camera model in use for live capture (default:
                         SR305)
-  --plot PLOT           Whether to plot anything.
-  --plot-feedback PLOT_FEEDBACK
-                        Whether to display the colorbar with JRE errors
-  --plot-orientation PLOT_ORIENTATION
-                        Whether to display a vector depicting the hand's
-                        orientation
+  --plot                whether to plot the result of gesture recognition
+                        (default: False)
+  --hide-feedback       whether to hide the colorbar with JRE errors (default:
+                        False)
+  --hide-orientation    whether to hide the vector depicting the hand's
+                        orientation (default: False)
 ```
 
 ### Training of models

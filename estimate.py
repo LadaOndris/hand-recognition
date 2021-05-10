@@ -15,11 +15,11 @@ def get_estimator(camera: str, plot: bool) -> HandPositionEstimator:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('source', type=str, action='store',
-                    help='The source of images (allowed options: live, dataset)')
+                    help='the source of images (allowed options: live, dataset)')
 parser.add_argument('--camera', type=str, action='store', default='SR305',
-                    help='The camera model in use for live capture (default: SR305)')
-parser.add_argument('--plot', type=bool, action='store', default=True,
-                    help='Whether to plot the estimation (default: true)')
+                    help='the camera model in use for live capture (default: SR305)')
+parser.add_argument('--plot', action='store_true', default=False,
+                    help='plot the result of estimation')
 args = parser.parse_args()
 
 image_source = get_source_generator(args.source)

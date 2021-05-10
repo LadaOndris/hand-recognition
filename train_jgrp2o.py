@@ -23,21 +23,21 @@ def get_configs(dataset_name: str):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dataset', type=str, action='store',
-                    help='The dataset to be used for training (allowed options: msra, bighand)')
+                    help='the dataset to be used for training (allowed options: msra, bighand)')
 parser.add_argument('--evaluate', type=str, action='store', default=None,
-                    help='The dataset to be used for evaluation (allowed options: msra, bighand)')
+                    help='the dataset to be used for evaluation (allowed options: msra, bighand)')
 parser.add_argument('--model', type=str, action='store', default=None,
-                    help='The weights to load the model from (default: none)')
+                    help='the weights to load the model from (default: none)')
 parser.add_argument('--features', type=int, action='store', default=196,
-                    help='The number of features (channels) throughout the network (default: 196)')
+                    help='the number of features (channels) throughout the network (default: 196)')
 parser.add_argument('--batch-size', type=int, action='store', default=64,
-                    help='The number of samples in a batch')
+                    help='the number of samples in a batch')
 parser.add_argument('--learning-rate', type=float, action='store', default=0.0001,
-                    help='Learning rate')
+                    help='learning rate')
 parser.add_argument('--learning-decay-rate', type=float, action='store', default=0.93,
-                    help='A decay of learning rate after each epoch')
+                    help='a decay of learning rate after each epoch')
 parser.add_argument('--ignore-otsus-threshold', type=float, action='store', default=0.01,
-                    help='A theshold for ignoring Otsus thresholding method')
+                    help='a theshold for ignoring Otsus thresholding method')
 args = parser.parse_args()
 
 train_cfg, test_cfg = get_configs(args.dataset)
