@@ -7,6 +7,7 @@ import src.estimation.configuration as configs
 import src.utils.plots as plots
 from src.acceptance.base import hand_orientation, joint_relation_errors, vectors_angle
 from src.acceptance.gesture_acceptance_result import GestureAcceptanceResult
+from src.detection.plots import image_plot
 from src.system.database.reader import UsecaseDatabaseReader
 from src.system.hand_position_estimator import HandPositionEstimator
 from src.utils.camera import Camera
@@ -52,7 +53,11 @@ class GestureRecognizer:
 
         # Prepare figure for live plotting, but only if we are really going to plot.
         if self.plot_result:
-            fig, axes = plots.plot_skeleton_with_jre_subplots()
+            if self.plot_feedback:
+                fig, ax = plots.plot_skeleton_with_jre_subplots()
+            else:
+                fig, ax = image_plot()
+
         for image_array in image_generator:
             # If the generator also returns labels, expand the tuple
             if generator_includes_labels:
@@ -80,10 +85,10 @@ class GestureRecognizer:
                         norm, mean = self._get_orientation_vectors_in_2d(acceptance_result)
 
                     plots.plot_skeleton_with_jre_live(
-                        fig, axes, image_subregion, joints_subregion, jres,
+                        fig, ax, image_subregion, joints_subregion, jres,
                         label=gesture_label, norm_vec=norm, mean_vec=mean)
                 else:
-                    plots.plot_skeleton_with_label(image_subregion, joints_subregion, gesture_label)
+                    plots.plot_skeleton_with_label_live(fig, ax, image_subregion, joints_subregion, gesture_label)
             image_idx += 1
             yield acceptance_result
 

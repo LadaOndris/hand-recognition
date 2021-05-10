@@ -231,18 +231,17 @@ def plot_joints_with_annotations(image, joints_pred, joints_true, show_fig=True,
     save_show_fig(fig, fig_location, show_fig)
 
 
-def plot_skeleton_with_label(image, joints2d, label, show_fig=True, fig_location=None, figsize=(4, 3)):
+@plotlive
+def plot_skeleton_with_label_live(fig, ax, image, joints2d, label):
     """
     Plots a depth image with skeleton and
     a label above the axis.
     """
-    fig, ax = plt.subplots(1, figsize=figsize)
     _plot_depth_image(ax, image)
     _plot_hand_skeleton(ax, joints2d)
     ax.set_title(label)
     ax.set_axis_off()
     fig.tight_layout()
-    save_show_fig(fig, fig_location, show_fig)
 
 
 def plot_proportion_below_threshold(proportions, show_figure=True, fig_location=None):
