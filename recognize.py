@@ -27,11 +27,11 @@ parser.add_argument('--orientation-threshold', type=int, action='store', default
 parser.add_argument('--camera', type=str, action='store', default='SR305',
                     help='the camera model in use for live capture (default: SR305)')
 parser.add_argument('--plot', action='store_true', default=False,
-                    help='whether to plot the result of gesture recognition (default: False)')
+                    help='plot the result of gesture recognition')
 parser.add_argument('--hide-feedback', action='store_true', default=False,
-                    help='whether to hide the colorbar with JRE errors (default: False)')
+                    help='hide the colorbar with JRE errors')
 parser.add_argument('--hide-orientation', action='store_true', default=False,
-                    help='whether to hide the vector depicting the hand\'s orientation (default: False)')
+                    help='hide the vector depicting the hand\'s orientation')
 args = parser.parse_args()
 
 plot_feedback = not args.hide_feedback

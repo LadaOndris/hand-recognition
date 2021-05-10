@@ -40,22 +40,21 @@ To detect both hands from images captured with SR305 camera (as the default opti
 </p> 
 
 ```
-usage: detect.py [-h] [--camera CAMERA] [--plot PLOT]
-                 [--num-detections NUM_DETECTIONS]
+usage: detect.py [-h] [--camera CAMERA] [--num-detections NUM_DETECTIONS]
+                 [--plot]
                  source
 
 positional arguments:
-  source                The source of images (allowed options: live, dataset)
+  source                the source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help            show this help message and exit
-  --camera CAMERA       The camera model in use for live capture (default:
+  --camera CAMERA       the camera model in use for live capture (default:
                         SR305)
-  --plot PLOT           Whether to plot the result of detection (default:
-                        true)
   --num-detections NUM_DETECTIONS
-                        The maximum number of bounding boxes for hand
+                        the maximum number of bounding boxes for hand
                         detection (default: 1)
+  --plot                plot the result of detection
 ```
 
 ### Hand pose estimation
@@ -69,15 +68,15 @@ To estimate hand poses from images captured with SR305 camera:
 </p>
 
 ```
-usage: estimate.py [-h] [--camera CAMERA] [--plot PLOT] source
+usage: estimate.py [-h] [--camera CAMERA] [--plot] source
 
 positional arguments:
-  source           The source of images (allowed options: live, dataset)
+  source           the source of images (allowed options: live, dataset)
 
 optional arguments:
   -h, --help       show this help message and exit
-  --camera CAMERA  The camera model in use for live capture (default: SR305)
-  --plot PLOT      Whether to plot the estimation (default: true)
+  --camera CAMERA  the camera model in use for live capture (default: SR305)
+  --plot           plot the result of estimation
 ```
 
 ### System's usage
@@ -95,23 +94,22 @@ period of one second and SR305 camera:
 
 ```
 usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
-                   [--plot PLOT]
+                   [--hide-plot]
                    directory label count
 
 positional arguments:
-  directory             The name of the directory that should contain the
+  directory             the name of the directory that should contain the
                         user-captured gesture database
-  label                 The label of the gesture that is to be captured
-  count                 The number of samples to scan
+  label                 the label of the gesture that is to be captured
+  count                 the number of samples to scan
 
 optional arguments:
   -h, --help            show this help message and exit
   --scan-period SCAN_PERIOD
-                        Intervals between each capture in seconds (default: 1)
-  --camera CAMERA       The camera model in use for live capture (default:
+                        intervals between each capture in seconds (default: 1)
+  --camera CAMERA       the camera model in use for live capture (default:
                         SR305)
-  --plot PLOT           Plot the captured poses - recommended (default: true)
-
+  --hide-plot           hide plots of the captured poses - not recommended
 ```
 
 #### Real-time gesture recognition
@@ -134,7 +132,7 @@ The system plots figures similar to the following:
 </p>
 
 ```
-sage: recognize.py [-h] [--error-threshold ERROR_THRESHOLD]
+usage: recognize.py [-h] [--error-threshold ERROR_THRESHOLD]
                     [--orientation-threshold ORIENTATION_THRESHOLD]
                     [--camera CAMERA] [--plot] [--hide-feedback]
                     [--hide-orientation]
@@ -154,12 +152,9 @@ optional arguments:
                         default: 90)
   --camera CAMERA       the camera model in use for live capture (default:
                         SR305)
-  --plot                whether to plot the result of gesture recognition
-                        (default: False)
-  --hide-feedback       whether to hide the colorbar with JRE errors (default:
-                        False)
-  --hide-orientation    whether to hide the vector depicting the hand's
-                        orientation (default: False)
+  --plot                plot the result of gesture recognition
+  --hide-feedback       hide the colorbar with JRE errors
+  --hide-orientation    hide the vector depicting the hand's orientation
 ```
 
 ### Training of models
