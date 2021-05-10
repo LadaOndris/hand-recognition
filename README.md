@@ -26,12 +26,12 @@ TensorFlow has a wrong dependency. It may otherwise print warnings and not funct
 ## Usage examples
 
 The following examples use mostly 'live' option as the source of images.
-You can use the 'dataset' option instead. Altough most of the custom dataset is not part of the 
+You can use the 'dataset' option instead. Although the custom dataset is not part of the 
 repository, as its size too big, a few images were included for demonstration purposes.
 
 ### Hand detection
 
-To detect hands from images captured with SR305 camera, which is the default camera:  
+To detect both hands from images captured with SR305 camera (as the default option):  
 `python3 detect.py live --num-detections 2`
 
 <p float="left">
@@ -83,7 +83,7 @@ optional arguments:
 ### System's usage
 
 The system requires that the user defines the gesture to be recognized, which
-is performed in *Preparation of gesture database*. The real-time recognition 
+is described in Section *Preparation of gesture database*. The real-time recognition 
 from live images or from the custom dataset is demonstrated in 
 *Real-time gesture recognition*.
 
@@ -91,7 +91,7 @@ from live images or from the custom dataset is demonstrated in
 
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
-```python3 database.py gestures 1 --scan-period 1 --camera SR305```
+```python3 database.py gestures 1 10 --scan-period 1 --camera SR305```
 
 ```
 usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
