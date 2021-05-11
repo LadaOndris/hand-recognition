@@ -7,7 +7,7 @@ tmp
 logs/
 other/
 saved_models/ 
-
+text_source/
 
 datasets/handseg/images
 datasets/handseg/masks
