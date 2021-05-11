@@ -32,8 +32,8 @@ pip install gast==0.3.3
 
 ## Usage examples
 
-The following examples use mostly 'live' option as the source of images.
-You can use the 'dataset' option instead. Although the custom dataset is not part of the 
+The following examples use mostly '**live**' option as the source of images.
+You can use the '**dataset**' **option instead**. Although the custom dataset is not part of the 
 repository, as its size too big, a few images were included for demonstration purposes.
 
 ### Hand detection
@@ -100,35 +100,6 @@ fingers outstretched and apart.
 The usage of the real-time recognition from live images or from the custom dataset is shown in 
 *Real-time gesture recognition*.
 
-
-#### Preparation of gesture database
-
-To capture a gesture with label `1` into a `gestures` directory with a scan
-period of one second and SR305 camera:  
-```
-python3 database.py gestures 1 10
-```
-
-```
-usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
-                   [--hide-plot]
-                   directory label count
-
-positional arguments:
-  directory             the name of the directory that should contain the
-                        user-captured gesture database
-  label                 the label of the gesture that is to be captured
-  count                 the number of samples to scan
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --scan-period SCAN_PERIOD
-                        intervals between each capture in seconds (default: 1)
-  --camera CAMERA       the camera model in use for live capture (default:
-                        SR305)
-  --hide-plot           hide plots of the captured poses - not recommended
-```
-
 #### Real-time gesture recognition
 
 **For demonstration**, the directory named "gestures" is already present,
@@ -178,6 +149,41 @@ optional arguments:
   --hide-orientation    hide the vector depicting the hand's orientation
 ```
 
+
+
+#### Preparation of gesture database
+
+Beware: the preparation of gesture database requires a depth camera. 
+You can **skip this section** because there is already a database 
+called `gestures` available.
+
+To capture a gesture with label `1` into a `gestures` directory with a scan
+period of one second and SR305 camera:  
+```
+python3 database.py gestures 1 10
+```
+
+```
+usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
+                   [--hide-plot]
+                   directory label count
+
+positional arguments:
+  directory             the name of the directory that should contain the
+                        user-captured gesture database
+  label                 the label of the gesture that is to be captured
+  count                 the number of samples to scan
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --scan-period SCAN_PERIOD
+                        intervals between each capture in seconds (default: 1)
+  --camera CAMERA       the camera model in use for live capture (default:
+                        SR305)
+  --hide-plot           hide plots of the captured poses - not recommended
+```
+
+
 ### Training of models
 
 To train the Tiny YOLOv3 on the HandSeg dataset:  
@@ -199,7 +205,8 @@ See `--help` for other optional arguments.
     .
     ├── datasets                # Datasets (including gesture database)
     ├── docs                    # Demonstration videos, readme files, and images 
-    ├── text_source             # Latex source files of the thesis' text
+    ├── logs                    # Saved models' weights
+    ├── text_src                # Latex source files of the thesis' text
     ├── src                     # Source files
     ├── LICENSE                 # MIT license
     ├── README.md               # Contents of this file

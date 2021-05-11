@@ -47,8 +47,12 @@ class UsecaseDatabaseReader:
         labels_arrs = []
 
         for file, label in zip(files, labels):
-            joints_flattened = np.genfromtxt(file, dtype=np.float, delimiter=' ')  # (lines, 63)
-            joints_arr = np.reshape(joints_flattened, [joints_flattened.shape[0], -1, 3])
+            try:
+                joints_flattened = np.genfromtxt(file, dtype=np.float, delimiter=' ')  # (lines, 63)
+                joints_arr = np.reshape(joints_flattened, [joints_flattened.shape[0], -1, 3])
+            except ValueError:
+                # Skip invalid files.. empty or worse.
+                continue
             labels_arr = np.full(shape=[joints_flattened.shape[0]], fill_value=label)
             hand_poses_arrs.append(joints_arr)
             labels_arrs.append(labels_arr)

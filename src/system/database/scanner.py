@@ -1,3 +1,4 @@
+import os
 import time
 
 import numpy as np
@@ -25,10 +26,15 @@ class UsecaseDatabaseScanner:
         and saves estimated joints into a new file with current timestamp
         in a directory specified by subdir.
         """
-        file_path = self._prepare_file(gesture_label)
         generator = generate_live_images()
-        with open(file_path, 'a+') as file:
-            self._scan_from_generator(generator, file, scan_period, num_samples)
+        file_path = self._prepare_file(gesture_label)
+        try:
+            with open(file_path, 'a+') as file:
+                self._scan_from_generator(generator, file, scan_period, num_samples)
+        except RuntimeError:
+            # If there is no camera, remove the prepared file.
+            os.remove(file_path)
+
 
     def _scan_from_generator(self, generator, file, scan_period, num_samples):
         count = 0
