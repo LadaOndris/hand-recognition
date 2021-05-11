@@ -183,21 +183,6 @@ optional arguments:
   --hide-plot           hide plots of the captured poses - not recommended
 ```
 
-
-### Training of models
-
-To train the Tiny YOLOv3 on the HandSeg dataset:  
-```
-python3 train_yolov3.py
-```
-
-To train the JGR-P2O model on the Bighand dataset from existing weights:  
-```
-python3 train_jgrp2o.py bighand --model logs/20210426-125059/train_ckpts/weights.25.h5
-```
-
-See `--help` for other optional arguments.
-
 ## Project structure
 
 ### Top-level structure
