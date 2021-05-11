@@ -22,6 +22,9 @@ def clean_max_depth(image_data, max_depth_mm=2000):
 
 
 def start_live_capture(plot=False):
+    """
+    Scans and saves depth images.
+    """
     generator = generate_live_images()
     dir = make_timestamped_dir(CUSTOM_DATASET_DIR)
     print("Capture has starated...")

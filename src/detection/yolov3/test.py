@@ -3,7 +3,7 @@ from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3.architecture.loader import YoloLoader
 from src.detection.yolov3.preprocessing import DatasetPreprocessor
 from src.utils.config import TEST_YOLO_CONF_THRESHOLD
-from src.utils.imaging import RESIZE_MODE, RESIZE_MODE_CROP
+from src.utils.imaging import RESIZE_MODE_CROP
 from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR
 
 

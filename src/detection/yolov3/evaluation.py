@@ -7,7 +7,7 @@ from src.datasets.handseg.dataset_bboxes import HandsegDatasetBboxes
 from src.detection.yolov3 import utils
 from src.detection.yolov3.architecture.loader import YoloLoader
 from src.detection.yolov3.preprocessing import DatasetPreprocessor
-from src.utils.imaging import RESIZE_MODE, RESIZE_MODE_CROP
+from src.utils.imaging import RESIZE_MODE_CROP
 from src.utils.paths import DOCS_DIR, HANDSEG_DATASET_DIR, LOGS_DIR
 
 
@@ -129,8 +129,8 @@ if __name__ == '__main__':
     true_path = '../../../other/eval_y_true_03-15.pkl.npy'
     # evaluate_and_save(pred_path, true_path)
 
-    figure_scores_path = str(DOCS_DIR.joinpath('figures/yolo_eval_scores_03-15.pdf'))
-    figure_curve_path = str(DOCS_DIR.joinpath('figures/yolo_eval_curve_03-15.pdf'))
+    figure_scores_path = str(DOCS_DIR.joinpath('figures/evaluation/yolo_eval_scores_03-15.pdf'))
+    figure_curve_path = str(DOCS_DIR.joinpath('figures/evaluation/yolo_eval_curve_03-15.pdf'))
     generate_precision_recall_curves(pred_path, true_path, show_figs=True,
                                      fig_scores_location=figure_scores_path,
                                      fig_precision_recall_location=figure_curve_path)

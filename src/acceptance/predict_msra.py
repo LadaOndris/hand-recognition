@@ -173,7 +173,7 @@ def plot_accuracy_vs_train_sizes():
     Plots the accuracy score produced by the
     predict_for_different_train_sizes function.
     """
-    fig_location = DOCS_DIR.joinpath('figures/gesture_recognition_evaluation_msra.pdf')
+    fig_location = DOCS_DIR.joinpath('figures/evaluation/gesture_recognition_evaluation_msra.pdf')
     acc_without_length_norm = [0.47216, 0.68169, 0.79358, 0.83532, 0.86857,
                                0.90493, 0.91702, 0.94044, 0.94254, 0.94857]
 

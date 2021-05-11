@@ -179,8 +179,8 @@ def plot_hands():
     hand1 = (images[idx], bbox_coords[idx], joints[idx])
     hand2 = (images2[idx2], bbox_coords2[idx2], joints2[idx2])
 
-    fig1 = DOCS_DIR.joinpath('figures/msra_jre_1.png')
-    fig2 = DOCS_DIR.joinpath('figures/msra_jre_2.png')
+    fig1 = DOCS_DIR.joinpath('figures/design/msra_jre_1.png')
+    fig2 = DOCS_DIR.joinpath('figures/design/msra_jre_2.png')
     plot_two_hands_diff(hand1, hand2, cam, show_norm=True, show_joint_errors=True, fig_location=None)
     plot_two_hands_diff(hand2, hand1, cam, show_norm=True, show_joint_errors=True, fig_location=None)
 

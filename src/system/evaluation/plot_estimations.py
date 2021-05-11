@@ -50,7 +50,7 @@ def save_estimations_on_bighand():
     fig_filenames = get_figures_filenames(files)
     for file, fig_filename in zip(files, fig_filenames):
         estimator.estimate_from_file(str(BIGHAND_DATASET_DIR.joinpath(file)),
-                                     fig_location=DOCS_DIR.joinpath(F"images/estimation/{fig_filename}"))
+                                     fig_location=DOCS_DIR.joinpath(F"figures/evaluation/bighand/{fig_filename}"))
 
 
 def get_bighand_image_files():

@@ -32,7 +32,7 @@ repository, as its size too big, a few images were included for demonstration pu
 ### Hand detection
 
 To detect both hands from images captured with SR305 camera (as the default option):  
-`python3 detect.py live --num-detections 2`
+`python3 detect.py live --num-detections 2 --plot`
 
 <p float="left">
     <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
@@ -60,7 +60,7 @@ optional arguments:
 ### Hand pose estimation
 
 To estimate hand poses from images captured with SR305 camera:  
-`python3 estimate.py live`
+`python3 estimate.py live --plot`
 
 <p float="left">
     <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
@@ -82,15 +82,15 @@ optional arguments:
 ### System's usage
 
 The system requires that the user defines the gesture to be recognized, which
-is described in Section *Preparation of gesture database*. The real-time recognition 
-from live images or from the custom dataset is demonstrated in 
+is described in Section *Preparation of gesture database*. The usage of the 
+real-time recognition from live images or from the custom dataset is shown in 
 *Real-time gesture recognition*.
 
 #### Preparation of gesture database
 
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
-```python3 database.py gestures 1 10 --scan-period 1 --camera SR305```
+```python3 database.py gestures 1 10```
 
 ```
 usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]

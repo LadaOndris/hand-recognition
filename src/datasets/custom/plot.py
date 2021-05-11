@@ -14,7 +14,7 @@ def plot_image(filepath, fig_location=None):
     plots.plot_depth_image(img, figsize=(4, 3), fig_location=fig_location)
 
 
-save_fig_pattern = DOCS_DIR.joinpath('images/datasets/CustomSampleImage{}.png')
+save_fig_pattern = DOCS_DIR.joinpath('figures/datasets/CustomSampleImage{}.png')
 save_fig_pattern = str(save_fig_pattern)
 plot_image('20210326-230536/110.png', save_fig_pattern.format(1))
 plot_image('20210326-232147/70.png', save_fig_pattern.format(2))

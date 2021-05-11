@@ -72,7 +72,7 @@ def plot_predictions_with_annotations(y_pred, y_true, generator: DatasetPreproce
         joints_true = joints2d_true[i]
         mje = mjes[i]
 
-        # fig_location = DOCS_DIR.joinpath(F"images/estimation/msra/msra_{mje:.2f}.png")
+        # fig_location = DOCS_DIR.joinpath(F"figures/evaluation/msra/msra_{mje:.2f}.png")
         plots.plot_joints_with_annotations(image.to_tensor(), joints_pred, joints_true, figsize=(3, 3),
                                            fig_location=None)
 

@@ -1,6 +1,6 @@
 from src.utils.paths import MSRAHANDGESTURE_DATASET_DIR, DOCS_DIR
 from src.utils.plots import plot_image_with_skeleton
-from src.datasets.MSRAHandGesture.dataset import read_images
+from src.datasets.msra.dataset import read_images
 from src.utils.camera import Camera
 
 
@@ -14,7 +14,7 @@ def plot_image_with_annotation(subject_gesture_folder, image_index, show_fig, fi
 
 def plot_images_with_annotations(show_fig=True):
     idx = 50
-    path = str(DOCS_DIR.joinpath('figures/MSRASampleImage{}.png'))
+    path = str(DOCS_DIR.joinpath('figures/datasets/MSRASampleImage{}.png'))
     plot_image_with_annotation('P0/5', idx, show_fig, path.format(1))
     plot_image_with_annotation('P0/2', idx, show_fig, path.format(2))
     plot_image_with_annotation('P0/L', idx, show_fig, path.format(3))

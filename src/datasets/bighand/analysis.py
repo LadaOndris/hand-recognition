@@ -29,5 +29,5 @@ def show_sample_from_each_folder(save_fig_location_pattern=None):
 
 
 if __name__ == '__main__':
-    fig_location_pattern = DOCS_DIR.joinpath('images/datasets/BigHandSampleImage{}.png')
+    fig_location_pattern = DOCS_DIR.joinpath('figures/datasets/BigHandSampleImage{}.png')
     show_sample_from_each_folder(fig_location_pattern)

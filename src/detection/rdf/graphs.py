@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-
+from src.utils.paths import DOCS_DIR
 
 def graph_scores_vs_feature_numbers():
     features = range(50, 2001, 50)
@@ -35,7 +35,7 @@ def graph_scores_vs_feature_numbers():
     plt.xlabel("Number of features")
     plt.ylabel("Score")
     plt.title("Relation between the number of features and the score", pad=15)
-    plt.savefig("./figures/RdfNumberOfFeatures.pdf")
+    plt.savefig(DOCS_DIR.joinpath("figures/evaluation/RdfNumberOfFeatures.pdf"))
     plt.show()
 
 
@@ -58,7 +58,7 @@ def graph_scores_vs_trees_per_iter():
     plt.xlabel("Number of trees")
     plt.ylabel("Score")
     plt.title("Relation between the number of learned trees per iteration and the score", pad=15)
-    plt.savefig("./figures/RdfNumberOfTreesPerIter.pdf")
+    plt.savefig(DOCS_DIR.joinpath("figures/evaluation/RdfNumberOfTreesPerIter.pdf"))
     plt.show()
 
 
@@ -80,7 +80,7 @@ def graph_scores_vs_tree_height():
     plt.xlabel("Tree height")
     plt.ylabel("Score")
     plt.title("Relation between the tree height and the score", pad=15)
-    plt.savefig("./figures/RdfTreeHeight.pdf")
+    plt.savefig(DOCS_DIR.joinpath("figures/evaluation/RdfTreeHeight.pdf"))
     plt.show()
 
 

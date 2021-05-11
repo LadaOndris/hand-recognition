@@ -74,7 +74,7 @@ class DatasetPreprocessor:
         self.bcubes = self.com_preprocessor.refine_bcube_using_com(images, bboxes,
                                                                    cube_size=self.cube_size,
                                                                    refine_iters=self.refine_iters)
-        # path = DOCS_DIR.joinpath('images/bounding_cube1.png')
+        # path = DOCS_DIR.joinpath('figures/design/bounding_cube1.png')
         # plots.plot_bounding_cube(images[0], self.bcubes[0], self.camera, fig_location=path)
         # Crop the area defined by bcube from the orig image
         self.cropped_imgs = self.com_preprocessor.crop_bcube(images, self.bcubes)
@@ -174,8 +174,8 @@ class DatasetPreprocessor:
 
         # plot_image_comparison(image_casted, image_morph_closed, 'closing')
         # plot_image_comparison(image_casted, image_morph_opened, 'opening')
-        # plots.plot_depth_image(image_casted, DOCS_DIR.joinpath('images/largest_contour_original.png'))
-        # plots.plot_depth_image(image_morph_closed, DOCS_DIR.joinpath('images/largest_contour_after_morphing.png'))
+        # plots.plot_depth_image(image_casted, DOCS_DIR.joinpath('figures/design/largest_contour_original.png'))
+        # plots.plot_depth_image(image_morph_closed, DOCS_DIR.joinpath('figures/design/largest_contour_after_morphing.png'))
 
         # Convert dtype to uint8
         image_morph_closed = cv2.convertScaleAbs(image_morph_closed)
@@ -192,8 +192,8 @@ class DatasetPreprocessor:
         mask = out_tensor > 0
         cleared_img = tf.where(mask, image_tensor, 0)
 
-        # plots.plot_depth_image(out_tensor, DOCS_DIR.joinpath('images/largest_contour_mask.png'))
-        # plots.plot_depth_image(cleared_img, DOCS_DIR.joinpath('images/largest_contour_result.png'))
+        # plots.plot_depth_image(out_tensor, DOCS_DIR.joinpath('figures/design/largest_contour_mask.png'))
+        # plots.plot_depth_image(cleared_img, DOCS_DIR.joinpath('figures/design/largest_contour_result.png'))
 
         # cleared_img = tf.convert_to_tensor(cleared_img[..., np.newaxis])
         # cleared_img = tf.image.convert_image_dtype(cleared_img, tf.uint16)

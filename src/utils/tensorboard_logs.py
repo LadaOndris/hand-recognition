@@ -48,7 +48,7 @@ if __name__ == "__main__":
     tensorboard dev upload --logdir ./logs/20210315-143811/
     See: https://www.tensorflow.org/tensorboard/dataframe_api
     """
-    location = DOCS_DIR.joinpath('images/tiny_yolov3_epoch_loss.pdf')
+    location = DOCS_DIR.joinpath('figures/implementation/tiny_yolov3_epoch_loss.pdf')
     df = load_stats(experiment_id='A5l9wDz1QaSxTlDpIdMaRQ')
     plot_epoch_loss(df, fig_location=location, show_figure=True)
     pass

@@ -51,7 +51,6 @@ def plot_predictions_with_cells(image, boxes, nums, stride, fig_location=None):
 
     plot_adjust(fig, ax)
     save_show_fig(fig, fig_location, True)
-    # fig.savefig(F"../../../docs/images/yolo_prediction_with_cell_{index}.pdf", bbox_inches='tight')
 
 
 def plot_prediction_box(ax, x, y, w, h):
