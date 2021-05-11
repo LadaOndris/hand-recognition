@@ -19,11 +19,16 @@ Intel RealSense SR305 depth camera - for live capture
 ## Installation
 
 Install the required packages with:  
-```pip install -r requirements.txt```
+```
+pip install -r requirements.txt
+```
 
-Install gast==0.3.3, which downgrades the package from version 0.4.0.
-TensorFlow has a wrong dependency. It may otherwise print warnings and not function properly.  
-`pip install gast==0.3.3`
+In case TensorFlow has a wrong dependency of gast, which may result in warning
+or error messages, install 0.3.3 version of gast, which downgrades the package from version 0.4.0.
+
+```
+pip install gast==0.3.3
+```
 
 ## Usage examples
 
@@ -34,7 +39,9 @@ repository, as its size too big, a few images were included for demonstration pu
 ### Hand detection
 
 To detect both hands from images captured with SR305 camera (as the default option):  
-`python3 detect.py live --num-detections 2 --plot`
+```
+python3 detect.py live --num-detections 2 --plot
+```
 
 <p float="left">
     <img src="./docs/readme/live_detection.png" alt="live_detection" width="220"/>
@@ -62,7 +69,9 @@ optional arguments:
 ### Hand pose estimation
 
 To estimate hand poses from images captured with SR305 camera:  
-`python3 estimate.py live --plot`
+```
+python3 estimate.py live --plot
+```
 
 <p float="left">
     <img src="./docs/readme/live_estimation.png" alt="live_estimation" width="220"/>
@@ -84,15 +93,21 @@ optional arguments:
 ### System's usage
 
 The system requires that the user defines the gesture to be recognized, which
-is described in Section *Preparation of gesture database*. The usage of the 
-real-time recognition from live images or from the custom dataset is shown in 
+is described in Section *Preparation of gesture database*. For demonstration purposes,
+the gesture database is already prepared for the gesture with an opened palm, 
+fingers outstretched and apart.  
+
+The usage of the real-time recognition from live images or from the custom dataset is shown in 
 *Real-time gesture recognition*.
+
 
 #### Preparation of gesture database
 
 To capture a gesture with label `1` into a `gestures` directory with a scan
 period of one second and SR305 camera:  
-```python3 database.py gestures 1 10```
+```
+python3 database.py gestures 1 10
+```
 
 ```
 usage: database.py [-h] [--scan-period SCAN_PERIOD] [--camera CAMERA]
@@ -117,15 +132,19 @@ optional arguments:
 #### Real-time gesture recognition
 
 **For demonstration**, the directory named "gestures" is already present,
-containing definitions for a gesture with opened palm with fingers outstretched
+containing definitions for a gesture with an opened palm, fingers outstretched
 and apart.  
 
 To start the gesture recognition system using gesture database stored in 
 the `gestures` directory:  
-`python3 recognize.py live gestures --plot`
+```
+python3 recognize.py live gestures --plot
+```
 
 To start the gesture recognition from the evaluation dataset:  
-`python3 recognize.py dataset gestures --plot`
+```
+python3 recognize.py dataset gestures --plot
+```
 
 The system plots figures similar to the following:  
 <p float="left">
@@ -162,12 +181,16 @@ optional arguments:
 ### Training of models
 
 To train the Tiny YOLOv3 on the HandSeg dataset:  
-```python3 train_yolov3.py```
+```
+python3 train_yolov3.py
+```
 
 To train the JGR-P2O model on the Bighand dataset from existing weights:  
-`python3 train_jgrp2o.py bighand --model logs/20210426-125059/train_ckpts/weights.25.h5`
+```
+python3 train_jgrp2o.py bighand --model logs/20210426-125059/train_ckpts/weights.25.h5
+```
 
-See --help for other allowed options.
+See `--help` for other optional arguments.
 
 ## Project structure
 
