@@ -9,10 +9,12 @@ The gesture recognition system then uses a JGR-P2O hand pose estimator
 to determine the hands' skeleton, which is used for gesture classification.
 
 
+See demonstration videos, which are located in the `docs/` directory.
+
 ## Prerequisites
 
 Python 3.7.10  
-Intel RealSense depth camera (e.g., SR305) - only for live capture
+Intel RealSense SR305 depth camera - for live capture
 
 ## Installation
 
@@ -173,12 +175,13 @@ See --help for other allowed options.
 
     .
     ├── datasets                # Datasets (including gesture database)
-    ├── docs                    # Documentation files 
+    ├── docs                    # Demonstration videos, readme files, and images 
+    ├── text_source             # Latex source files of the thesis' text
     ├── src                     # Source files
     ├── LICENSE                 # MIT license
     ├── README.md               # Contents of this file
     ├── requirements.txt        # Package requirements 
-    └── upload_ibt_src.sh       # Script for uploading source files to metacentrum
+    └── bachelors_thesis.pdf    # Text of the thesis
 
 ### Datasets
 
@@ -197,7 +200,7 @@ See --help for other allowed options.
     ├── datasets                 # Dataset related code (pipelines, plots, generation)
     ├── detection                # Detection methods - Tiny YOLOv3, RDF
     ├── estimation               # JGR-P2O estimation model and preprocessing
-    ├── metacentrum              # Scripts for training in Metacentrum
+    ├── metacentrum              # Scripts for training models in Metacentrum
     ├── system                   # Access point to gesture recognition system 
     │                              (database_scanner, gesture_recognizer, hand_position_estimator)
     └── utils                    # Camera, logs, plots, live capture, config
