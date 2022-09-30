@@ -1,6 +1,6 @@
 pandas==1.2.3
 numpy
-joblib==1.0.1
+joblib==1.2.0
 tensorflow==2.5.0
 scipy==1.6.2
 pyrealsense2==2.42.0.2924
